@@ -4,9 +4,46 @@ from datetime import datetime
 
 DB_PATH = Path("data/biblioteca.db")
 
+
+OBRAS_COLUMNS = {
+    "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "titulo": "TEXT NOT NULL",
+    "autor": "TEXT",
+    "tipo": "TEXT",
+    "clasificacion": "REAL DEFAULT 0",
+    "estado_lectura": "TEXT",
+    "estado_publicacion": "TEXT",
+    "capitulo_actual": "INTEGER DEFAULT 0",
+    "capitulo_total": "INTEGER DEFAULT 0",
+    "sinopsis": "TEXT",
+    "etiquetas": "TEXT",
+    "link_original": "TEXT",
+    "link_respaldo": "TEXT",
+    "portada_path": "TEXT",
+    "respaldo_path": "TEXT",
+    "motivo_estado": "TEXT",
+    "favorito": "INTEGER DEFAULT 0",
+    "fecha_inicio": "TEXT",
+    "fecha_fin": "TEXT",
+    "created_at": "TEXT",
+    "updated_at": "TEXT",
+}
+
+
 def get_conn():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     return sqlite3.connect(DB_PATH)
+
+
+def _ensure_obras_columns(conn):
+    existing = {
+        row[1]
+        for row in conn.execute("PRAGMA table_info(obras)").fetchall()
+    }
+    for column, definition in OBRAS_COLUMNS.items():
+        if column not in existing:
+            conn.execute(f"ALTER TABLE obras ADD COLUMN {column} {definition}")
+
 
 def init_db():
     with get_conn() as conn:
@@ -35,6 +72,7 @@ def init_db():
             updated_at TEXT
         )
         """)
+        _ensure_obras_columns(conn)
         conn.execute("""
         CREATE TABLE IF NOT EXISTS capitulos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,6 +88,7 @@ def init_db():
         """)
         conn.commit()
 
+
 def add_obra(data):
     now = datetime.now().isoformat(timespec="seconds")
     data = dict(data)
@@ -60,6 +99,56 @@ def add_obra(data):
     with get_conn() as conn:
         conn.execute(f"INSERT INTO obras ({keys}) VALUES ({placeholders})", list(data.values()))
         conn.commit()
+
+
+def update_obra(obra_id, data):
+    now = datetime.now().isoformat(timespec="seconds")
+    data = dict(data)
+    data["updated_at"] = now
+    setters = ", ".join([f"{k}=?" for k in data.keys()])
+    with get_conn() as conn:
+        conn.execute(f"UPDATE obras SET {setters} WHERE id=?", list(data.values()) + [obra_id])
+        conn.commit()
+
+
+def delete_obra(obra_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM capitulos WHERE obra_id=?", (obra_id,))
+        conn.execute("DELETE FROM obras WHERE id=?", (obra_id,))
+        conn.commit()
+
+
+def list_obras():
+    with get_conn() as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM obras ORDER BY updated_at DESC").fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_obra(obra_id):
+    with get_conn() as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM obras WHERE id=?", (obra_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def add_capitulo(data):
+    now = datetime.now().isoformat(timespec="seconds")
+    data = dict(data)
+    data["created_at"] = now
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO capitulos (obra_id, numero, titulo, sinopsis, notas, fecha_lectura, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [data.get("obra_id"), data.get("numero"), data.get("titulo"), data.get("sinopsis"), data.get("notas"), data.get("fecha_lectura"), data.get("created_at")]
+        )
+        conn.commit()
+
+
+def list_capitulos(obra_id):
+    with get_conn() as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM capitulos WHERE obra_id=? ORDER BY numero DESC", (obra_id,)).fetchall()
+    return [dict(row) for row in rows]        conn.commit()
 
 def update_obra(obra_id, data):
     now = datetime.now().isoformat(timespec="seconds")
