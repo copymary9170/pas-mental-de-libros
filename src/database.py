@@ -148,7 +148,7 @@ def list_capitulos(obra_id):
     with get_conn() as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute("SELECT * FROM capitulos WHERE obra_id=? ORDER BY numero DESC", (obra_id,)).fetchall()
-    return [dict(row) for row in rows]        conn.commit()
+    return [dict(row) for row in rows]
 
 def update_obra(obra_id, data):
     now = datetime.now().isoformat(timespec="seconds")
