@@ -6,7 +6,7 @@ import plotly.express as px
 import streamlit as st
 
 from src.database import init_db, add_obra, update_obra, delete_obra, list_obras, get_obra, add_capitulo, list_capitulos
-from src.utils import save_uploaded_file, parse_tags, PORTADAS_DIR, RESPALDOS_DIR, ensure_dirs, buscar_portada_openlibrary
+from src.utils import save_uploaded_file, parse_tags, PORTADAS_DIR, RESPALDOS_DIR, ensure_dirs, buscar_portada_openlibrary, buscar_libros_openlibrary, buscar_series_tvmaze
 from src.styles import apply_styles
 
 st.set_page_config(page_title="Paz Mental", page_icon="📚", layout="wide")
@@ -71,6 +71,31 @@ def tv_card(row):
     """
 
 
+def guardar_importado(item, tipo, estado):
+    add_obra({
+        "titulo": item.get("titulo", "Sin titulo"),
+        "autor": item.get("autor", ""),
+        "tipo": tipo,
+        "clasificacion": 0,
+        "estado_lectura": estado,
+        "estado_publicacion": item.get("estado_publicacion", "No aplica"),
+        "temporada_actual": 1,
+        "temporada_total": int(item.get("temporada_total") or 1),
+        "capitulo_actual": 0,
+        "capitulo_total": int(item.get("capitulo_total") or 0),
+        "sinopsis": item.get("sinopsis", ""),
+        "etiquetas": item.get("etiquetas", "importado"),
+        "link_original": "",
+        "link_respaldo": "",
+        "portada_path": item.get("portada_path", ""),
+        "respaldo_path": "",
+        "motivo_estado": f"Importado desde base externa. Año: {item.get('anio') or 'N/D'}",
+        "favorito": 0,
+        "fecha_inicio": str(date.today()),
+        "fecha_fin": None,
+    })
+
+
 obras = list_obras()
 df = pd.DataFrame(obras)
 
@@ -84,9 +109,50 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-tab_books, tab_tv, tab_add, tab_chapters, tab_stats, tab_export = st.tabs([
-    "📚 Biblioteca", "📺 Series y pelis", "➕ Agregar", "📝 Capitulos", "📊 Stats", "⬇️ Exportar"
+tab_search, tab_books, tab_tv, tab_add, tab_chapters, tab_stats, tab_export = st.tabs([
+    "🔎 Buscar e importar", "📚 Biblioteca", "📺 Series y pelis", "➕ Agregar manual", "📝 Capitulos", "📊 Stats", "⬇️ Exportar"
 ])
+
+with tab_search:
+    st.subheader("Buscar en bases de datos externas")
+    fuente = st.radio("Que quieres buscar?", ["Libros", "Series / anime / TV"], horizontal=True)
+    query = st.text_input("Nombre de la obra", key="external_query")
+    estado_import = st.selectbox("Estado al importar", ESTADOS, index=0)
+    buscar = st.button("Buscar")
+    if buscar and query.strip():
+        if fuente == "Libros":
+            st.session_state["external_results"] = buscar_libros_openlibrary(query.strip())
+            st.session_state["external_kind"] = "book"
+        else:
+            st.session_state["external_results"] = buscar_series_tvmaze(query.strip())
+            st.session_state["external_kind"] = "tv"
+
+    results = st.session_state.get("external_results", [])
+    kind = st.session_state.get("external_kind")
+    if results:
+        st.write(f"Resultados encontrados: {len(results)}")
+        for i, item in enumerate(results):
+            col1, col2, col3 = st.columns([1, 4, 1])
+            with col1:
+                if item.get("portada_path"):
+                    st.image(item.get("portada_path"), use_container_width=True)
+                else:
+                    st.write("Sin portada")
+            with col2:
+                st.markdown(f"### {item.get('titulo')}")
+                st.write(item.get("autor") or "Autor / canal no indicado")
+                st.caption(f"Año: {item.get('anio') or 'N/D'} · Tags: {item.get('etiquetas') or ''}")
+                if item.get("sinopsis"):
+                    st.write(item.get("sinopsis")[:500])
+            with col3:
+                tipo_default = "Libro" if kind == "book" else "Serie"
+                tipo_final = st.selectbox("Tipo", BOOK_TYPES if kind == "book" else TV_TYPES, key=f"tipo_import_{i}")
+                if st.button("Importar", key=f"import_{i}"):
+                    guardar_importado(item, tipo_final or tipo_default, estado_import)
+                    st.success(f"Importado: {item.get('titulo')}")
+            st.divider()
+    elif buscar and query.strip():
+        st.warning("No encontre resultados. Puedes agregarlo manualmente en la pestaña Agregar manual.")
 
 with tab_books:
     books = df[df["tipo"].isin(BOOK_TYPES)].copy() if not df.empty else pd.DataFrame()
@@ -123,7 +189,7 @@ with tab_tv:
         st.markdown('<div class="tv-list">' + ''.join(tv_card(row) for _, row in tv.iterrows()) + '</div>', unsafe_allow_html=True)
 
 with tab_add:
-    st.subheader("Agregar obra")
+    st.subheader("Agregar obra manualmente")
     modo = st.radio("Tipo de registro", ["Libro / fanfic / manga", "Serie / anime / pelicula"], horizontal=True)
     with st.form("obra_form"):
         col1, col2 = st.columns(2)
