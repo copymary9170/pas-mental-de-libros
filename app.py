@@ -8,11 +8,13 @@ import streamlit as st
 from src.database import init_db, add_obra, update_obra, delete_obra, list_obras, get_obra, add_capitulo, list_capitulos
 from src.utils import save_uploaded_file, parse_tags, PORTADAS_DIR, RESPALDOS_DIR, ensure_dirs, buscar_portada_openlibrary
 try:
-    from src.utils import buscar_libros_openlibrary, buscar_series_tvmaze
+    from src.utils import buscar_libros_openlibrary, buscar_series_tvmaze, buscar_peliculas_itunes
 except ImportError:
     def buscar_libros_openlibrary(query):
         return []
     def buscar_series_tvmaze(query):
+        return []
+    def buscar_peliculas_itunes(query):
         return []
 from src.styles import apply_styles
 
@@ -122,7 +124,7 @@ tab_search, tab_books, tab_tv, tab_add, tab_chapters, tab_stats, tab_export = st
 
 with tab_search:
     st.subheader("Buscar en bases de datos externas")
-    fuente = st.radio("Que quieres buscar?", ["Libros", "Series / anime / TV"], horizontal=True)
+    fuente = st.radio("Que quieres buscar?", ["Libros", "Series / anime / TV", "Peliculas"], horizontal=True)
     query = st.text_input("Nombre de la obra", key="external_query")
     estado_import = st.selectbox("Estado al importar", ESTADOS, index=0)
     buscar = st.button("Buscar")
@@ -130,6 +132,9 @@ with tab_search:
         if fuente == "Libros":
             st.session_state["external_results"] = buscar_libros_openlibrary(query.strip())
             st.session_state["external_kind"] = "book"
+        elif fuente == "Peliculas":
+            st.session_state["external_results"] = buscar_peliculas_itunes(query.strip())
+            st.session_state["external_kind"] = "movie"
         else:
             st.session_state["external_results"] = buscar_series_tvmaze(query.strip())
             st.session_state["external_kind"] = "tv"
@@ -152,10 +157,15 @@ with tab_search:
                 if item.get("sinopsis"):
                     st.write(item.get("sinopsis")[:500])
             with col3:
-                tipo_default = "Libro" if kind == "book" else "Serie"
-                tipo_final = st.selectbox("Tipo", BOOK_TYPES if kind == "book" else TV_TYPES, key=f"tipo_import_{i}")
+                if kind == "book":
+                    opciones = BOOK_TYPES
+                elif kind == "movie":
+                    opciones = ["Pelicula", "Documental", "Otro"]
+                else:
+                    opciones = TV_TYPES
+                tipo_final = st.selectbox("Tipo", opciones, key=f"tipo_import_{i}")
                 if st.button("Importar", key=f"import_{i}"):
-                    guardar_importado(item, tipo_final or tipo_default, estado_import)
+                    guardar_importado(item, tipo_final, estado_import)
                     st.success(f"Importado: {item.get('titulo')}")
             st.divider()
     elif buscar and query.strip():
