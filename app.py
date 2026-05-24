@@ -6,7 +6,14 @@ import plotly.express as px
 import streamlit as st
 
 from src.database import init_db, add_obra, update_obra, delete_obra, list_obras, get_obra, add_capitulo, list_capitulos
-from src.utils import save_uploaded_file, parse_tags, PORTADAS_DIR, RESPALDOS_DIR, ensure_dirs, buscar_portada_openlibrary, buscar_libros_openlibrary, buscar_series_tvmaze
+from src.utils import save_uploaded_file, parse_tags, PORTADAS_DIR, RESPALDOS_DIR, ensure_dirs, buscar_portada_openlibrary
+try:
+    from src.utils import buscar_libros_openlibrary, buscar_series_tvmaze
+except ImportError:
+    def buscar_libros_openlibrary(query):
+        return []
+    def buscar_series_tvmaze(query):
+        return []
 from src.styles import apply_styles
 
 st.set_page_config(page_title="Paz Mental", page_icon="📚", layout="wide")
