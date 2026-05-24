@@ -2,6 +2,7 @@ from pathlib import Path
 import re
 import shutil
 import uuid
+from urllib.parse import urlparse, unquote
 import requests
 
 UPLOADS_DIR = Path("uploads")
@@ -36,6 +37,58 @@ def clean_html(text):
     if not text:
         return ""
     return re.sub(r"<[^>]+>", "", text).strip()
+
+
+def detectar_plataforma(url):
+    host = urlparse(url).netloc.lower()
+    if "kakao" in host:
+        return "KakaoPage"
+    if "naver" in host:
+        return "Naver Series/Webtoon"
+    if "munpia" in host:
+        return "Munpia"
+    if "ridibooks" in host or "ridi" in host:
+        return "Ridi"
+    if "novelupdates" in host:
+        return "NovelUpdates"
+    if "webnovel" in host:
+        return "Webnovel"
+    return host or "link externo"
+
+
+def extraer_titulo_desde_url(url):
+    try:
+        path = unquote(urlparse(url).path)
+        parts = [p for p in path.split("/") if p]
+        if parts:
+            raw = parts[-1]
+            raw = re.sub(r"[-_]+", " ", raw)
+            raw = re.sub(r"\d+", "", raw).strip()
+            return raw[:80] if raw else "Obra importada por link"
+    except Exception:
+        pass
+    return "Obra importada por link"
+
+
+def importar_desde_link(url):
+    plataforma = detectar_plataforma(url)
+    titulo = extraer_titulo_desde_url(url)
+    etiquetas = f"importado por link, webnovel, novela web, {plataforma.lower()}"
+    if plataforma in ["KakaoPage", "Naver Series/Webtoon", "Munpia", "Ridi"]:
+        etiquetas += ", coreana, hangul"
+    return {
+        "titulo": titulo,
+        "autor": plataforma,
+        "tipo": "Webnovel",
+        "anio": "",
+        "sinopsis": f"Importada desde enlace externo: {url}",
+        "portada_path": "",
+        "capitulo_total": 0,
+        "temporada_total": 1,
+        "etiquetas": etiquetas,
+        "estado_publicacion": "No aplica",
+        "link_original": url,
+    }
 
 
 def buscar_portada_openlibrary(titulo, autor=""):
@@ -167,10 +220,7 @@ def _tmdb_search(query, media_type, api_key, korean=False):
             poster = item.get("poster_path")
             original_lang = item.get("original_language") or ""
             tags = ["tmdb", "importado"]
-            if media_type == "movie":
-                tags.append("pelicula")
-            else:
-                tags.append("serie")
+            tags.append("pelicula" if media_type == "movie" else "serie")
             if korean or original_lang == "ko":
                 tags.extend(["kdrama", "corea", "kakao referencia"])
             results.append({
@@ -206,29 +256,14 @@ def buscar_peliculas_itunes(query):
     if not query:
         return []
     try:
-        r = requests.get(
-            "https://itunes.apple.com/search",
-            params={"term": query, "media": "movie", "entity": "movie", "limit": 15, "country": "US"},
-            timeout=10,
-        )
+        r = requests.get("https://itunes.apple.com/search", params={"term": query, "media": "movie", "entity": "movie", "limit": 15, "country": "US"}, timeout=10)
         r.raise_for_status()
         results = []
         for item in r.json().get("results", []):
             artwork = item.get("artworkUrl100", "")
             if artwork:
                 artwork = artwork.replace("100x100bb", "600x900bb")
-            results.append({
-                "titulo": item.get("trackName") or "Sin titulo",
-                "autor": item.get("artistName") or item.get("primaryGenreName") or "",
-                "tipo": "Pelicula",
-                "anio": (item.get("releaseDate") or "")[:4],
-                "sinopsis": item.get("longDescription") or item.get("shortDescription") or "",
-                "portada_path": artwork,
-                "capitulo_total": 1,
-                "temporada_total": 1,
-                "etiquetas": ", ".join(filter(None, [str(item.get("primaryGenreName") or "").lower(), "itunes", "pelicula", "importado"])),
-                "estado_publicacion": "Terminada",
-            })
+            results.append({"titulo": item.get("trackName") or "Sin titulo", "autor": item.get("artistName") or item.get("primaryGenreName") or "", "tipo": "Pelicula", "anio": (item.get("releaseDate") or "")[:4], "sinopsis": item.get("longDescription") or item.get("shortDescription") or "", "portada_path": artwork, "capitulo_total": 1, "temporada_total": 1, "etiquetas": ", ".join(filter(None, [str(item.get("primaryGenreName") or "").lower(), "itunes", "pelicula", "importado"])), "estado_publicacion": "Terminada"})
         return results
     except Exception:
         return []
