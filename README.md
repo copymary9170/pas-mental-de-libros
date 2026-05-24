@@ -1,57 +1,63 @@
-# Pas Mental de Libros
+# Paz mental de libros
 
-App en Streamlit para llevar seguimiento de libros, fanfiction, novelas, mangas, manhwas, manhuas y otras lecturas.
+Repositorio personal para llevar una lista de todo lo que leo o veo: libros, series, anime, peliculas, fanfiction, manga, comics, documentales o cualquier historia.
 
-## Funciones
+Aqui puedes guardar:
 
-- Agregar obras con portada, título, autor, tipo, etiquetas y clasificación.
-- Guardar sinopsis general.
-- Guardar links originales y links de respaldo.
-- Subir archivos o páginas como respaldo manual.
-- Registrar capítulos leídos, notas y sinopsis por capítulo.
-- Marcar estado personal de lectura:
-  - Pendiente
-  - Leyendo
-  - Terminado
-  - Pausado
-  - Abandonado
-- Marcar estado de publicación:
-  - En emisión
-  - Terminada
-  - Hiatus con aviso
-  - Hiatus sin aviso
-  - Cancelada
-  - Abandonada por autor
-- Filtros por título, autor, tipo, estado, etiquetas y ranking.
-- Ranking mensual y anual.
-- Estadísticas de lecturas terminadas, pausadas, abandonadas y en hiatus.
+- Lo que ya terminaste
+- Lo que estas viendo o leyendo
+- Lo que dejaste pendiente
+- Capitulos completos o resumenes por episodio
+- Opiniones personales
+- Ranking y notas
+- Personajes favoritos
+- Frases, escenas y momentos importantes
+- Relecturas o rewatches
 
-## Instalación
+## Como usarlo
 
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
+1. Copia la plantilla de `plantillas/entrada.md`.
+2. Crea un archivo nuevo dentro de la carpeta que corresponda.
+3. Rellena tus datos, opiniones, capitulos y nota.
+4. Actualiza las listas y rankings cuando quieras.
 
-## Estructura
+## Carpetas principales
 
-```text
-pas-mental-de-libros/
-├── app.py
-├── requirements.txt
-├── README.md
-├── .gitignore
-├── data/
-├── uploads/
-│   ├── portadas/
-│   └── respaldos/
-└── src/
-    ├── database.py
-    ├── utils.py
-    └── styles.py
-```
+| Carpeta | Para que sirve |
+|---|---|
+| `entradas/` | Fichas completas de cada obra |
+| `listas/` | Estado general: pendiente, en progreso, terminado, abandonado |
+| `plantillas/` | Modelos para copiar y crear nuevas entradas |
+| `ranking/` | Tus favoritos y clasificaciones personales |
+| `capitulos/` | Registros detallados por episodios o capitulos |
 
-## Nota importante
+## Estados sugeridos
 
-La primera versión guarda todo de forma local usando SQLite y carpetas locales.
-Para usarlo en varios dispositivos, más adelante se puede conectar con Supabase, Google Drive o almacenamiento en la nube.
+- Pendiente
+- Leyendo
+- Viendo
+- Pausado
+- Terminado
+- Abandonado
+- Releyendo
+- Rewatch
+
+## Sistema de notas sugerido
+
+| Nota | Significado |
+|---|---|
+| 10/10 | Obra favorita |
+| 9/10 | Excelente |
+| 8/10 | Muy buena |
+| 7/10 | Buena |
+| 6/10 | Regular |
+| 5/10 o menos | No me gusto |
+
+## Indice rapido
+
+- [Pendientes](listas/pendientes.md)
+- [Viendo o leyendo](listas/viendo-leyendo.md)
+- [Terminados](listas/terminados.md)
+- [Abandonados](listas/abandonados.md)
+- [Favoritos](ranking/favoritos.md)
+- [Ranking general](ranking/ranking-general.md)
