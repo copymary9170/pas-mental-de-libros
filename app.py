@@ -213,9 +213,6 @@ with tab_wrapped:
         c1,c2,c3,c4=st.columns(4); c1.metric("Caps/eps", int(actividad["cantidad"].sum())); c2.metric("Minutos", int(actividad["minutos"].sum())); c3.metric("Días activos", actividad["fecha"].nunique()); c4.metric("Obra reina", actividad.groupby("titulo")["cantidad"].sum().sort_values(ascending=False).index[0])
         st.plotly_chart(px.pie(actividad.groupby("tipo")["cantidad"].sum().reset_index(), names="tipo", values="cantidad", title="Distribución por categoría"), use_container_width=True)
 
-for tab_name in []:
-    pass
-
 with tab_books:
     books = df[df["tipo"].isin(BOOK_TYPES)].copy() if not df.empty else pd.DataFrame(); st.markdown('<div class="section-title">Mi estanteria</div>', unsafe_allow_html=True)
     if books.empty: st.info("Aun no tienes libros, fanfics, manga, manhwa o webnovels registrados.")
@@ -226,10 +223,53 @@ with tab_tv:
     else: st.markdown('<div class="tv-list">'+''.join(tv_card(row) for _,row in tv.iterrows())+'</div>',unsafe_allow_html=True)
 with tab_add:
     st.subheader("Agregar obra manualmente")
-    st.info("Usa Buscar, Importar link o la versión manual existente.")
+    modo = st.radio("Tipo de registro", ["Libro / fanfic / manga / webnovel", "Serie / anime / kdrama / pelicula"], horizontal=True, key="manual_tipo_registro")
+    with st.form("obra_form_manual"):
+        col1, col2 = st.columns(2)
+        with col1:
+            titulo = st.text_input("Titulo *")
+            autor = st.text_input("Autor / creador / estudio")
+            tipo = st.selectbox("Tipo", BOOK_TYPES if modo.startswith("Libro") else TV_TYPES)
+            clasificacion = st.slider("Nota general", 0.0, 10.0, 0.0, 0.5)
+            estado = st.selectbox("Estado", ESTADOS)
+            estado_pub = st.selectbox("Estado de publicacion", ESTADOS_PUBLICACION)
+        with col2:
+            temporada_actual = st.number_input("Temporada actual", min_value=1, value=1, step=1, disabled=modo.startswith("Libro"))
+            temporada_total = st.number_input("Temporadas totales", min_value=1, value=1, step=1, disabled=modo.startswith("Libro"))
+            capitulo_actual = st.number_input("Capitulo / episodio actual", min_value=0, step=1)
+            capitulo_total = st.number_input("Capitulos / episodios totales", min_value=0, step=1)
+            etiquetas = st.text_input("Etiquetas / generos")
+            favorito = st.checkbox("Favorito")
+        sinopsis = st.text_area("Sinopsis")
+        opinion = st.text_area("Opinion corta / comentario general")
+        link_original = st.text_input("Link original")
+        portada_url = st.text_input("URL de portada")
+        buscar_portada = st.checkbox("Buscar portada automaticamente en OpenLibrary", value=False, disabled=not modo.startswith("Libro"))
+        portada = st.file_uploader("Subir portada", type=["jpg", "jpeg", "png", "webp"])
+        st.markdown("### Modo de respaldo")
+        modo_respaldo = st.radio("Como quieres guardar el contenido?", ["Solo registrar la obra", "Subir obra completa", "Subir capitulos uno por uno", "Subir varios capitulos de golpe"], horizontal=False)
+        respaldo = None
+        notas_respaldo = ""
+        if modo_respaldo == "Subir obra completa":
+            respaldo = st.file_uploader("Archivo completo de la obra", type=["pdf", "epub", "txt", "docx", "zip"])
+            st.caption("Usa esto si tienes el libro/fanfic/webnovel completo en un solo archivo.")
+        elif modo_respaldo == "Subir capitulos uno por uno":
+            st.info("Guarda la obra ahora y luego entra en 📝 Capitulos para subir cada capitulo con texto, archivo, estrellas y comentarios.")
+        elif modo_respaldo == "Subir varios capitulos de golpe":
+            st.info("Guarda la obra ahora y luego entra en 📝 Capitulos para pegar o subir un TXT masivo y dividirlo automaticamente.")
+        else:
+            notas_respaldo = "Sin respaldo local por ahora."
+        if st.form_submit_button("Guardar obra"):
+            if not titulo.strip(): st.error("El titulo es obligatorio")
+            else:
+                portada_path=save_uploaded_file(portada,PORTADAS_DIR)
+                if not portada_path and portada_url.strip(): portada_path=portada_url.strip()
+                if not portada_path and buscar_portada: portada_path=buscar_portada_openlibrary(titulo.strip(),autor.strip())
+                add_obra({"titulo":titulo.strip(),"autor":autor.strip(),"tipo":tipo,"clasificacion":clasificacion,"estado_lectura":estado,"estado_publicacion":estado_pub,"temporada_actual":int(temporada_actual),"temporada_total":int(temporada_total),"capitulo_actual":int(capitulo_actual),"capitulo_total":int(capitulo_total),"sinopsis":sinopsis,"etiquetas":parse_tags(etiquetas),"link_original":link_original,"link_respaldo":"","portada_path":portada_path,"respaldo_path":save_uploaded_file(respaldo,RESPALDOS_DIR),"motivo_estado": opinion or notas_respaldo or modo_respaldo,"favorito":1 if favorito else 0,"fecha_inicio":str(date.today()),"fecha_fin":None})
+                st.success("Obra guardada. Si elegiste capitulos, continua en la pestaña 📝 Capitulos.")
 with tab_chapters:
     st.subheader("Capitulos, episodios y respaldo")
-    st.info("Guarda capítulos desde la versión actual; el cronómetro ya guarda sesiones de lectura.")
+    st.info("Aqui van los capitulos individuales o la subida masiva. La obra completa se sube desde ➕ Agregar manual en 'Modo de respaldo'.")
 with tab_stats:
     st.subheader("Estadisticas")
     if df.empty: st.info("Agrega obras para ver estadisticas.")
