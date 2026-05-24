@@ -83,6 +83,45 @@ def buscar_libros_openlibrary(query):
         return []
 
 
+def buscar_manga_jikan(query):
+    if not query:
+        return []
+    try:
+        r = requests.get("https://api.jikan.moe/v4/manga", params={"q": query, "limit": 15}, timeout=12)
+        r.raise_for_status()
+        results = []
+        for item in r.json().get("data", []):
+            title = item.get("title") or item.get("title_english") or "Sin titulo"
+            images = item.get("images", {}).get("jpg", {})
+            authors = item.get("authors") or []
+            genres = item.get("genres") or []
+            manga_type = item.get("type") or "Manga"
+            tipo = "Novela ligera" if "Novel" in manga_type else "Manga"
+            results.append({
+                "titulo": title,
+                "autor": ", ".join([a.get("name", "") for a in authors[:3] if a.get("name")]),
+                "tipo": tipo,
+                "anio": item.get("published", {}).get("from", "")[:4],
+                "sinopsis": item.get("synopsis") or "",
+                "portada_path": images.get("large_image_url") or images.get("image_url") or "",
+                "capitulo_total": item.get("chapters") or 0,
+                "temporada_total": 1,
+                "etiquetas": ", ".join([g.get("name", "").lower() for g in genres if g.get("name")] + ["jikan", "manga", "importado"]),
+                "estado_publicacion": "Terminada" if item.get("status") == "Finished" else "En emision",
+            })
+        return results
+    except Exception:
+        return []
+
+
+def buscar_webnovel_openlibrary(query):
+    results = buscar_libros_openlibrary(query)
+    for item in results:
+        item["tipo"] = "Webnovel"
+        item["etiquetas"] = f"{item.get('etiquetas','')}, webnovel, novela web"
+    return results
+
+
 def buscar_series_tvmaze(query):
     if not query:
         return []
@@ -111,22 +150,29 @@ def buscar_series_tvmaze(query):
         return []
 
 
-def _tmdb_search(query, media_type, api_key):
+def _tmdb_search(query, media_type, api_key, korean=False):
     if not query or not api_key:
         return []
     try:
         endpoint = "movie" if media_type == "movie" else "tv"
-        r = requests.get(
-            f"https://api.themoviedb.org/3/search/{endpoint}",
-            params={"api_key": api_key, "query": query, "language": "es-ES", "include_adult": "false"},
-            timeout=10,
-        )
+        params = {"api_key": api_key, "query": query, "language": "es-ES", "include_adult": "false"}
+        if korean and media_type == "tv":
+            params["region"] = "KR"
+        r = requests.get(f"https://api.themoviedb.org/3/search/{endpoint}", params=params, timeout=10)
         r.raise_for_status()
         results = []
         for item in r.json().get("results", [])[:15]:
             title = item.get("title") or item.get("name") or "Sin titulo"
             date = item.get("release_date") or item.get("first_air_date") or ""
             poster = item.get("poster_path")
+            original_lang = item.get("original_language") or ""
+            tags = ["tmdb", "importado"]
+            if media_type == "movie":
+                tags.append("pelicula")
+            else:
+                tags.append("serie")
+            if korean or original_lang == "ko":
+                tags.extend(["kdrama", "corea", "kakao referencia"])
             results.append({
                 "titulo": title,
                 "autor": "TMDB",
@@ -136,7 +182,7 @@ def _tmdb_search(query, media_type, api_key):
                 "portada_path": f"https://image.tmdb.org/t/p/w500{poster}" if poster else "",
                 "capitulo_total": 1 if media_type == "movie" else 0,
                 "temporada_total": 1,
-                "etiquetas": "tmdb, pelicula, importado" if media_type == "movie" else "tmdb, serie, importado",
+                "etiquetas": ", ".join(tags),
                 "estado_publicacion": "Terminada" if media_type == "movie" else "No aplica",
             })
         return results
@@ -150,6 +196,10 @@ def buscar_peliculas_tmdb(query, api_key=""):
 
 def buscar_series_tmdb(query, api_key=""):
     return _tmdb_search(query, "tv", api_key)
+
+
+def buscar_kdramas_tmdb(query, api_key=""):
+    return _tmdb_search(query, "tv", api_key, korean=True)
 
 
 def buscar_peliculas_itunes(query):
