@@ -5,186 +5,216 @@ def apply_styles():
     st.markdown(
         """
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+
+        :root {
+            --cream: #fff8ee;
+            --paper: #ffffff;
+            --ink: #2f241d;
+            --muted: #8a7567;
+            --caramel: #c9834a;
+            --caramel-dark: #9f6132;
+            --peach: #ffe5ce;
+            --sage: #d9ead3;
+            --line: rgba(112, 84, 62, 0.16);
+        }
 
         html, body, [class*="css"] {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Nunito', sans-serif;
         }
 
         .stApp {
             background:
-                radial-gradient(circle at top left, rgba(192, 132, 252, 0.20), transparent 32%),
-                radial-gradient(circle at top right, rgba(56, 189, 248, 0.14), transparent 30%),
-                linear-gradient(135deg, #0f172a 0%, #111827 45%, #020617 100%);
-            color: #f8fafc;
+                radial-gradient(circle at top left, rgba(255, 217, 179, 0.85), transparent 34%),
+                radial-gradient(circle at bottom right, rgba(217, 234, 211, 0.80), transparent 28%),
+                linear-gradient(180deg, #fff8ee 0%, #f7ecdf 100%);
+            color: var(--ink);
         }
 
         .main .block-container {
-            padding-top: 1.6rem;
+            padding-top: 1.2rem;
             padding-bottom: 4rem;
-            max-width: 1280px;
+            max-width: 1180px;
         }
 
         h1 {
-            font-size: 2.7rem !important;
-            font-weight: 800 !important;
-            letter-spacing: -0.05em;
-            background: linear-gradient(90deg, #f8fafc, #c084fc, #38bdf8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 0.1rem !important;
+            font-size: 2.35rem !important;
+            font-weight: 900 !important;
+            letter-spacing: -0.04em;
+            color: var(--ink) !important;
+            margin-bottom: 0.15rem !important;
         }
 
         h2, h3 {
-            color: #f8fafc !important;
+            color: var(--ink) !important;
+            font-weight: 900 !important;
             letter-spacing: -0.03em;
         }
 
+        p, label, span, div {
+            color: var(--ink);
+        }
+
         .stCaption, caption, small {
-            color: #cbd5e1 !important;
+            color: var(--muted) !important;
         }
 
         [data-testid="stSidebar"] {
-            background: rgba(15, 23, 42, 0.92);
-            border-right: 1px solid rgba(148, 163, 184, 0.18);
+            background: rgba(255, 248, 238, 0.92);
+            border-right: 1px solid var(--line);
+            box-shadow: 14px 0 40px rgba(112, 84, 62, 0.08);
         }
 
         .stTabs [data-baseweb="tab-list"] {
-            gap: 0.5rem;
-            background: rgba(15, 23, 42, 0.64);
-            border: 1px solid rgba(148, 163, 184, 0.16);
+            gap: 0.45rem;
+            background: rgba(255, 255, 255, 0.76);
+            border: 1px solid var(--line);
             padding: 0.45rem;
-            border-radius: 999px;
-            backdrop-filter: blur(18px);
+            border-radius: 22px;
+            box-shadow: 0 12px 35px rgba(112, 84, 62, 0.08);
         }
 
         .stTabs [data-baseweb="tab"] {
-            border-radius: 999px;
-            padding: 0.65rem 1rem;
-            color: #cbd5e1;
-            font-weight: 700;
+            border-radius: 17px;
+            padding: 0.62rem 0.9rem;
+            color: var(--muted);
+            font-weight: 900;
         }
 
         .stTabs [aria-selected="true"] {
-            background: linear-gradient(135deg, rgba(192, 132, 252, 0.95), rgba(56, 189, 248, 0.85));
-            color: #020617 !important;
+            background: #3b2a20;
+            color: #fff8ee !important;
         }
 
         .book-card {
             position: relative;
             overflow: hidden;
-            border: 1px solid rgba(148, 163, 184, 0.18);
-            border-radius: 26px;
-            padding: 1.15rem;
-            margin-bottom: 1.1rem;
-            background:
-                linear-gradient(135deg, rgba(30, 41, 59, 0.88), rgba(15, 23, 42, 0.82)),
-                radial-gradient(circle at top left, rgba(192, 132, 252, 0.20), transparent 36%);
-            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
-            backdrop-filter: blur(20px);
-            transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+            border: 1px solid var(--line);
+            border-radius: 28px;
+            padding: 1.05rem;
+            margin-bottom: 1rem;
+            background: rgba(255, 255, 255, 0.86);
+            box-shadow: 0 18px 45px rgba(112, 84, 62, 0.12);
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
         }
 
         .book-card:hover {
-            transform: translateY(-3px);
-            border-color: rgba(192, 132, 252, 0.55);
-            box-shadow: 0 28px 90px rgba(15, 23, 42, 0.45);
+            transform: translateY(-4px);
+            box-shadow: 0 26px 70px rgba(112, 84, 62, 0.18);
         }
 
-        .book-card:before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(90deg, rgba(192, 132, 252, 0.18), transparent 38%, rgba(56, 189, 248, 0.12));
-            pointer-events: none;
+        .book-card img {
+            border-radius: 18px !important;
+            box-shadow: 0 18px 35px rgba(65, 45, 32, 0.24);
+            aspect-ratio: 2 / 3;
+            object-fit: cover;
+        }
+
+        .book-card h3 {
+            font-size: 1.22rem !important;
+            line-height: 1.15 !important;
+            margin-bottom: 0.25rem !important;
         }
 
         .status-pill {
             display: inline-block;
-            padding: 0.28rem 0.72rem;
+            padding: 0.28rem 0.68rem;
             border-radius: 999px;
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            background: rgba(15, 23, 42, 0.62);
-            color: #e0f2fe;
-            font-size: 0.78rem;
-            font-weight: 700;
+            border: 1px solid rgba(201, 131, 74, 0.20);
+            background: #fff1df;
+            color: #7c4a26;
+            font-size: 0.76rem;
+            font-weight: 900;
             margin-right: 0.35rem;
             margin-bottom: 0.35rem;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
         }
 
         .hero-card {
-            border: 1px solid rgba(148, 163, 184, 0.18);
+            border: 1px solid var(--line);
             border-radius: 32px;
-            padding: 1.4rem 1.55rem;
-            margin: 0.8rem 0 1.2rem 0;
+            padding: 1.25rem 1.4rem;
+            margin: 0.65rem 0 1.05rem 0;
             background:
-                radial-gradient(circle at top left, rgba(192, 132, 252, 0.25), transparent 40%),
-                linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.72));
-            box-shadow: 0 30px 90px rgba(0,0,0,0.28);
+                linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255, 229, 206, 0.72));
+            box-shadow: 0 20px 50px rgba(112, 84, 62, 0.12);
         }
 
         .hero-title {
-            font-size: 1.2rem;
-            font-weight: 800;
-            color: #f8fafc;
-            margin-bottom: 0.35rem;
+            font-size: 1.12rem;
+            font-weight: 900;
+            color: var(--ink);
+            margin-bottom: 0.25rem;
         }
 
         .hero-subtitle {
-            color: #cbd5e1;
+            color: var(--muted);
             line-height: 1.55;
-        }
-
-        [data-testid="stMetric"] {
-            background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.72));
-            border: 1px solid rgba(148, 163, 184, 0.16);
-            border-radius: 22px;
-            padding: 1rem;
-            box-shadow: 0 18px 60px rgba(0,0,0,0.22);
-        }
-
-        [data-testid="stMetricLabel"] {
-            color: #cbd5e1 !important;
             font-weight: 700;
         }
 
+        .shelf-title {
+            font-size: 1.05rem;
+            font-weight: 900;
+            color: var(--ink);
+            margin: 1rem 0 0.55rem;
+        }
+
+        [data-testid="stMetric"] {
+            background: rgba(255, 255, 255, 0.86);
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            padding: 1rem;
+            box-shadow: 0 18px 45px rgba(112, 84, 62, 0.10);
+        }
+
+        [data-testid="stMetricLabel"] {
+            color: var(--muted) !important;
+            font-weight: 900;
+        }
+
         [data-testid="stMetricValue"] {
-            color: #f8fafc !important;
-            font-weight: 800;
+            color: var(--ink) !important;
+            font-weight: 900;
         }
 
         .stButton > button, .stDownloadButton > button, .stLinkButton > a {
-            border-radius: 999px !important;
-            border: 1px solid rgba(192, 132, 252, 0.35) !important;
-            background: linear-gradient(135deg, rgba(192, 132, 252, 0.95), rgba(56, 189, 248, 0.82)) !important;
-            color: #020617 !important;
-            font-weight: 800 !important;
-            box-shadow: 0 14px 38px rgba(56, 189, 248, 0.15);
+            border-radius: 18px !important;
+            border: 0 !important;
+            background: #3b2a20 !important;
+            color: #fff8ee !important;
+            font-weight: 900 !important;
+            box-shadow: 0 12px 28px rgba(59, 42, 32, 0.18);
         }
 
         .stTextInput input, .stTextArea textarea, .stNumberInput input, .stSelectbox div[data-baseweb="select"], .stMultiSelect div[data-baseweb="select"] {
-            background: rgba(15, 23, 42, 0.72) !important;
-            color: #f8fafc !important;
-            border-radius: 16px !important;
-            border-color: rgba(148, 163, 184, 0.22) !important;
+            background: rgba(255, 255, 255, 0.92) !important;
+            color: var(--ink) !important;
+            border-radius: 18px !important;
+            border-color: var(--line) !important;
+            font-weight: 700;
+        }
+
+        .stSlider [data-baseweb="slider"] > div {
+            color: var(--caramel) !important;
         }
 
         .stDataFrame, [data-testid="stDataFrame"] {
-            border-radius: 20px;
+            border-radius: 22px;
             overflow: hidden;
+            border: 1px solid var(--line);
         }
 
         div[data-testid="stAlert"] {
-            border-radius: 18px;
-            border: 1px solid rgba(148, 163, 184, 0.20);
-            background: rgba(15, 23, 42, 0.70);
+            border-radius: 20px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.82);
         }
 
         .small-muted {
-            opacity: .78;
+            opacity: .85;
             font-size: .92rem;
-            color: #cbd5e1;
+            color: var(--muted);
+            font-weight: 700;
         }
         </style>
         """,
