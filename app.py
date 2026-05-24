@@ -8,7 +8,7 @@ import streamlit as st
 from src.database import init_db, add_obra, update_obra, delete_obra, list_obras, get_obra, add_capitulo, list_capitulos
 from src.utils import save_uploaded_file, parse_tags, PORTADAS_DIR, RESPALDOS_DIR, ensure_dirs, buscar_portada_openlibrary
 try:
-    from src.utils import buscar_libros_openlibrary, buscar_series_tvmaze, buscar_peliculas_itunes
+    from src.utils import buscar_libros_openlibrary, buscar_series_tvmaze, buscar_peliculas_itunes, buscar_peliculas_tmdb, buscar_series_tmdb
 except ImportError:
     def buscar_libros_openlibrary(query):
         return []
@@ -16,12 +16,18 @@ except ImportError:
         return []
     def buscar_peliculas_itunes(query):
         return []
+    def buscar_peliculas_tmdb(query, api_key=""):
+        return []
+    def buscar_series_tmdb(query, api_key=""):
+        return []
 from src.styles import apply_styles
 
 st.set_page_config(page_title="Paz Mental", page_icon="📚", layout="wide")
 apply_styles()
 ensure_dirs()
 init_db()
+
+TMDB_API_KEY = st.secrets.get("TMDB_API_KEY", "")
 
 BOOK_TYPES = ["Libro", "Fanfiction", "Novela", "Manga", "Manhwa", "Manhua", "Webnovel", "Comic"]
 TV_TYPES = ["Anime", "Serie", "Pelicula", "Documental", "Podcast", "Otro"]
@@ -127,16 +133,24 @@ with tab_search:
     fuente = st.radio("Que quieres buscar?", ["Libros", "Series / anime / TV", "Peliculas"], horizontal=True)
     query = st.text_input("Nombre de la obra", key="external_query")
     estado_import = st.selectbox("Estado al importar", ESTADOS, index=0)
+    if not TMDB_API_KEY and fuente in ["Peliculas", "Series / anime / TV"]:
+        st.info("Para mejores resultados de peliculas/series agrega TMDB_API_KEY en Streamlit Secrets. Sin clave se usa una busqueda secundaria.")
     buscar = st.button("Buscar")
     if buscar and query.strip():
         if fuente == "Libros":
             st.session_state["external_results"] = buscar_libros_openlibrary(query.strip())
             st.session_state["external_kind"] = "book"
         elif fuente == "Peliculas":
-            st.session_state["external_results"] = buscar_peliculas_itunes(query.strip())
+            resultados = buscar_peliculas_tmdb(query.strip(), TMDB_API_KEY) if TMDB_API_KEY else []
+            if not resultados:
+                resultados = buscar_peliculas_itunes(query.strip())
+            st.session_state["external_results"] = resultados
             st.session_state["external_kind"] = "movie"
         else:
-            st.session_state["external_results"] = buscar_series_tvmaze(query.strip())
+            resultados = buscar_series_tmdb(query.strip(), TMDB_API_KEY) if TMDB_API_KEY else []
+            if not resultados:
+                resultados = buscar_series_tvmaze(query.strip())
+            st.session_state["external_results"] = resultados
             st.session_state["external_kind"] = "tv"
 
     results = st.session_state.get("external_results", [])
