@@ -38,6 +38,13 @@ CAPITULOS_COLUMNS = {
     "titulo": "TEXT",
     "sinopsis": "TEXT",
     "notas": "TEXT",
+    "comentario": "TEXT",
+    "etiquetas": "TEXT",
+    "mood": "TEXT",
+    "frases_favoritas": "TEXT",
+    "estrellas": "INTEGER DEFAULT 0",
+    "favorito": "INTEGER DEFAULT 0",
+    "estado": "TEXT DEFAULT 'Leido'",
     "texto_completo": "TEXT",
     "archivo_path": "TEXT",
     "rating": "REAL DEFAULT 0",
@@ -97,6 +104,13 @@ def init_db():
             titulo TEXT,
             sinopsis TEXT,
             notas TEXT,
+            comentario TEXT,
+            etiquetas TEXT,
+            mood TEXT,
+            frases_favoritas TEXT,
+            estrellas INTEGER DEFAULT 0,
+            favorito INTEGER DEFAULT 0,
+            estado TEXT DEFAULT 'Leido',
             texto_completo TEXT,
             archivo_path TEXT,
             rating REAL DEFAULT 0,
@@ -158,7 +172,7 @@ def add_capitulo(data):
     now = datetime.now().isoformat(timespec="seconds")
     data = dict(data)
     data["created_at"] = now
-    allowed = ["obra_id", "temporada", "numero", "titulo", "sinopsis", "notas", "texto_completo", "archivo_path", "rating", "visto_leido", "fecha_lectura", "created_at"]
+    allowed = ["obra_id", "temporada", "numero", "titulo", "sinopsis", "notas", "comentario", "etiquetas", "mood", "frases_favoritas", "estrellas", "favorito", "estado", "texto_completo", "archivo_path", "rating", "visto_leido", "fecha_lectura", "created_at"]
     clean = {k: data.get(k) for k in allowed}
     keys = ", ".join(clean.keys())
     placeholders = ", ".join(["?"] * len(clean))
