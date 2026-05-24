@@ -109,3 +109,35 @@ def buscar_series_tvmaze(query):
         return results
     except Exception:
         return []
+
+
+def buscar_peliculas_itunes(query):
+    if not query:
+        return []
+    try:
+        r = requests.get(
+            "https://itunes.apple.com/search",
+            params={"term": query, "media": "movie", "entity": "movie", "limit": 15, "country": "US"},
+            timeout=10,
+        )
+        r.raise_for_status()
+        results = []
+        for item in r.json().get("results", []):
+            artwork = item.get("artworkUrl100", "")
+            if artwork:
+                artwork = artwork.replace("100x100bb", "600x900bb")
+            results.append({
+                "titulo": item.get("trackName") or "Sin titulo",
+                "autor": item.get("artistName") or item.get("primaryGenreName") or "",
+                "tipo": "Pelicula",
+                "anio": (item.get("releaseDate") or "")[:4],
+                "sinopsis": item.get("longDescription") or item.get("shortDescription") or "",
+                "portada_path": artwork,
+                "capitulo_total": 1,
+                "temporada_total": 1,
+                "etiquetas": ", ".join(filter(None, [str(item.get("primaryGenreName") or "").lower(), "itunes", "pelicula", "importado"])),
+                "estado_publicacion": "Terminada",
+            })
+        return results
+    except Exception:
+        return []
