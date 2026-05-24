@@ -48,6 +48,7 @@ CAPITULOS_COLUMNS = {
     "mood": "TEXT",
     "frases_favoritas": "TEXT",
     "estrellas": "INTEGER DEFAULT 0",
+    "personaje_favorito_id": "INTEGER",
     "favorito": "INTEGER DEFAULT 0",
     "estado": "TEXT DEFAULT 'Leido'",
     "texto_completo": "TEXT",
@@ -69,6 +70,31 @@ ACTIVIDAD_COLUMNS = {
     "mood": "TEXT",
     "comentario": "TEXT",
     "premio": "TEXT",
+    "created_at": "TEXT",
+}
+
+PERSONAJES_COLUMNS = {
+    "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "obra_id": "INTEGER NOT NULL",
+    "nombre": "TEXT NOT NULL",
+    "alias": "TEXT",
+    "rol": "TEXT",
+    "descripcion": "TEXT",
+    "notas": "TEXT",
+    "imagen_path": "TEXT",
+    "favorito": "INTEGER DEFAULT 0",
+    "created_at": "TEXT",
+    "updated_at": "TEXT",
+}
+
+VOTOS_PERSONAJE_COLUMNS = {
+    "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "obra_id": "INTEGER NOT NULL",
+    "capitulo_id": "INTEGER",
+    "personaje_id": "INTEGER NOT NULL",
+    "fecha": "TEXT",
+    "puntos": "INTEGER DEFAULT 1",
+    "comentario": "TEXT",
     "created_at": "TEXT",
 }
 
@@ -133,6 +159,7 @@ def init_db():
             mood TEXT,
             frases_favoritas TEXT,
             estrellas INTEGER DEFAULT 0,
+            personaje_favorito_id INTEGER,
             favorito INTEGER DEFAULT 0,
             estado TEXT DEFAULT 'Leido',
             texto_completo TEXT,
@@ -161,9 +188,42 @@ def init_db():
             FOREIGN KEY (capitulo_id) REFERENCES capitulos(id)
         )
         """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS personajes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            obra_id INTEGER NOT NULL,
+            nombre TEXT NOT NULL,
+            alias TEXT,
+            rol TEXT,
+            descripcion TEXT,
+            notas TEXT,
+            imagen_path TEXT,
+            favorito INTEGER DEFAULT 0,
+            created_at TEXT,
+            updated_at TEXT,
+            FOREIGN KEY (obra_id) REFERENCES obras(id)
+        )
+        """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS votos_personaje (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            obra_id INTEGER NOT NULL,
+            capitulo_id INTEGER,
+            personaje_id INTEGER NOT NULL,
+            fecha TEXT,
+            puntos INTEGER DEFAULT 1,
+            comentario TEXT,
+            created_at TEXT,
+            FOREIGN KEY (obra_id) REFERENCES obras(id),
+            FOREIGN KEY (capitulo_id) REFERENCES capitulos(id),
+            FOREIGN KEY (personaje_id) REFERENCES personajes(id)
+        )
+        """)
         _ensure_columns(conn, "obras", OBRAS_COLUMNS)
         _ensure_columns(conn, "capitulos", CAPITULOS_COLUMNS)
         _ensure_columns(conn, "actividad", ACTIVIDAD_COLUMNS)
+        _ensure_columns(conn, "personajes", PERSONAJES_COLUMNS)
+        _ensure_columns(conn, "votos_personaje", VOTOS_PERSONAJE_COLUMNS)
         conn.commit()
 
 
@@ -191,6 +251,8 @@ def update_obra(obra_id, data):
 
 def delete_obra(obra_id):
     with get_conn() as conn:
+        conn.execute("DELETE FROM votos_personaje WHERE obra_id=?", (obra_id,))
+        conn.execute("DELETE FROM personajes WHERE obra_id=?", (obra_id,))
         conn.execute("DELETE FROM actividad WHERE obra_id=?", (obra_id,))
         conn.execute("DELETE FROM capitulos WHERE obra_id=?", (obra_id,))
         conn.execute("DELETE FROM obras WHERE id=?", (obra_id,))
@@ -215,7 +277,7 @@ def add_capitulo(data):
     now = datetime.now().isoformat(timespec="seconds")
     data = dict(data)
     data["created_at"] = now
-    allowed = ["obra_id", "temporada", "numero", "titulo", "sinopsis", "notas", "comentario", "etiquetas", "mood", "frases_favoritas", "estrellas", "favorito", "estado", "texto_completo", "archivo_path", "rating", "visto_leido", "fecha_lectura", "created_at"]
+    allowed = ["obra_id", "temporada", "numero", "titulo", "sinopsis", "notas", "comentario", "etiquetas", "mood", "frases_favoritas", "estrellas", "personaje_favorito_id", "favorito", "estado", "texto_completo", "archivo_path", "rating", "visto_leido", "fecha_lectura", "created_at"]
     clean = {k: data.get(k) for k in allowed}
     keys = ", ".join(clean.keys())
     placeholders = ", ".join(["?"] * len(clean))
@@ -226,6 +288,11 @@ def add_capitulo(data):
             conn.execute(
                 "INSERT INTO actividad (obra_id, capitulo_id, fecha, tipo_actividad, cantidad, mood, comentario, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (clean.get("obra_id"), capitulo_id, clean.get("fecha_lectura"), "capitulo", 1, clean.get("mood"), clean.get("comentario") or clean.get("notas"), now),
+            )
+        if clean.get("personaje_favorito_id"):
+            conn.execute(
+                "INSERT INTO votos_personaje (obra_id, capitulo_id, personaje_id, fecha, puntos, comentario, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (clean.get("obra_id"), capitulo_id, clean.get("personaje_favorito_id"), clean.get("fecha_lectura"), 1, "Favorito del capitulo", now),
             )
         conn.commit()
     return capitulo_id
@@ -274,4 +341,55 @@ def list_actividad(fecha_inicio=None, fecha_fin=None):
     with get_conn() as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(query, params).fetchall()
+    return [dict(row) for row in rows]
+
+
+def add_personaje(data):
+    now = datetime.now().isoformat(timespec="seconds")
+    data = dict(data)
+    data["created_at"] = now
+    data["updated_at"] = now
+    allowed = ["obra_id", "nombre", "alias", "rol", "descripcion", "notas", "imagen_path", "favorito", "created_at", "updated_at"]
+    clean = {k: data.get(k) for k in allowed}
+    keys = ", ".join(clean.keys())
+    placeholders = ", ".join(["?"] * len(clean))
+    with get_conn() as conn:
+        conn.execute(f"INSERT INTO personajes ({keys}) VALUES ({placeholders})", list(clean.values()))
+        conn.commit()
+
+
+def list_personajes(obra_id):
+    with get_conn() as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM personajes WHERE obra_id=? ORDER BY favorito DESC, nombre ASC", (obra_id,)).fetchall()
+    return [dict(row) for row in rows]
+
+
+def add_voto_personaje(data):
+    now = datetime.now().isoformat(timespec="seconds")
+    data = dict(data)
+    data["created_at"] = now
+    allowed = ["obra_id", "capitulo_id", "personaje_id", "fecha", "puntos", "comentario", "created_at"]
+    clean = {k: data.get(k) for k in allowed}
+    keys = ", ".join(clean.keys())
+    placeholders = ", ".join(["?"] * len(clean))
+    with get_conn() as conn:
+        conn.execute(f"INSERT INTO votos_personaje ({keys}) VALUES ({placeholders})", list(clean.values()))
+        conn.commit()
+
+
+def ranking_personajes(obra_id):
+    query = """
+        SELECT p.id, p.nombre, p.alias, p.rol, p.descripcion, p.favorito,
+               COALESCE(SUM(v.puntos), 0) AS puntos,
+               COUNT(v.id) AS veces_favorito
+        FROM personajes p
+        LEFT JOIN votos_personaje v ON p.id = v.personaje_id
+        WHERE p.obra_id=?
+        GROUP BY p.id
+        ORDER BY puntos DESC, veces_favorito DESC, p.favorito DESC, p.nombre ASC
+    """
+    with get_conn() as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(query, (obra_id,)).fetchall()
     return [dict(row) for row in rows]
