@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import shutil
 import uuid
 import requests
@@ -31,8 +32,13 @@ def parse_tags(text):
     return ", ".join(sorted({tag.strip().lower() for tag in text.split(",") if tag.strip()}))
 
 
+def clean_html(text):
+    if not text:
+        return ""
+    return re.sub(r"<[^>]+>", "", text).strip()
+
+
 def buscar_portada_openlibrary(titulo, autor=""):
-    """Busca una portada publica en Open Library. Devuelve una URL o None."""
     if not titulo:
         return None
     try:
@@ -50,3 +56,56 @@ def buscar_portada_openlibrary(titulo, autor=""):
         return f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
     except Exception:
         return None
+
+
+def buscar_libros_openlibrary(query):
+    if not query:
+        return []
+    try:
+        r = requests.get("https://openlibrary.org/search.json", params={"q": query, "limit": 10}, timeout=10)
+        r.raise_for_status()
+        results = []
+        for doc in r.json().get("docs", []):
+            cover_id = doc.get("cover_i")
+            results.append({
+                "titulo": doc.get("title") or "Sin titulo",
+                "autor": ", ".join(doc.get("author_name", [])[:3]),
+                "tipo": "Libro",
+                "anio": doc.get("first_publish_year"),
+                "sinopsis": "",
+                "portada_path": f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg" if cover_id else "",
+                "capitulo_total": 0,
+                "temporada_total": 1,
+                "etiquetas": "openlibrary, importado",
+            })
+        return results
+    except Exception:
+        return []
+
+
+def buscar_series_tvmaze(query):
+    if not query:
+        return []
+    try:
+        r = requests.get("https://api.tvmaze.com/search/shows", params={"q": query}, timeout=10)
+        r.raise_for_status()
+        results = []
+        for item in r.json()[:10]:
+            show = item.get("show", {})
+            image = show.get("image") or {}
+            genres = show.get("genres") or []
+            results.append({
+                "titulo": show.get("name") or "Sin titulo",
+                "autor": show.get("network", {}).get("name") if show.get("network") else (show.get("webChannel", {}) or {}).get("name", ""),
+                "tipo": "Serie",
+                "anio": (show.get("premiered") or "")[:4],
+                "sinopsis": clean_html(show.get("summary")),
+                "portada_path": image.get("original") or image.get("medium") or "",
+                "capitulo_total": 0,
+                "temporada_total": 1,
+                "etiquetas": ", ".join([g.lower() for g in genres] + ["tvmaze", "importado"]),
+                "estado_publicacion": "Terminada" if show.get("status") == "Ended" else "En emision",
+            })
+        return results
+    except Exception:
+        return []
