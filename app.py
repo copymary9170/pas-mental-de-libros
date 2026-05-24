@@ -1,11 +1,11 @@
 import html
-from datetime import date
+from datetime import date, timedelta
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from src.database import init_db, add_obra, update_obra, delete_obra, list_obras, get_obra, add_capitulo, list_capitulos
+from src.database import init_db, add_obra, update_obra, delete_obra, list_obras, get_obra, add_capitulo, list_capitulos, list_actividad
 from src.utils import save_uploaded_file, parse_tags, PORTADAS_DIR, RESPALDOS_DIR, ensure_dirs, buscar_portada_openlibrary
 try:
     from src.utils import buscar_libros_openlibrary, buscar_series_tvmaze, buscar_peliculas_itunes, buscar_peliculas_tmdb, buscar_series_tmdb, buscar_manga_jikan, buscar_webnovel_openlibrary, buscar_kdramas_tmdb, importar_desde_link
@@ -49,7 +49,7 @@ def guardar_importado(item, tipo, estado):
 
 obras = list_obras(); df = pd.DataFrame(obras)
 st.markdown("""<div class="app-hero"><div><div class="hero-label">Bookmory + TV Time personal</div><h1>Paz Mental</h1><p>Biblioteca de libros, fanfics, manga, manhwa, webnovels, kdramas, series, anime y peliculas.</p></div></div>""", unsafe_allow_html=True)
-tab_search, tab_link, tab_roulette, tab_books, tab_tv, tab_add, tab_chapters, tab_stats, tab_export = st.tabs(["🔎 Buscar e importar", "🔗 Importar link", "🎲 Ruleta", "📚 Biblioteca", "📺 Series y pelis", "➕ Agregar manual", "📝 Capitulos", "📊 Stats", "⬇️ Exportar"])
+tab_search, tab_link, tab_roulette, tab_calendar, tab_wrapped, tab_books, tab_tv, tab_add, tab_chapters, tab_stats, tab_export = st.tabs(["🔎 Buscar e importar", "🔗 Importar link", "🎲 Ruleta", "📅 Calendario", "🏆 Wrapped", "📚 Biblioteca", "📺 Series y pelis", "➕ Agregar manual", "📝 Capitulos", "📊 Stats", "⬇️ Exportar"])
 
 with tab_search:
     st.subheader("Buscar en bases de datos externas")
@@ -162,6 +162,59 @@ with tab_roulette:
                 st.markdown(f"## {elegido.get('titulo')}"); st.write(f"**Tipo:** {elegido.get('tipo')}  |  **Estado:** {elegido.get('estado_lectura')}"); st.write(f"**Progreso:** {elegido.get('capitulo_actual',0)} / {elegido.get('capitulo_total',0)} · **Faltan:** {faltan(elegido)}"); st.write(f"**Etiquetas:** {elegido.get('etiquetas') or 'Sin etiquetas'}")
                 if elegido.get("sinopsis"): st.write(elegido.get("sinopsis"))
         if not ruleta.empty: st.dataframe(ruleta[["titulo","tipo","estado_lectura","capitulo_actual","capitulo_total","faltan","etiquetas"]], use_container_width=True)
+
+with tab_calendar:
+    st.subheader("Calendario de actividad")
+    actividad = pd.DataFrame(list_actividad())
+    if actividad.empty:
+        st.info("Todavia no hay actividad. Cuando guardes capitulos o episodios apareceran aqui.")
+    else:
+        actividad["fecha"] = pd.to_datetime(actividad["fecha"], errors="coerce")
+        col1, col2 = st.columns(2)
+        with col1: inicio = st.date_input("Desde", value=date.today() - timedelta(days=30), key="cal_inicio")
+        with col2: fin = st.date_input("Hasta", value=date.today(), key="cal_fin")
+        act = actividad[(actividad["fecha"].dt.date >= inicio) & (actividad["fecha"].dt.date <= fin)].copy()
+        if act.empty: st.warning("No hay actividad en ese rango.")
+        else:
+            por_dia = act.groupby(act["fecha"].dt.date).agg(cantidad=("cantidad","sum"), minutos=("minutos","sum")).reset_index().rename(columns={"fecha":"dia"})
+            st.plotly_chart(px.bar(por_dia, x="dia", y="cantidad", title="Capitulos / episodios por dia"), use_container_width=True)
+            st.write("### Registro diario")
+            st.dataframe(act[["fecha","titulo","tipo","tipo_actividad","cantidad","mood","comentario"]], use_container_width=True)
+
+with tab_wrapped:
+    st.subheader("Wrapped de lectura y pantalla")
+    periodo = st.radio("Periodo", ["Semanal", "Mensual", "Anual"], horizontal=True)
+    hoy = date.today()
+    if periodo == "Semanal": inicio = hoy - timedelta(days=7); titulo_periodo = "tu semana"
+    elif periodo == "Mensual": inicio = hoy.replace(day=1); titulo_periodo = "tu mes"
+    else: inicio = hoy.replace(month=1, day=1); titulo_periodo = "tu año"
+    actividad = pd.DataFrame(list_actividad(str(inicio), str(hoy)))
+    if actividad.empty:
+        st.info("Aun no hay actividad suficiente para crear un Wrapped.")
+    else:
+        actividad["cantidad"] = pd.to_numeric(actividad["cantidad"], errors="coerce").fillna(0)
+        actividad["minutos"] = pd.to_numeric(actividad["minutos"], errors="coerce").fillna(0)
+        total_caps = int(actividad["cantidad"].sum())
+        dias_activos = actividad["fecha"].nunique()
+        obra_top = actividad.groupby("titulo")["cantidad"].sum().sort_values(ascending=False).index[0]
+        tipo_top = actividad.groupby("tipo")["cantidad"].sum().sort_values(ascending=False).index[0]
+        c1,c2,c3,c4=st.columns(4)
+        c1.metric("Capitulos/episodios", total_caps); c2.metric("Dias activos", dias_activos); c3.metric("Obra reina", obra_top); c4.metric("Categoria dominante", tipo_top)
+        st.write("### Premios")
+        st.markdown(f"🏆 **Obra de {titulo_periodo}:** {obra_top}")
+        st.markdown(f"👑 **Categoria dominante:** {tipo_top}")
+        if "mood" in actividad.columns and actividad["mood"].dropna().astype(str).str.len().sum() > 0:
+            mood_top = actividad["mood"].dropna().astype(str).value_counts().index[0]
+            st.markdown(f"💫 **Mood dominante:** {mood_top}")
+        if "etiquetas" in actividad.columns:
+            tags=[]
+            for value in actividad["etiquetas"].dropna(): tags += [t.strip() for t in str(value).split(",") if t.strip()]
+            if tags:
+                st.markdown(f"🏷️ **Etiqueta del periodo:** {pd.Series(tags).value_counts().index[0]}")
+        por_tipo = actividad.groupby("tipo")["cantidad"].sum().reset_index()
+        por_obra = actividad.groupby("titulo")["cantidad"].sum().reset_index().sort_values("cantidad", ascending=False).head(10)
+        st.plotly_chart(px.pie(por_tipo, names="tipo", values="cantidad", title="Distribucion por categoria"), use_container_width=True)
+        st.plotly_chart(px.bar(por_obra, x="titulo", y="cantidad", title="Top obras del periodo"), use_container_width=True)
 
 with tab_books:
     books = df[df["tipo"].isin(BOOK_TYPES)].copy() if not df.empty else pd.DataFrame(); st.markdown('<div class="section-title">Mi estanteria</div>', unsafe_allow_html=True)
