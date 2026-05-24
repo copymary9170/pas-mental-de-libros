@@ -34,6 +34,9 @@ def esc(value): return html.escape(str(value or ""))
 def pct(row):
     actual = int(row.get("capitulo_actual") or 0); total = int(row.get("capitulo_total") or 0)
     return 0 if total <= 0 else min(100, round(actual / total * 100))
+def faltan(row):
+    actual = int(row.get("capitulo_actual") or 0); total = int(row.get("capitulo_total") or 0)
+    return max(total - actual, 0) if total > 0 else 0
 def cover_src(path): return esc(path) if path and str(path).startswith("http") else ""
 def book_card(row):
     cover = cover_src(row.get("portada_path")); cover_html = f'<img src="{cover}" />' if cover else '<div class="book-empty">📖</div>'; progress = pct(row)
@@ -46,7 +49,7 @@ def guardar_importado(item, tipo, estado):
 
 obras = list_obras(); df = pd.DataFrame(obras)
 st.markdown("""<div class="app-hero"><div><div class="hero-label">Bookmory + TV Time personal</div><h1>Paz Mental</h1><p>Biblioteca de libros, fanfics, manga, manhwa, webnovels, kdramas, series, anime y peliculas.</p></div></div>""", unsafe_allow_html=True)
-tab_search, tab_link, tab_books, tab_tv, tab_add, tab_chapters, tab_stats, tab_export = st.tabs(["🔎 Buscar e importar", "🔗 Importar link", "📚 Biblioteca", "📺 Series y pelis", "➕ Agregar manual", "📝 Capitulos", "📊 Stats", "⬇️ Exportar"])
+tab_search, tab_link, tab_roulette, tab_books, tab_tv, tab_add, tab_chapters, tab_stats, tab_export = st.tabs(["🔎 Buscar e importar", "🔗 Importar link", "🎲 Ruleta", "📚 Biblioteca", "📺 Series y pelis", "➕ Agregar manual", "📝 Capitulos", "📊 Stats", "⬇️ Exportar"])
 
 with tab_search:
     st.subheader("Buscar en bases de datos externas")
@@ -116,8 +119,51 @@ with tab_link:
             if portada_link.strip(): item["portada_path"] = portada_link.strip()
             if sinopsis_link.strip(): item["sinopsis"] = sinopsis_link.strip() + "\n\nLink original: " + url.strip()
             if tags_extra.strip(): item["etiquetas"] = item.get("etiquetas", "") + ", " + parse_tags(tags_extra)
-            guardar_importado(item, tipo_link, estado_link)
-            st.success("Link importado. Revisa la Biblioteca.")
+            guardar_importado(item, tipo_link, estado_link); st.success("Link importado. Revisa la Biblioteca.")
+
+with tab_roulette:
+    st.subheader("Ruleta anti-aburrimiento")
+    if df.empty: st.info("Agrega obras primero para usar la ruleta.")
+    else:
+        base = df.copy(); base["capitulo_actual"] = pd.to_numeric(base["capitulo_actual"], errors="coerce").fillna(0).astype(int); base["capitulo_total"] = pd.to_numeric(base["capitulo_total"], errors="coerce").fillna(0).astype(int); base["faltan"] = (base["capitulo_total"] - base["capitulo_actual"]).clip(lower=0)
+        pendientes = base[~base["estado_lectura"].isin(["Terminado", "Abandonado"])]
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            tipos_ruleta = st.multiselect("Filtrar por tipo", TIPOS, default=[])
+            estados_ruleta = st.multiselect("Filtrar por estado", [e for e in ESTADOS if e not in ["Terminado", "Abandonado"]], default=[])
+        with col2:
+            etiqueta = st.text_input("Genero / etiqueta contiene", placeholder="romance, accion, kakao, kdrama...")
+            solo_con_faltantes = st.checkbox("Solo con capitulos/episodios faltantes", value=True)
+        with col3:
+            max_faltan = st.number_input("Maximo de capitulos/episodios faltantes (0 = sin limite)", min_value=0, value=0, step=1)
+            minimo_nota = st.slider("Nota minima", 0.0, 10.0, 0.0, 0.5)
+        ruleta = pendientes.copy()
+        if tipos_ruleta: ruleta = ruleta[ruleta["tipo"].isin(tipos_ruleta)]
+        if estados_ruleta: ruleta = ruleta[ruleta["estado_lectura"].isin(estados_ruleta)]
+        if etiqueta.strip(): ruleta = ruleta[ruleta["etiquetas"].fillna("").str.contains(etiqueta.strip(), case=False)]
+        if solo_con_faltantes: ruleta = ruleta[(ruleta["faltan"] > 0) | (ruleta["capitulo_total"] == 0)]
+        if max_faltan > 0: ruleta = ruleta[(ruleta["faltan"] <= max_faltan) | (ruleta["capitulo_total"] == 0)]
+        ruleta["clasificacion"] = pd.to_numeric(ruleta["clasificacion"], errors="coerce").fillna(0)
+        ruleta = ruleta[ruleta["clasificacion"] >= minimo_nota]
+        st.caption(f"Opciones en la ruleta: {len(ruleta)}")
+        if st.button("🎲 Girar ruleta", type="primary"):
+            if ruleta.empty: st.warning("No hay obras que coincidan con esos filtros.")
+            else: st.session_state["ruleta_choice"] = ruleta.sample(1).iloc[0].to_dict()
+        elegido = st.session_state.get("ruleta_choice")
+        if elegido:
+            st.markdown("### Resultado")
+            col_img, col_info = st.columns([1, 3])
+            with col_img:
+                if elegido.get("portada_path") and str(elegido.get("portada_path")).startswith("http"): st.image(elegido.get("portada_path"), use_container_width=True)
+                else: st.write("📚 Sin portada")
+            with col_info:
+                st.markdown(f"## {elegido.get('titulo')}")
+                st.write(f"**Tipo:** {elegido.get('tipo')}  |  **Estado:** {elegido.get('estado_lectura')}")
+                st.write(f"**Progreso:** {elegido.get('capitulo_actual',0)} / {elegido.get('capitulo_total',0)} · **Faltan:** {faltan(elegido)}")
+                st.write(f"**Etiquetas:** {elegido.get('etiquetas') or 'Sin etiquetas'}")
+                if elegido.get("sinopsis"): st.write(elegido.get("sinopsis"))
+        if not ruleta.empty:
+            st.dataframe(ruleta[["titulo","tipo","estado_lectura","capitulo_actual","capitulo_total","faltan","etiquetas"]], use_container_width=True)
 
 with tab_books:
     books = df[df["tipo"].isin(BOOK_TYPES)].copy() if not df.empty else pd.DataFrame(); st.markdown('<div class="section-title">Mi estanteria</div>', unsafe_allow_html=True)
