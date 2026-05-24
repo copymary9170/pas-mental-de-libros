@@ -98,7 +98,7 @@ with tab_search:
 
 with tab_link:
     st.subheader("Importar desde link")
-    st.caption("Pega enlaces de KakaoPage, Naver, Munpia, Ridi, NovelUpdates, Webnovel o cualquier pagina. Si no se puede leer automaticamente, igual se guarda el link como referencia.")
+    st.caption("Pega enlaces de KakaoPage, Naver, Munpia, Ridi, NovelUpdates, Webnovel o cualquier pagina. Puedes pegar una URL de portada o subir una imagen manualmente.")
     url = st.text_input("Link de la obra", placeholder="https://page.kakao.com/...", key="link_import_url")
     col_a, col_b = st.columns(2)
     with col_a:
@@ -108,6 +108,7 @@ with tab_link:
     with col_b:
         estado_link = st.selectbox("Estado", ESTADOS, index=0, key="estado_link")
         portada_link = st.text_input("URL de portada opcional")
+        portada_archivo = st.file_uploader("Subir portada desde tu dispositivo", type=["jpg", "jpeg", "png", "webp"], key="portada_link_upload")
         tags_extra = st.text_input("Etiquetas extra", placeholder="kakao, coreana, romance, fantasía")
     sinopsis_link = st.text_area("Sinopsis / notas opcionales")
     if st.button("Importar link"):
@@ -116,10 +117,12 @@ with tab_link:
             item = importar_desde_link(url.strip())
             if titulo_manual.strip(): item["titulo"] = titulo_manual.strip()
             if autor_manual.strip(): item["autor"] = autor_manual.strip()
-            if portada_link.strip(): item["portada_path"] = portada_link.strip()
+            portada_subida = save_uploaded_file(portada_archivo, PORTADAS_DIR)
+            if portada_subida: item["portada_path"] = portada_subida
+            elif portada_link.strip(): item["portada_path"] = portada_link.strip()
             if sinopsis_link.strip(): item["sinopsis"] = sinopsis_link.strip() + "\n\nLink original: " + url.strip()
             if tags_extra.strip(): item["etiquetas"] = item.get("etiquetas", "") + ", " + parse_tags(tags_extra)
-            guardar_importado(item, tipo_link, estado_link); st.success("Link importado. Revisa la Biblioteca.")
+            guardar_importado(item, tipo_link, estado_link); st.success("Link importado con portada. Revisa la Biblioteca.")
 
 with tab_roulette:
     st.subheader("Ruleta anti-aburrimiento")
@@ -143,8 +146,7 @@ with tab_roulette:
         if etiqueta.strip(): ruleta = ruleta[ruleta["etiquetas"].fillna("").str.contains(etiqueta.strip(), case=False)]
         if solo_con_faltantes: ruleta = ruleta[(ruleta["faltan"] > 0) | (ruleta["capitulo_total"] == 0)]
         if max_faltan > 0: ruleta = ruleta[(ruleta["faltan"] <= max_faltan) | (ruleta["capitulo_total"] == 0)]
-        ruleta["clasificacion"] = pd.to_numeric(ruleta["clasificacion"], errors="coerce").fillna(0)
-        ruleta = ruleta[ruleta["clasificacion"] >= minimo_nota]
+        ruleta["clasificacion"] = pd.to_numeric(ruleta["clasificacion"], errors="coerce").fillna(0); ruleta = ruleta[ruleta["clasificacion"] >= minimo_nota]
         st.caption(f"Opciones en la ruleta: {len(ruleta)}")
         if st.button("🎲 Girar ruleta", type="primary"):
             if ruleta.empty: st.warning("No hay obras que coincidan con esos filtros.")
@@ -157,13 +159,9 @@ with tab_roulette:
                 if elegido.get("portada_path") and str(elegido.get("portada_path")).startswith("http"): st.image(elegido.get("portada_path"), use_container_width=True)
                 else: st.write("📚 Sin portada")
             with col_info:
-                st.markdown(f"## {elegido.get('titulo')}")
-                st.write(f"**Tipo:** {elegido.get('tipo')}  |  **Estado:** {elegido.get('estado_lectura')}")
-                st.write(f"**Progreso:** {elegido.get('capitulo_actual',0)} / {elegido.get('capitulo_total',0)} · **Faltan:** {faltan(elegido)}")
-                st.write(f"**Etiquetas:** {elegido.get('etiquetas') or 'Sin etiquetas'}")
+                st.markdown(f"## {elegido.get('titulo')}"); st.write(f"**Tipo:** {elegido.get('tipo')}  |  **Estado:** {elegido.get('estado_lectura')}"); st.write(f"**Progreso:** {elegido.get('capitulo_actual',0)} / {elegido.get('capitulo_total',0)} · **Faltan:** {faltan(elegido)}"); st.write(f"**Etiquetas:** {elegido.get('etiquetas') or 'Sin etiquetas'}")
                 if elegido.get("sinopsis"): st.write(elegido.get("sinopsis"))
-        if not ruleta.empty:
-            st.dataframe(ruleta[["titulo","tipo","estado_lectura","capitulo_actual","capitulo_total","faltan","etiquetas"]], use_container_width=True)
+        if not ruleta.empty: st.dataframe(ruleta[["titulo","tipo","estado_lectura","capitulo_actual","capitulo_total","faltan","etiquetas"]], use_container_width=True)
 
 with tab_books:
     books = df[df["tipo"].isin(BOOK_TYPES)].copy() if not df.empty else pd.DataFrame(); st.markdown('<div class="section-title">Mi estanteria</div>', unsafe_allow_html=True)
