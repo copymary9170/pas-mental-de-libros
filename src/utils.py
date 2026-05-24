@@ -111,6 +111,47 @@ def buscar_series_tvmaze(query):
         return []
 
 
+def _tmdb_search(query, media_type, api_key):
+    if not query or not api_key:
+        return []
+    try:
+        endpoint = "movie" if media_type == "movie" else "tv"
+        r = requests.get(
+            f"https://api.themoviedb.org/3/search/{endpoint}",
+            params={"api_key": api_key, "query": query, "language": "es-ES", "include_adult": "false"},
+            timeout=10,
+        )
+        r.raise_for_status()
+        results = []
+        for item in r.json().get("results", [])[:15]:
+            title = item.get("title") or item.get("name") or "Sin titulo"
+            date = item.get("release_date") or item.get("first_air_date") or ""
+            poster = item.get("poster_path")
+            results.append({
+                "titulo": title,
+                "autor": "TMDB",
+                "tipo": "Pelicula" if media_type == "movie" else "Serie",
+                "anio": date[:4],
+                "sinopsis": item.get("overview") or "",
+                "portada_path": f"https://image.tmdb.org/t/p/w500{poster}" if poster else "",
+                "capitulo_total": 1 if media_type == "movie" else 0,
+                "temporada_total": 1,
+                "etiquetas": "tmdb, pelicula, importado" if media_type == "movie" else "tmdb, serie, importado",
+                "estado_publicacion": "Terminada" if media_type == "movie" else "No aplica",
+            })
+        return results
+    except Exception:
+        return []
+
+
+def buscar_peliculas_tmdb(query, api_key=""):
+    return _tmdb_search(query, "movie", api_key)
+
+
+def buscar_series_tmdb(query, api_key=""):
+    return _tmdb_search(query, "tv", api_key)
+
+
 def buscar_peliculas_itunes(query):
     if not query:
         return []
