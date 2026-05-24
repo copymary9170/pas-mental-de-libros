@@ -5,7 +5,7 @@ from datetime import date
 from pathlib import Path
 
 from src.database import init_db, add_obra, update_obra, delete_obra, list_obras, get_obra, add_capitulo, list_capitulos
-from src.utils import save_uploaded_file, parse_tags, PORTADAS_DIR, RESPALDOS_DIR, ensure_dirs
+from src.utils import save_uploaded_file, parse_tags, PORTADAS_DIR, RESPALDOS_DIR, ensure_dirs, buscar_portada_openlibrary
 from src.styles import apply_styles
 
 st.set_page_config(page_title="Paz Mental: tracker multimedia", page_icon="📚", layout="wide")
@@ -20,8 +20,8 @@ ESTADOS_PUBLICACION = ["En emision", "Terminada", "Hiatus con aviso", "Hiatus si
 st.title("📚 Paz Mental de Libros, Series y Fanfics")
 st.caption("Tracker personal para lecturas, anime, series, peliculas, fanfiction y cualquier historia que quieras guardar.")
 
-tab_biblioteca, tab_agregar, tab_capitulos, tab_estadisticas, tab_exportar = st.tabs([
-    "Biblioteca", "Agregar / editar", "Capitulos y opiniones", "Rankings", "Exportar"
+tab_biblioteca, tab_agregar, tab_capitulos, tab_estadisticas, tab_recomendaciones, tab_exportar = st.tabs([
+    "Biblioteca", "Agregar / editar", "Capitulos y opiniones", "Rankings", "Recomendaciones", "Exportar"
 ])
 
 obras = list_obras()
@@ -41,7 +41,7 @@ with tab_biblioteca:
     if not filtered.empty:
         filtered["clasificacion"] = pd.to_numeric(filtered["clasificacion"], errors="coerce").fillna(0)
         if q:
-            text = filtered[["titulo", "autor", "etiquetas"]].fillna("").agg(" ".join, axis=1)
+            text = filtered[["titulo", "autor", "etiquetas", "motivo_estado"]].fillna("").agg(" ".join, axis=1)
             filtered = filtered[text.str.contains(q, case=False)]
         if tipo_f:
             filtered = filtered[filtered["tipo"].isin(tipo_f)]
@@ -59,7 +59,9 @@ with tab_biblioteca:
             col1, col2 = st.columns([1, 4])
             with col1:
                 portada = obra.get("portada_path")
-                if portada and Path(portada).exists():
+                if portada and str(portada).startswith("http"):
+                    st.image(portada, use_container_width=True)
+                elif portada and Path(portada).exists():
                     st.image(portada, use_container_width=True)
                 else:
                     st.write("📖 Sin portada")
@@ -67,12 +69,7 @@ with tab_biblioteca:
                 fav = "⭐ " if int(obra.get("favorito") or 0) else ""
                 st.markdown(f"### {fav}{obra.get('titulo', 'Sin titulo')}")
                 st.markdown(f"**Creador/a:** {obra.get('autor') or 'No indicado'}")
-                st.markdown(
-                    f"<span class='status-pill'>{obra.get('tipo')}</span>"
-                    f"<span class='status-pill'>{obra.get('estado_lectura')}</span>"
-                    f"<span class='status-pill'>{obra.get('estado_publicacion')}</span>",
-                    unsafe_allow_html=True,
-                )
+                st.markdown(f"<span class='status-pill'>{obra.get('tipo')}</span><span class='status-pill'>{obra.get('estado_lectura')}</span><span class='status-pill'>{obra.get('estado_publicacion')}</span>", unsafe_allow_html=True)
                 st.write(f"**Nota:** {obra.get('clasificacion', 0)} / 10")
                 st.write(f"**Progreso:** {obra.get('capitulo_actual', 0)} / {obra.get('capitulo_total', 0)}")
                 st.write(f"**Etiquetas:** {obra.get('etiquetas') or 'Sin etiquetas'}")
@@ -103,8 +100,10 @@ with tab_agregar:
             etiquetas = st.text_input("Etiquetas separadas por coma")
             link_original = st.text_input("Link original")
             link_respaldo = st.text_input("Link de respaldo")
-            motivo_estado = st.text_area("Opinion corta, motivo de pausa o nota importante")
+            motivo_estado = st.text_area("Opinion corta, personajes, ships, frases o nota importante")
             favorito = st.checkbox("Favorito")
+            portada_url = st.text_input("URL de portada opcional")
+            buscar_portada = st.checkbox("Buscar portada automaticamente si es libro", value=False)
             sin_fecha_inicio = st.checkbox("Sin fecha de inicio", value=True)
             fecha_inicio = None if sin_fecha_inicio else st.date_input("Fecha de inicio", value=date.today())
             sin_fecha_fin = st.checkbox("Sin fecha de finalizacion", value=True)
@@ -112,24 +111,17 @@ with tab_agregar:
         sinopsis = st.text_area("Sinopsis / descripcion general")
         portada = st.file_uploader("Portada", type=["jpg", "jpeg", "png", "webp"])
         respaldo = st.file_uploader("Archivo de respaldo", type=["pdf", "epub", "txt", "docx", "zip", "jpg", "jpeg", "png", "webp"])
-
         submitted = st.form_submit_button("Guardar obra")
         if submitted:
             if not titulo.strip():
                 st.error("El titulo es obligatorio.")
             else:
-                add_obra({
-                    "titulo": titulo.strip(), "autor": autor.strip(), "tipo": tipo,
-                    "clasificacion": clasificacion, "estado_lectura": estado_lectura,
-                    "estado_publicacion": estado_publicacion, "capitulo_actual": int(capitulo_actual),
-                    "capitulo_total": int(capitulo_total), "sinopsis": sinopsis,
-                    "etiquetas": parse_tags(etiquetas), "link_original": link_original,
-                    "link_respaldo": link_respaldo, "portada_path": save_uploaded_file(portada, PORTADAS_DIR),
-                    "respaldo_path": save_uploaded_file(respaldo, RESPALDOS_DIR), "motivo_estado": motivo_estado,
-                    "favorito": 1 if favorito else 0,
-                    "fecha_inicio": str(fecha_inicio) if fecha_inicio else None,
-                    "fecha_fin": str(fecha_fin) if fecha_fin else None,
-                })
+                portada_path = save_uploaded_file(portada, PORTADAS_DIR)
+                if not portada_path and portada_url.strip():
+                    portada_path = portada_url.strip()
+                if not portada_path and buscar_portada:
+                    portada_path = buscar_portada_openlibrary(titulo.strip(), autor.strip())
+                add_obra({"titulo": titulo.strip(), "autor": autor.strip(), "tipo": tipo, "clasificacion": clasificacion, "estado_lectura": estado_lectura, "estado_publicacion": estado_publicacion, "capitulo_actual": int(capitulo_actual), "capitulo_total": int(capitulo_total), "sinopsis": sinopsis, "etiquetas": parse_tags(etiquetas), "link_original": link_original, "link_respaldo": link_respaldo, "portada_path": portada_path, "respaldo_path": save_uploaded_file(respaldo, RESPALDOS_DIR), "motivo_estado": motivo_estado, "favorito": 1 if favorito else 0, "fecha_inicio": str(fecha_inicio) if fecha_inicio else None, "fecha_fin": str(fecha_fin) if fecha_fin else None})
                 st.success("Obra guardada. Recarga la pagina para verla en biblioteca.")
 
     st.divider()
@@ -149,12 +141,7 @@ with tab_agregar:
             nuevo_fav = st.checkbox("Favorito", value=bool(obra.get("favorito")))
         nueva_opinion = st.text_area("Opinion corta", value=obra.get("motivo_estado") or "")
         if st.button("Actualizar obra"):
-            update_obra(obra["id"], {
-                "capitulo_actual": int(nuevo_cap), "estado_lectura": nuevo_estado,
-                "clasificacion": float(nuevo_rank), "favorito": 1 if nuevo_fav else 0,
-                "motivo_estado": nueva_opinion,
-                "fecha_fin": str(date.today()) if nuevo_estado == "Terminado" and not obra.get("fecha_fin") else obra.get("fecha_fin"),
-            })
+            update_obra(obra["id"], {"capitulo_actual": int(nuevo_cap), "estado_lectura": nuevo_estado, "clasificacion": float(nuevo_rank), "favorito": 1 if nuevo_fav else 0, "motivo_estado": nueva_opinion, "fecha_fin": str(date.today()) if nuevo_estado == "Terminado" and not obra.get("fecha_fin") else obra.get("fecha_fin")})
             st.success("Obra actualizada.")
         if st.button("Eliminar obra", type="secondary"):
             delete_obra(obra["id"])
@@ -207,15 +194,54 @@ with tab_estadisticas:
         c3.metric("En progreso", int(stats["estado_lectura"].isin(["Leyendo", "Viendo", "Releyendo", "Rewatch"]).sum()))
         c4.metric("Favoritos", int(stats["favorito"].fillna(0).astype(int).sum()))
         st.write("### Top 10")
-        st.dataframe(stats.sort_values("clasificacion", ascending=False).head(10)[["titulo", "autor", "tipo", "clasificacion", "estado_lectura"]], use_container_width=True)
-        st.write("### Cantidad por tipo")
-        por_tipo = stats.groupby("tipo").size().reset_index(name="cantidad")
-        st.plotly_chart(px.bar(por_tipo, x="tipo", y="cantidad", title="Obras por tipo"), use_container_width=True)
+        st.dataframe(stats.sort_values("clasificacion", ascending=False).head(10)[["titulo", "autor", "tipo", "clasificacion", "estado_lectura", "etiquetas"]], use_container_width=True)
+        col_a, col_b = st.columns(2)
+        with col_a:
+            por_tipo = stats.groupby("tipo").size().reset_index(name="cantidad")
+            st.plotly_chart(px.bar(por_tipo, x="tipo", y="cantidad", title="Obras por tipo"), use_container_width=True)
+        with col_b:
+            por_estado = stats.groupby("estado_lectura").size().reset_index(name="cantidad")
+            st.plotly_chart(px.pie(por_estado, names="estado_lectura", values="cantidad", title="Estados"), use_container_width=True)
         terminadas = stats[stats["estado_lectura"] == "Terminado"].copy()
         if not terminadas.empty:
             terminadas["mes"] = terminadas["fecha_fin_dt"].dt.to_period("M").astype(str)
             por_mes = terminadas.groupby("mes").size().reset_index(name="cantidad")
             st.plotly_chart(px.bar(por_mes, x="mes", y="cantidad", title="Terminadas por mes"), use_container_width=True)
+
+with tab_recomendaciones:
+    st.subheader("Recomendaciones automaticas segun tus gustos")
+    if df.empty:
+        st.info("Cuando agregues obras, aqui apareceran recomendaciones basadas en tus favoritos y notas altas.")
+    else:
+        base = df.copy()
+        base["clasificacion"] = pd.to_numeric(base["clasificacion"], errors="coerce").fillna(0)
+        amadas = base[(base["favorito"].fillna(0).astype(int) == 1) | (base["clasificacion"] >= 8.0)]
+        pendientes = base[base["estado_lectura"].isin(["Pendiente", "Pausado"])]
+        st.write("### Tus patrones favoritos")
+        if amadas.empty:
+            st.info("Marca favoritos o pon notas altas para que el sistema aprenda tus gustos.")
+        else:
+            tags = []
+            for value in amadas["etiquetas"].fillna(""):
+                tags.extend([t.strip() for t in value.split(",") if t.strip()])
+            top_tags = pd.Series(tags).value_counts().head(10) if tags else pd.Series(dtype=int)
+            if not top_tags.empty:
+                st.dataframe(top_tags.reset_index().rename(columns={"index": "tag", 0: "veces"}), use_container_width=True)
+            st.write("### Pendientes que podrian gustarte")
+            if pendientes.empty:
+                st.info("No tienes pendientes o pausados todavia.")
+            else:
+                favoritas_tags = set(top_tags.index.tolist()) if not top_tags.empty else set()
+                def score(row):
+                    row_tags = {t.strip() for t in str(row.get("etiquetas") or "").split(",") if t.strip()}
+                    return len(row_tags & favoritas_tags) + float(row.get("clasificacion") or 0) / 10
+                pendientes = pendientes.copy()
+                pendientes["afinidad"] = pendientes.apply(score, axis=1)
+                st.dataframe(pendientes.sort_values("afinidad", ascending=False)[["titulo", "tipo", "estado_lectura", "etiquetas", "afinidad"]], use_container_width=True)
+        st.write("### Ideas de proximas entradas")
+        st.markdown("- Agrega etiquetas como `romance`, `angst`, `comedia`, `fantasia`, `villano favorito`, `slow burn` o `found family`.")
+        st.markdown("- Marca favoritos para que el ranking automatico sea mas util.")
+        st.markdown("- Usa la opinion corta para guardar personajes, ships y frases memorables.")
 
 with tab_exportar:
     st.subheader("Exportar datos")
