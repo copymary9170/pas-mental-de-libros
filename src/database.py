@@ -17,10 +17,15 @@ OBRAS_COLUMNS = {
     "frases_favoritas": "TEXT",
     "estado_lectura": "TEXT",
     "estado_publicacion": "TEXT",
+    "fecha_publicacion": "TEXT",
     "capitulo_actual": "INTEGER DEFAULT 0",
     "capitulo_total": "INTEGER DEFAULT 0",
     "capitulos_publicados": "INTEGER DEFAULT 0",
     "capitulos_vistos": "INTEGER DEFAULT 0",
+    "ultimo_capitulo_publicado": "INTEGER DEFAULT 0",
+    "fecha_ultimo_capitulo_publicado": "TEXT",
+    "ultimo_capitulo_visto": "INTEGER DEFAULT 0",
+    "fecha_ultimo_capitulo_visto": "TEXT",
     "fecha_ultima_emision": "TEXT",
     "frecuencia_emision": "TEXT",
     "proximo_capitulo_fecha": "TEXT",
@@ -40,7 +45,6 @@ OBRAS_COLUMNS = {
     "updated_at": "TEXT",
 }
 
-# Mantengo todas las tablas existentes y agrego columnas nuevas con migracion segura.
 from pathlib import Path
 
 def get_conn():
@@ -69,10 +73,15 @@ def init_db():
             frases_favoritas TEXT,
             estado_lectura TEXT,
             estado_publicacion TEXT,
+            fecha_publicacion TEXT,
             capitulo_actual INTEGER DEFAULT 0,
             capitulo_total INTEGER DEFAULT 0,
             capitulos_publicados INTEGER DEFAULT 0,
             capitulos_vistos INTEGER DEFAULT 0,
+            ultimo_capitulo_publicado INTEGER DEFAULT 0,
+            fecha_ultimo_capitulo_publicado TEXT,
+            ultimo_capitulo_visto INTEGER DEFAULT 0,
+            fecha_ultimo_capitulo_visto TEXT,
             fecha_ultima_emision TEXT,
             frecuencia_emision TEXT,
             proximo_capitulo_fecha TEXT,
@@ -176,6 +185,10 @@ def add_obra(data):
         data["capitulos_publicados"] = data.get("capitulo_total") or 0
     if not data.get("capitulos_vistos"):
         data["capitulos_vistos"] = data.get("capitulo_actual") or 0
+    if not data.get("ultimo_capitulo_publicado"):
+        data["ultimo_capitulo_publicado"] = data.get("capitulos_publicados") or data.get("capitulo_total") or 0
+    if not data.get("ultimo_capitulo_visto"):
+        data["ultimo_capitulo_visto"] = data.get("capitulos_vistos") or data.get("capitulo_actual") or 0
     _insert("obras", data)
 
 def update_obra(obra_id, data):
@@ -216,7 +229,7 @@ def add_capitulo(data):
         if clean.get("fecha_lectura"):
             conn.execute("INSERT INTO actividad (obra_id, capitulo_id, fecha, tipo_actividad, cantidad, mood, comentario, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (clean.get("obra_id"), cap_id, clean.get("fecha_lectura"), "capitulo", 1, clean.get("mood"), clean.get("comentario") or clean.get("notas"), now))
         if clean.get("obra_id") and clean.get("numero"):
-            conn.execute("UPDATE obras SET capitulo_actual=?, capitulos_vistos=?, updated_at=? WHERE id=?", (int(clean.get("numero")), int(clean.get("numero")), now, clean.get("obra_id")))
+            conn.execute("UPDATE obras SET capitulo_actual=?, capitulos_vistos=?, ultimo_capitulo_visto=?, fecha_ultimo_capitulo_visto=?, updated_at=? WHERE id=?", (int(clean.get("numero")), int(clean.get("numero")), int(clean.get("numero")), clean.get("fecha_lectura"), now, clean.get("obra_id")))
         conn.commit()
     return cap_id
 
