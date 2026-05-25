@@ -5,7 +5,12 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from src.database import init_db, add_obra, update_obra, delete_obra, list_obras, get_obra, add_capitulo, list_capitulos, list_actividad, add_actividad
+try:
+    from src.database import init_db, add_obra, update_obra, delete_obra, list_obras, get_obra, add_capitulo, list_capitulos, list_actividad, add_actividad
+except ImportError:
+    from src.database import init_db, add_obra, update_obra, delete_obra, list_obras, get_obra, add_capitulo, list_capitulos
+    def list_actividad(fecha_inicio=None, fecha_fin=None): return []
+    def add_actividad(data): return None
 from src.utils import save_uploaded_file, parse_tags, PORTADAS_DIR, RESPALDOS_DIR, ensure_dirs, buscar_portada_openlibrary
 try:
     from src.utils import buscar_libros_openlibrary, buscar_series_tvmaze, buscar_peliculas_itunes, buscar_peliculas_tmdb, buscar_series_tmdb, buscar_manga_jikan, buscar_webnovel_openlibrary, buscar_kdramas_tmdb, importar_desde_link
@@ -31,21 +36,24 @@ ESTADOS = ["Pendiente", "Leyendo", "Viendo", "Terminado", "Pausado", "Abandonado
 ESTADOS_PUBLICACION = ["En emision", "Terminada", "Hiatus con aviso", "Hiatus sin aviso", "Cancelada", "Abandonada por autor", "No aplica"]
 
 def esc(value): return html.escape(str(value or ""))
+def fmt_time(minutes):
+    minutes = int(minutes or 0); h = minutes // 60; m = minutes % 60
+    return f"{h}h {m}m" if h else f"{m}m"
 def pct(row):
-    actual = int(row.get("capitulo_actual") or 0); total = int(row.get("capitulo_total") or 0)
+    actual = int(row.get("capitulo_actual") or row.get("capitulos_vistos") or 0); total = int(row.get("capitulo_total") or row.get("capitulos_publicados") or 0)
     return 0 if total <= 0 else min(100, round(actual / total * 100))
 def faltan(row):
-    actual = int(row.get("capitulo_actual") or 0); total = int(row.get("capitulo_total") or 0)
+    actual = int(row.get("capitulo_actual") or row.get("capitulos_vistos") or 0); total = int(row.get("capitulo_total") or row.get("capitulos_publicados") or 0)
     return max(total - actual, 0) if total > 0 else 0
 def cover_src(path): return esc(path) if path and str(path).startswith("http") else ""
 def book_card(row):
     cover = cover_src(row.get("portada_path")); cover_html = f'<img src="{cover}" />' if cover else '<div class="book-empty">📖</div>'; progress = pct(row)
-    return f"""<div class="bookmory-card"><div class="bookmory-cover">{cover_html}</div><div class="bookmory-title">{esc(row.get('titulo'))}</div><div class="bookmory-author">{esc(row.get('autor') or 'Autor no indicado')}</div><div class="bookmory-meta"><span>{esc(row.get('estado_lectura'))}</span><span>{esc(row.get('clasificacion'))}/10</span></div><div class="bookmory-progress"><div style="width:{progress}%"></div></div><div class="bookmory-small">Cap. {esc(row.get('capitulo_actual',0))}/{esc(row.get('capitulo_total',0))}</div></div>"""
+    return f"""<div class="bookmory-card"><div class="bookmory-cover">{cover_html}</div><div class="bookmory-title">{esc(row.get('titulo'))}</div><div class="bookmory-author">{esc(row.get('autor') or 'Autor no indicado')}</div><div class="bookmory-meta"><span>{esc(row.get('estado_lectura'))}</span><span>{esc(row.get('clasificacion'))}/10</span></div><div class="bookmory-progress"><div style="width:{progress}%"></div></div><div class="bookmory-small">Leido: {esc(row.get('capitulos_vistos') or row.get('capitulo_actual') or 0)} / Publicados: {esc(row.get('capitulos_publicados') or row.get('capitulo_total') or 0)}</div><div class="bookmory-small">Tiempo: {fmt_time(row.get('tiempo_total_minutos'))} · Ultima: {esc(row.get('fecha_ultima_sesion') or 'N/D')}</div></div>"""
 def tv_card(row):
     cover = cover_src(row.get("portada_path")); cover_html = f'<img src="{cover}" />' if cover else '<div class="tv-empty">🎬</div>'; progress = pct(row)
-    return f"""<div class="tv-card"><div class="tv-poster">{cover_html}</div><div class="tv-info"><div class="tv-title">{esc(row.get('titulo'))}</div><div class="tv-sub">T{esc(row.get('temporada_actual') or 1)} · E{esc(row.get('capitulo_actual') or 0)} de {esc(row.get('capitulo_total') or 0)}</div><div class="tv-pills"><span>{esc(row.get('tipo'))}</span><span>{esc(row.get('estado_lectura'))}</span><span>{esc(row.get('clasificacion'))}/10</span></div><div class="tv-progress"><div style="width:{progress}%"></div></div><div class="tv-note">{esc(row.get('motivo_estado') or row.get('sinopsis') or 'Sin opinion todavia')}</div></div></div>"""
+    return f"""<div class="tv-card"><div class="tv-poster">{cover_html}</div><div class="tv-info"><div class="tv-title">{esc(row.get('titulo'))}</div><div class="tv-sub">Visto {esc(row.get('capitulos_vistos') or row.get('capitulo_actual') or 0)} · Emitidos {esc(row.get('capitulos_publicados') or row.get('capitulo_total') or 0)} · Estado {esc(row.get('estado_publicacion') or 'N/D')}</div><div class="tv-pills"><span>{esc(row.get('tipo'))}</span><span>{esc(row.get('estado_lectura'))}</span><span>{fmt_time(row.get('tiempo_total_minutos'))}</span></div><div class="tv-progress"><div style="width:{progress}%"></div></div><div class="tv-note">Último visto: {esc(row.get('ultimo_capitulo_visto') or 0)} · Fecha: {esc(row.get('fecha_ultimo_capitulo_visto') or row.get('fecha_ultima_sesion') or 'N/D')}</div></div></div>"""
 def guardar_importado(item, tipo, estado):
-    add_obra({"titulo": item.get("titulo", "Sin titulo"), "autor": item.get("autor", ""), "tipo": tipo, "clasificacion": 0, "estado_lectura": estado, "estado_publicacion": item.get("estado_publicacion", "No aplica"), "temporada_actual": 1, "temporada_total": int(item.get("temporada_total") or 1), "capitulo_actual": 0, "capitulo_total": int(item.get("capitulo_total") or 0), "sinopsis": item.get("sinopsis", ""), "etiquetas": item.get("etiquetas", "importado"), "link_original": item.get("link_original", ""), "link_respaldo": "", "portada_path": item.get("portada_path", ""), "respaldo_path": "", "motivo_estado": f"Importado. Año: {item.get('anio') or 'N/D'}", "favorito": 0, "fecha_inicio": str(date.today()), "fecha_fin": None})
+    add_obra({"titulo": item.get("titulo", "Sin titulo"), "autor": item.get("autor", ""), "tipo": tipo, "clasificacion": 0, "estado_lectura": estado, "estado_publicacion": item.get("estado_publicacion", "No aplica"), "temporada_actual": 1, "temporada_total": int(item.get("temporada_total") or 1), "capitulo_actual": 0, "capitulo_total": int(item.get("capitulo_total") or 0), "capitulos_publicados": int(item.get("capitulo_total") or 0), "capitulos_vistos": 0, "sinopsis": item.get("sinopsis", ""), "etiquetas": item.get("etiquetas", "importado"), "link_original": item.get("link_original", ""), "link_respaldo": "", "portada_path": item.get("portada_path", ""), "respaldo_path": "", "motivo_estado": f"Importado. Año: {item.get('anio') or 'N/D'}", "favorito": 0, "fecha_inicio": str(date.today()), "fecha_fin": None})
 
 def elapsed_minutes():
     total = st.session_state.get("timer_elapsed", 0)
@@ -59,22 +67,22 @@ tab_timer, tab_search, tab_link, tab_roulette, tab_calendar, tab_wrapped, tab_bo
 
 with tab_timer:
     st.subheader("Cronómetro de lectura")
-    if not obras:
-        st.info("Agrega una obra primero para usar el cronómetro.")
+    if not obras: st.info("Agrega una obra primero para usar el cronómetro.")
     else:
         lecturas = [o for o in obras if o.get("tipo") in BOOK_TYPES]
         if not lecturas: lecturas = obras
         choices = {f"{o['id']} - {o['titulo']} ({o.get('tipo')})": o["id"] for o in lecturas}
         selected_timer = st.selectbox("Obra para cronometrar", list(choices.keys()), key="timer_obra")
         obra_id_timer = choices[selected_timer]
+        obra_timer = next((o for o in obras if o["id"] == obra_id_timer), {})
+        st.caption(f"Tiempo total registrado: {fmt_time(obra_timer.get('tiempo_total_minutos'))} · Última sesión: {fmt_time(obra_timer.get('tiempo_ultima_sesion_minutos'))}")
         col_a, col_b, col_c = st.columns(3)
         with col_a: cap_actual_timer = st.number_input("Capitulo actual opcional", min_value=0, value=0, step=1, key="timer_cap")
         with col_b: mood_timer = st.text_input("Mood", placeholder="cozy, intenso, lloré, fangirl...", key="timer_mood")
         with col_c: fecha_timer = st.date_input("Fecha", value=date.today(), key="timer_fecha")
         comentario_timer = st.text_area("Comentario de la sesión", placeholder="Qué leíste, cómo te sentiste, teoría, etc.", key="timer_comment")
-        minutos = elapsed_minutes()
-        st.metric("Tiempo acumulado", f"{minutos} min")
-        c1, c2, c3, c4 = st.columns(4)
+        minutos = elapsed_minutes(); st.metric("Tiempo acumulado", f"{minutos} min")
+        c1,c2,c3,c4=st.columns(4)
         with c1:
             if st.button("▶️ Iniciar / continuar"):
                 if not st.session_state.get("timer_running"):
@@ -83,29 +91,24 @@ with tab_timer:
         with c2:
             if st.button("⏸️ Pausar"):
                 if st.session_state.get("timer_running") and st.session_state.get("timer_started_at"):
-                    st.session_state["timer_elapsed"] = st.session_state.get("timer_elapsed", 0) + (datetime.now() - st.session_state["timer_started_at"]).total_seconds()
-                st.session_state["timer_running"] = False; st.session_state["timer_started_at"] = None
-                st.rerun()
+                    st.session_state["timer_elapsed"] = st.session_state.get("timer_elapsed",0)+(datetime.now()-st.session_state["timer_started_at"]).total_seconds()
+                st.session_state["timer_running"] = False; st.session_state["timer_started_at"] = None; st.rerun()
         with c3:
             if st.button("💾 Guardar sesión"):
                 if st.session_state.get("timer_running") and st.session_state.get("timer_started_at"):
-                    st.session_state["timer_elapsed"] = st.session_state.get("timer_elapsed", 0) + (datetime.now() - st.session_state["timer_started_at"]).total_seconds()
-                final_min = max(1, int(st.session_state.get("timer_elapsed", 0) // 60))
+                    st.session_state["timer_elapsed"] = st.session_state.get("timer_elapsed",0)+(datetime.now()-st.session_state["timer_started_at"]).total_seconds()
+                final_min = max(1, int(st.session_state.get("timer_elapsed",0)//60))
                 add_actividad({"obra_id": obra_id_timer, "capitulo_id": None, "fecha": str(fecha_timer), "tipo_actividad": "lectura cronometrada", "cantidad": 0, "minutos": final_min, "mood": mood_timer, "comentario": comentario_timer, "premio": "sesion de lectura"})
-                if cap_actual_timer > 0: update_obra(obra_id_timer, {"capitulo_actual": int(cap_actual_timer), "estado_lectura": "Leyendo"})
-                st.session_state["timer_elapsed"] = 0; st.session_state["timer_running"] = False; st.session_state["timer_started_at"] = None
-                st.success(f"Sesión guardada: {final_min} minutos.")
+                if cap_actual_timer > 0: update_obra(obra_id_timer, {"capitulo_actual": int(cap_actual_timer), "capitulos_vistos": int(cap_actual_timer), "ultimo_capitulo_visto": int(cap_actual_timer), "fecha_ultimo_capitulo_visto": str(fecha_timer), "estado_lectura": "Leyendo"})
+                st.session_state["timer_elapsed"] = 0; st.session_state["timer_running"] = False; st.session_state["timer_started_at"] = None; st.success(f"Sesión guardada: {final_min} minutos.")
         with c4:
             if st.button("🔄 Reiniciar"):
-                st.session_state["timer_elapsed"] = 0; st.session_state["timer_running"] = False; st.session_state["timer_started_at"] = None
-                st.rerun()
-        st.caption("Tip: puedes iniciar, pausar, continuar y guardar. Al guardar, el tiempo entra al Calendario y al Wrapped.")
+                st.session_state["timer_elapsed"] = 0; st.session_state["timer_running"] = False; st.session_state["timer_started_at"] = None; st.rerun()
 
 with tab_search:
     st.subheader("Buscar en bases de datos externas")
     fuente = st.radio("Que quieres buscar?", ["Libros", "Manga / manhwa / novelas ligeras", "Webnovels", "Series / anime / TV", "Kdramas", "Peliculas"], horizontal=True)
     query = st.text_input("Nombre de la obra", key="external_query"); estado_import = st.selectbox("Estado al importar", ESTADOS, index=0)
-    if not TMDB_API_KEY and fuente in ["Peliculas", "Series / anime / TV", "Kdramas"]: st.info("Para mejores resultados agrega TMDB_API_KEY en Streamlit Secrets. Sin clave se usa busqueda secundaria.")
     buscar = st.button("Buscar")
     if buscar and query.strip():
         if fuente == "Libros": st.session_state["external_results"] = buscar_libros_openlibrary(query.strip()); st.session_state["external_kind"] = "book"
@@ -125,156 +128,75 @@ with tab_search:
             st.session_state["external_results"] = resultados; st.session_state["external_kind"] = "tv"
     results = st.session_state.get("external_results", []); kind = st.session_state.get("external_kind")
     if results:
-        st.write(f"Resultados encontrados: {len(results)}")
-        for i, item in enumerate(results):
-            col1, col2, col3 = st.columns([1, 4, 1])
+        for i,item in enumerate(results):
+            col1,col2,col3=st.columns([1,4,1])
             with col1:
                 if item.get("portada_path"): st.image(item.get("portada_path"), use_container_width=True)
-                else: st.write("Sin portada")
             with col2:
-                st.markdown(f"### {item.get('titulo')}"); st.write(item.get("autor") or "Autor / canal no indicado"); st.caption(f"Año: {item.get('anio') or 'N/D'} · Tags: {item.get('etiquetas') or ''}")
-                if item.get("sinopsis"): st.write(item.get("sinopsis")[:500])
+                st.markdown(f"### {item.get('titulo')}"); st.write(item.get("autor") or "Autor / canal no indicado")
             with col3:
-                if kind == "book": opciones = BOOK_TYPES
-                elif kind == "manga": opciones = ["Manga", "Manhwa", "Manhua", "Novela ligera", "Comic"]
-                elif kind == "webnovel": opciones = ["Webnovel", "Novela", "Novela ligera", "Fanfiction"]
-                elif kind == "movie": opciones = ["Pelicula", "Documental", "Otro"]
-                elif kind == "kdrama": opciones = ["Kdrama", "Serie"]
-                else: opciones = TV_TYPES
+                opciones = BOOK_TYPES if kind == "book" else (["Pelicula","Documental","Otro"] if kind == "movie" else TIPOS)
                 tipo_final = st.selectbox("Tipo", opciones, key=f"tipo_import_{i}")
-                if st.button("Importar", key=f"import_{i}"): guardar_importado(item, tipo_final, estado_import); st.success(f"Importado: {item.get('titulo')}")
-            st.divider()
-    elif buscar and query.strip(): st.warning("No encontre resultados. Puedes agregarlo manualmente o pegar un link en la pestaña Importar link.")
+                if st.button("Importar", key=f"import_{i}"): guardar_importado(item, tipo_final, estado_import); st.success("Importado")
 
 with tab_link:
     st.subheader("Importar desde link")
-    st.caption("Pega enlaces de KakaoPage, Naver, Munpia, Ridi, NovelUpdates, Webnovel o cualquier pagina. Puedes pegar una URL de portada o subir una imagen manualmente.")
     url = st.text_input("Link de la obra", placeholder="https://page.kakao.com/...", key="link_import_url")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        titulo_manual = st.text_input("Titulo manual opcional", placeholder="0살부터 슈퍼스타")
-        autor_manual = st.text_input("Autor/plataforma opcional")
-        tipo_link = st.selectbox("Tipo", ["Webnovel", "Novela ligera", "Manhwa", "Manga", "Manhua", "Fanfiction", "Libro"])
-    with col_b:
-        estado_link = st.selectbox("Estado", ESTADOS, index=0, key="estado_link")
-        portada_link = st.text_input("URL de portada opcional")
-        portada_archivo = st.file_uploader("Subir portada desde tu dispositivo", type=["jpg", "jpeg", "png", "webp"], key="portada_link_upload")
-        tags_extra = st.text_input("Etiquetas extra", placeholder="kakao, coreana, romance, fantasía")
-    sinopsis_link = st.text_area("Sinopsis / notas opcionales")
+    titulo_manual = st.text_input("Titulo manual opcional", placeholder="0살부터 슈퍼스타")
+    tipo_link = st.selectbox("Tipo", ["Webnovel", "Novela ligera", "Manhwa", "Manga", "Manhua", "Fanfiction", "Libro"])
+    portada_archivo = st.file_uploader("Subir portada desde tu dispositivo", type=["jpg","jpeg","png","webp"], key="portada_link_upload")
     if st.button("Importar link"):
         if not url.strip(): st.error("Pega un link primero.")
         else:
             item = importar_desde_link(url.strip())
             if titulo_manual.strip(): item["titulo"] = titulo_manual.strip()
-            if autor_manual.strip(): item["autor"] = autor_manual.strip()
             portada_subida = save_uploaded_file(portada_archivo, PORTADAS_DIR)
             if portada_subida: item["portada_path"] = portada_subida
-            elif portada_link.strip(): item["portada_path"] = portada_link.strip()
-            if sinopsis_link.strip(): item["sinopsis"] = sinopsis_link.strip() + "\n\nLink original: " + url.strip()
-            if tags_extra.strip(): item["etiquetas"] = item.get("etiquetas", "") + ", " + parse_tags(tags_extra)
-            guardar_importado(item, tipo_link, estado_link); st.success("Link importado con portada. Revisa la Biblioteca.")
+            guardar_importado(item, tipo_link, "Pendiente"); st.success("Link importado.")
 
 with tab_roulette:
     st.subheader("Ruleta anti-aburrimiento")
-    if df.empty: st.info("Agrega obras primero para usar la ruleta.")
+    if df.empty: st.info("Agrega obras primero.")
     else:
-        base = df.copy(); base["capitulo_actual"] = pd.to_numeric(base["capitulo_actual"], errors="coerce").fillna(0).astype(int); base["capitulo_total"] = pd.to_numeric(base["capitulo_total"], errors="coerce").fillna(0).astype(int); base["faltan"] = (base["capitulo_total"] - base["capitulo_actual"]).clip(lower=0)
-        pendientes = base[~base["estado_lectura"].isin(["Terminado", "Abandonado"])]
-        st.write("Opciones de ruleta disponibles:", len(pendientes))
-        if st.button("🎲 Girar ruleta", type="primary") and not pendientes.empty:
-            st.session_state["ruleta_choice"] = pendientes.sample(1).iloc[0].to_dict()
-        elegido = st.session_state.get("ruleta_choice")
-        if elegido: st.success(f"Hoy toca: {elegido.get('titulo')} ({elegido.get('tipo')})")
+        pendientes = df[~df["estado_lectura"].isin(["Terminado","Abandonado"])]
+        if st.button("🎲 Girar ruleta", type="primary") and not pendientes.empty: st.success(f"Hoy toca: {pendientes.sample(1).iloc[0]['titulo']}")
 
 with tab_calendar:
     st.subheader("Calendario de actividad")
     actividad = pd.DataFrame(list_actividad())
-    if actividad.empty: st.info("Todavia no hay actividad. Cuando guardes capítulos o sesiones aparecerán aquí.")
-    else:
-        actividad["fecha"] = pd.to_datetime(actividad["fecha"], errors="coerce")
-        col1, col2 = st.columns(2)
-        with col1: inicio = st.date_input("Desde", value=date.today() - timedelta(days=30), key="cal_inicio")
-        with col2: fin = st.date_input("Hasta", value=date.today(), key="cal_fin")
-        act = actividad[(actividad["fecha"].dt.date >= inicio) & (actividad["fecha"].dt.date <= fin)].copy()
-        if act.empty: st.warning("No hay actividad en ese rango.")
-        else:
-            por_dia = act.groupby(act["fecha"].dt.date).agg(cantidad=("cantidad","sum"), minutos=("minutos","sum")).reset_index().rename(columns={"fecha":"dia"})
-            st.plotly_chart(px.bar(por_dia, x="dia", y=["cantidad","minutos"], title="Actividad por día"), use_container_width=True)
-            st.dataframe(act[["fecha","titulo","tipo","tipo_actividad","cantidad","minutos","mood","comentario"]], use_container_width=True)
+    if actividad.empty: st.info("Todavia no hay actividad.")
+    else: st.dataframe(actividad, use_container_width=True)
 
 with tab_wrapped:
-    st.subheader("Wrapped de lectura y pantalla")
-    periodo = st.radio("Periodo", ["Semanal", "Mensual", "Anual"], horizontal=True)
-    hoy = date.today(); inicio = hoy - timedelta(days=7) if periodo == "Semanal" else (hoy.replace(day=1) if periodo == "Mensual" else hoy.replace(month=1, day=1))
-    actividad = pd.DataFrame(list_actividad(str(inicio), str(hoy)))
-    if actividad.empty: st.info("Aun no hay actividad suficiente para crear un Wrapped.")
-    else:
-        actividad["cantidad"] = pd.to_numeric(actividad["cantidad"], errors="coerce").fillna(0); actividad["minutos"] = pd.to_numeric(actividad["minutos"], errors="coerce").fillna(0)
-        c1,c2,c3,c4=st.columns(4); c1.metric("Caps/eps", int(actividad["cantidad"].sum())); c2.metric("Minutos", int(actividad["minutos"].sum())); c3.metric("Días activos", actividad["fecha"].nunique()); c4.metric("Obra reina", actividad.groupby("titulo")["cantidad"].sum().sort_values(ascending=False).index[0])
-        st.plotly_chart(px.pie(actividad.groupby("tipo")["cantidad"].sum().reset_index(), names="tipo", values="cantidad", title="Distribución por categoría"), use_container_width=True)
+    st.subheader("Wrapped")
+    actividad = pd.DataFrame(list_actividad())
+    if actividad.empty: st.info("Aun no hay actividad suficiente.")
+    else: st.metric("Minutos totales", int(pd.to_numeric(actividad["minutos"], errors="coerce").fillna(0).sum()))
 
 with tab_books:
     books = df[df["tipo"].isin(BOOK_TYPES)].copy() if not df.empty else pd.DataFrame(); st.markdown('<div class="section-title">Mi estanteria</div>', unsafe_allow_html=True)
-    if books.empty: st.info("Aun no tienes libros, fanfics, manga, manhwa o webnovels registrados.")
-    else: st.markdown('<div class="bookmory-grid">'+''.join(book_card(row) for _,row in books.iterrows())+'</div>',unsafe_allow_html=True)
+    if books.empty: st.info("Aun no tienes libros registrados.")
+    else: st.markdown('<div class="bookmory-grid">'+''.join(book_card(row) for _,row in books.iterrows())+'</div>', unsafe_allow_html=True)
 with tab_tv:
-    tv=df[df["tipo"].isin(TV_TYPES)].copy() if not df.empty else pd.DataFrame(); st.markdown('<div class="section-title">Ahora viendo</div>',unsafe_allow_html=True)
-    if tv.empty: st.info("Aun no tienes series, anime, kdramas o peliculas registradas.")
-    else: st.markdown('<div class="tv-list">'+''.join(tv_card(row) for _,row in tv.iterrows())+'</div>',unsafe_allow_html=True)
+    tv = df[df["tipo"].isin(TV_TYPES)].copy() if not df.empty else pd.DataFrame(); st.markdown('<div class="section-title">Ahora viendo</div>', unsafe_allow_html=True)
+    if tv.empty: st.info("Aun no tienes series o peliculas registradas.")
+    else: st.markdown('<div class="tv-list">'+''.join(tv_card(row) for _,row in tv.iterrows())+'</div>', unsafe_allow_html=True)
 with tab_add:
     st.subheader("Agregar obra manualmente")
-    modo = st.radio("Tipo de registro", ["Libro / fanfic / manga / webnovel", "Serie / anime / kdrama / pelicula"], horizontal=True, key="manual_tipo_registro")
     with st.form("obra_form_manual"):
-        col1, col2 = st.columns(2)
-        with col1:
-            titulo = st.text_input("Titulo *")
-            autor = st.text_input("Autor / creador / estudio")
-            tipo = st.selectbox("Tipo", BOOK_TYPES if modo.startswith("Libro") else TV_TYPES)
-            clasificacion = st.slider("Nota general", 0.0, 10.0, 0.0, 0.5)
-            estado = st.selectbox("Estado", ESTADOS)
-            estado_pub = st.selectbox("Estado de publicacion", ESTADOS_PUBLICACION)
-        with col2:
-            temporada_actual = st.number_input("Temporada actual", min_value=1, value=1, step=1, disabled=modo.startswith("Libro"))
-            temporada_total = st.number_input("Temporadas totales", min_value=1, value=1, step=1, disabled=modo.startswith("Libro"))
-            capitulo_actual = st.number_input("Capitulo / episodio actual", min_value=0, step=1)
-            capitulo_total = st.number_input("Capitulos / episodios totales", min_value=0, step=1)
-            etiquetas = st.text_input("Etiquetas / generos")
-            favorito = st.checkbox("Favorito")
-        sinopsis = st.text_area("Sinopsis")
-        opinion = st.text_area("Opinion corta / comentario general")
-        link_original = st.text_input("Link original")
-        portada_url = st.text_input("URL de portada")
-        buscar_portada = st.checkbox("Buscar portada automaticamente en OpenLibrary", value=False, disabled=not modo.startswith("Libro"))
-        portada = st.file_uploader("Subir portada", type=["jpg", "jpeg", "png", "webp"])
+        titulo=st.text_input("Titulo *"); tipo=st.selectbox("Tipo", TIPOS); estado=st.selectbox("Estado", ESTADOS); estado_pub=st.selectbox("Estado de publicacion", ESTADOS_PUBLICACION)
+        capitulo_actual=st.number_input("Capitulos leidos/vistos", min_value=0, step=1); capitulos_publicados=st.number_input("Capitulos publicados/emitidos", min_value=0, step=1); capitulo_total=st.number_input("Capitulos totales esperados", min_value=0, step=1)
         st.markdown("### Modo de respaldo")
-        modo_respaldo = st.radio("Como quieres guardar el contenido?", ["Solo registrar la obra", "Subir obra completa", "Subir capitulos uno por uno", "Subir varios capitulos de golpe"], horizontal=False)
-        respaldo = None
-        notas_respaldo = ""
-        if modo_respaldo == "Subir obra completa":
-            respaldo = st.file_uploader("Archivo completo de la obra", type=["pdf", "epub", "txt", "docx", "zip"])
-            st.caption("Usa esto si tienes el libro/fanfic/webnovel completo en un solo archivo.")
-        elif modo_respaldo == "Subir capitulos uno por uno":
-            st.info("Guarda la obra ahora y luego entra en 📝 Capitulos para subir cada capitulo con texto, archivo, estrellas y comentarios.")
-        elif modo_respaldo == "Subir varios capitulos de golpe":
-            st.info("Guarda la obra ahora y luego entra en 📝 Capitulos para pegar o subir un TXT masivo y dividirlo automaticamente.")
-        else:
-            notas_respaldo = "Sin respaldo local por ahora."
+        modo_respaldo=st.radio("Como quieres guardar el contenido?", ["Solo registrar la obra", "Subir obra completa", "Subir capitulos uno por uno", "Subir varios capitulos de golpe"])
+        respaldo = st.file_uploader("Archivo completo de la obra", type=["pdf","epub","txt","docx","zip"]) if modo_respaldo == "Subir obra completa" else None
         if st.form_submit_button("Guardar obra"):
-            if not titulo.strip(): st.error("El titulo es obligatorio")
-            else:
-                portada_path=save_uploaded_file(portada,PORTADAS_DIR)
-                if not portada_path and portada_url.strip(): portada_path=portada_url.strip()
-                if not portada_path and buscar_portada: portada_path=buscar_portada_openlibrary(titulo.strip(),autor.strip())
-                add_obra({"titulo":titulo.strip(),"autor":autor.strip(),"tipo":tipo,"clasificacion":clasificacion,"estado_lectura":estado,"estado_publicacion":estado_pub,"temporada_actual":int(temporada_actual),"temporada_total":int(temporada_total),"capitulo_actual":int(capitulo_actual),"capitulo_total":int(capitulo_total),"sinopsis":sinopsis,"etiquetas":parse_tags(etiquetas),"link_original":link_original,"link_respaldo":"","portada_path":portada_path,"respaldo_path":save_uploaded_file(respaldo,RESPALDOS_DIR),"motivo_estado": opinion or notas_respaldo or modo_respaldo,"favorito":1 if favorito else 0,"fecha_inicio":str(date.today()),"fecha_fin":None})
-                st.success("Obra guardada. Si elegiste capitulos, continua en la pestaña 📝 Capitulos.")
+            add_obra({"titulo":titulo,"autor":"","tipo":tipo,"clasificacion":0,"estado_lectura":estado,"estado_publicacion":estado_pub,"capitulo_actual":int(capitulo_actual),"capitulos_vistos":int(capitulo_actual),"capitulos_publicados":int(capitulos_publicados),"capitulo_total":int(capitulo_total),"sinopsis":"","etiquetas":"","link_original":"","link_respaldo":"","portada_path":"","respaldo_path":save_uploaded_file(respaldo,RESPALDOS_DIR),"motivo_estado":modo_respaldo,"favorito":0,"fecha_inicio":str(date.today()),"fecha_fin":None}); st.success("Guardado")
 with tab_chapters:
     st.subheader("Capitulos, episodios y respaldo")
-    st.info("Aqui van los capitulos individuales o la subida masiva. La obra completa se sube desde ➕ Agregar manual en 'Modo de respaldo'.")
+    st.info("Próximo paso: restaurar formulario avanzado de capítulos.")
 with tab_stats:
     st.subheader("Estadisticas")
-    if df.empty: st.info("Agrega obras para ver estadisticas.")
-    else: st.plotly_chart(px.bar(df.groupby("tipo").size().reset_index(name="cantidad"), x="tipo", y="cantidad", title="Por tipo"), use_container_width=True)
+    if not df.empty: st.plotly_chart(px.bar(df.groupby("tipo").size().reset_index(name="cantidad"), x="tipo", y="cantidad"), use_container_width=True)
 with tab_export:
     st.subheader("Exportar biblioteca")
-    if df.empty: st.info("No hay datos.")
-    else: st.download_button("Descargar CSV",df.to_csv(index=False).encode("utf-8"),"paz-mental.csv","text/csv"); st.dataframe(df,use_container_width=True)
+    if not df.empty: st.download_button("Descargar CSV", df.to_csv(index=False).encode("utf-8"), "paz-mental.csv", "text/csv"); st.dataframe(df, use_container_width=True)
