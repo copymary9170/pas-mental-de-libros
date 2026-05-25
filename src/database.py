@@ -26,6 +26,9 @@ OBRAS_COLUMNS = {
     "fecha_ultimo_capitulo_publicado": "TEXT",
     "ultimo_capitulo_visto": "INTEGER DEFAULT 0",
     "fecha_ultimo_capitulo_visto": "TEXT",
+    "tiempo_total_minutos": "INTEGER DEFAULT 0",
+    "tiempo_ultima_sesion_minutos": "INTEGER DEFAULT 0",
+    "fecha_ultima_sesion": "TEXT",
     "fecha_ultima_emision": "TEXT",
     "frecuencia_emision": "TEXT",
     "proximo_capitulo_fecha": "TEXT",
@@ -82,6 +85,9 @@ def init_db():
             fecha_ultimo_capitulo_publicado TEXT,
             ultimo_capitulo_visto INTEGER DEFAULT 0,
             fecha_ultimo_capitulo_visto TEXT,
+            tiempo_total_minutos INTEGER DEFAULT 0,
+            tiempo_ultima_sesion_minutos INTEGER DEFAULT 0,
+            fecha_ultima_sesion TEXT,
             fecha_ultima_emision TEXT,
             frecuencia_emision TEXT,
             proximo_capitulo_fecha TEXT,
@@ -189,6 +195,10 @@ def add_obra(data):
         data["ultimo_capitulo_publicado"] = data.get("capitulos_publicados") or data.get("capitulo_total") or 0
     if not data.get("ultimo_capitulo_visto"):
         data["ultimo_capitulo_visto"] = data.get("capitulos_vistos") or data.get("capitulo_actual") or 0
+    if not data.get("tiempo_total_minutos"):
+        data["tiempo_total_minutos"] = 0
+    if not data.get("tiempo_ultima_sesion_minutos"):
+        data["tiempo_ultima_sesion_minutos"] = 0
     _insert("obras", data)
 
 def update_obra(obra_id, data):
@@ -197,6 +207,24 @@ def update_obra(obra_id, data):
     setters = ", ".join([f"{k}=?" for k in data.keys()])
     with get_conn() as conn:
         conn.execute(f"UPDATE obras SET {setters} WHERE id=?", list(data.values()) + [obra_id])
+        conn.commit()
+
+def add_tiempo_obra(obra_id, minutos, fecha=None):
+    now = datetime.now().isoformat(timespec="seconds")
+    fecha = fecha or now[:10]
+    minutos = int(minutos or 0)
+    with get_conn() as conn:
+        conn.execute(
+            """
+            UPDATE obras
+            SET tiempo_total_minutos = COALESCE(tiempo_total_minutos, 0) + ?,
+                tiempo_ultima_sesion_minutos = ?,
+                fecha_ultima_sesion = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (minutos, minutos, fecha, now, obra_id),
+        )
         conn.commit()
 
 def delete_obra(obra_id):
@@ -245,6 +273,8 @@ def add_actividad(data):
     allowed = ["obra_id", "capitulo_id", "fecha", "tipo_actividad", "cantidad", "minutos", "mood", "comentario", "premio", "created_at"]
     clean = {k: data.get(k) for k in allowed}
     _insert("actividad", clean)
+    if clean.get("obra_id") and int(clean.get("minutos") or 0) > 0:
+        add_tiempo_obra(clean.get("obra_id"), int(clean.get("minutos") or 0), clean.get("fecha"))
 
 def list_actividad(fecha_inicio=None, fecha_fin=None):
     q = "SELECT a.*, o.titulo, o.tipo, o.etiquetas, o.estrellas, o.clasificacion FROM actividad a LEFT JOIN obras o ON a.obra_id=o.id"
