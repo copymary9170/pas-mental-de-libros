@@ -48,8 +48,6 @@ OBRAS_COLUMNS = {
     "updated_at": "TEXT",
 }
 
-from pathlib import Path
-
 def get_conn():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     return sqlite3.connect(DB_PATH)
@@ -62,118 +60,11 @@ def _ensure_columns(conn, table, columns):
 
 def init_db():
     with get_conn() as conn:
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS obras (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            titulo TEXT NOT NULL,
-            autor TEXT,
-            tipo TEXT,
-            clasificacion REAL DEFAULT 0,
-            estrellas INTEGER DEFAULT 0,
-            comentario TEXT,
-            resena TEXT,
-            mood TEXT,
-            frases_favoritas TEXT,
-            estado_lectura TEXT,
-            estado_publicacion TEXT,
-            fecha_publicacion TEXT,
-            capitulo_actual INTEGER DEFAULT 0,
-            capitulo_total INTEGER DEFAULT 0,
-            capitulos_publicados INTEGER DEFAULT 0,
-            capitulos_vistos INTEGER DEFAULT 0,
-            ultimo_capitulo_publicado INTEGER DEFAULT 0,
-            fecha_ultimo_capitulo_publicado TEXT,
-            ultimo_capitulo_visto INTEGER DEFAULT 0,
-            fecha_ultimo_capitulo_visto TEXT,
-            tiempo_total_minutos INTEGER DEFAULT 0,
-            tiempo_ultima_sesion_minutos INTEGER DEFAULT 0,
-            fecha_ultima_sesion TEXT,
-            fecha_ultima_emision TEXT,
-            frecuencia_emision TEXT,
-            proximo_capitulo_fecha TEXT,
-            temporada_actual INTEGER DEFAULT 1,
-            temporada_total INTEGER DEFAULT 1,
-            sinopsis TEXT,
-            etiquetas TEXT,
-            link_original TEXT,
-            link_respaldo TEXT,
-            portada_path TEXT,
-            respaldo_path TEXT,
-            motivo_estado TEXT,
-            favorito INTEGER DEFAULT 0,
-            fecha_inicio TEXT,
-            fecha_fin TEXT,
-            created_at TEXT,
-            updated_at TEXT
-        )
-        """)
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS capitulos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            obra_id INTEGER NOT NULL,
-            temporada INTEGER DEFAULT 1,
-            numero INTEGER,
-            titulo TEXT,
-            sinopsis TEXT,
-            notas TEXT,
-            comentario TEXT,
-            etiquetas TEXT,
-            mood TEXT,
-            frases_favoritas TEXT,
-            estrellas INTEGER DEFAULT 0,
-            personaje_favorito_id INTEGER,
-            favorito INTEGER DEFAULT 0,
-            estado TEXT DEFAULT 'Leido',
-            texto_completo TEXT,
-            archivo_path TEXT,
-            rating REAL DEFAULT 0,
-            visto_leido INTEGER DEFAULT 1,
-            fecha_lectura TEXT,
-            created_at TEXT
-        )
-        """)
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS actividad (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            obra_id INTEGER,
-            capitulo_id INTEGER,
-            fecha TEXT NOT NULL,
-            tipo_actividad TEXT,
-            cantidad INTEGER DEFAULT 1,
-            minutos INTEGER DEFAULT 0,
-            mood TEXT,
-            comentario TEXT,
-            premio TEXT,
-            created_at TEXT
-        )
-        """)
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS personajes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            obra_id INTEGER NOT NULL,
-            nombre TEXT NOT NULL,
-            alias TEXT,
-            rol TEXT,
-            descripcion TEXT,
-            notas TEXT,
-            imagen_path TEXT,
-            favorito INTEGER DEFAULT 0,
-            created_at TEXT,
-            updated_at TEXT
-        )
-        """)
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS votos_personaje (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            obra_id INTEGER NOT NULL,
-            capitulo_id INTEGER,
-            personaje_id INTEGER NOT NULL,
-            fecha TEXT,
-            puntos INTEGER DEFAULT 1,
-            comentario TEXT,
-            created_at TEXT
-        )
-        """)
+        conn.execute("""CREATE TABLE IF NOT EXISTS obras (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT NOT NULL, autor TEXT, tipo TEXT, clasificacion REAL DEFAULT 0, estrellas INTEGER DEFAULT 0, comentario TEXT, resena TEXT, mood TEXT, frases_favoritas TEXT, estado_lectura TEXT, estado_publicacion TEXT, fecha_publicacion TEXT, capitulo_actual INTEGER DEFAULT 0, capitulo_total INTEGER DEFAULT 0, capitulos_publicados INTEGER DEFAULT 0, capitulos_vistos INTEGER DEFAULT 0, ultimo_capitulo_publicado INTEGER DEFAULT 0, fecha_ultimo_capitulo_publicado TEXT, ultimo_capitulo_visto INTEGER DEFAULT 0, fecha_ultimo_capitulo_visto TEXT, tiempo_total_minutos INTEGER DEFAULT 0, tiempo_ultima_sesion_minutos INTEGER DEFAULT 0, fecha_ultima_sesion TEXT, fecha_ultima_emision TEXT, frecuencia_emision TEXT, proximo_capitulo_fecha TEXT, temporada_actual INTEGER DEFAULT 1, temporada_total INTEGER DEFAULT 1, sinopsis TEXT, etiquetas TEXT, link_original TEXT, link_respaldo TEXT, portada_path TEXT, respaldo_path TEXT, motivo_estado TEXT, favorito INTEGER DEFAULT 0, fecha_inicio TEXT, fecha_fin TEXT, created_at TEXT, updated_at TEXT)""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS capitulos (id INTEGER PRIMARY KEY AUTOINCREMENT, obra_id INTEGER NOT NULL, temporada INTEGER DEFAULT 1, numero INTEGER, titulo TEXT, sinopsis TEXT, notas TEXT, comentario TEXT, etiquetas TEXT, mood TEXT, frases_favoritas TEXT, estrellas INTEGER DEFAULT 0, personaje_favorito_id INTEGER, favorito INTEGER DEFAULT 0, estado TEXT DEFAULT 'Leido', texto_completo TEXT, archivo_path TEXT, rating REAL DEFAULT 0, visto_leido INTEGER DEFAULT 1, fecha_lectura TEXT, created_at TEXT)""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS actividad (id INTEGER PRIMARY KEY AUTOINCREMENT, obra_id INTEGER, capitulo_id INTEGER, fecha TEXT NOT NULL, tipo_actividad TEXT, cantidad INTEGER DEFAULT 1, minutos INTEGER DEFAULT 0, mood TEXT, comentario TEXT, premio TEXT, created_at TEXT)""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS personajes (id INTEGER PRIMARY KEY AUTOINCREMENT, obra_id INTEGER NOT NULL, nombre TEXT NOT NULL, alias TEXT, rol TEXT, descripcion TEXT, notas TEXT, imagen_path TEXT, favorito INTEGER DEFAULT 0, created_at TEXT, updated_at TEXT)""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS votos_personaje (id INTEGER PRIMARY KEY AUTOINCREMENT, obra_id INTEGER NOT NULL, capitulo_id INTEGER, personaje_id INTEGER NOT NULL, fecha TEXT, puntos INTEGER DEFAULT 1, comentario TEXT, created_at TEXT)""")
         _ensure_columns(conn, "obras", OBRAS_COLUMNS)
         conn.commit()
 
@@ -187,18 +78,12 @@ def _insert(table, data):
 def add_obra(data):
     now = datetime.now().isoformat(timespec="seconds")
     data = dict(data); data["created_at"] = now; data["updated_at"] = now
-    if not data.get("capitulos_publicados"):
-        data["capitulos_publicados"] = data.get("capitulo_total") or 0
-    if not data.get("capitulos_vistos"):
-        data["capitulos_vistos"] = data.get("capitulo_actual") or 0
-    if not data.get("ultimo_capitulo_publicado"):
-        data["ultimo_capitulo_publicado"] = data.get("capitulos_publicados") or data.get("capitulo_total") or 0
-    if not data.get("ultimo_capitulo_visto"):
-        data["ultimo_capitulo_visto"] = data.get("capitulos_vistos") or data.get("capitulo_actual") or 0
-    if not data.get("tiempo_total_minutos"):
-        data["tiempo_total_minutos"] = 0
-    if not data.get("tiempo_ultima_sesion_minutos"):
-        data["tiempo_ultima_sesion_minutos"] = 0
+    data.setdefault("capitulos_publicados", data.get("capitulo_total") or 0)
+    data.setdefault("capitulos_vistos", data.get("capitulo_actual") or 0)
+    data.setdefault("ultimo_capitulo_publicado", data.get("capitulos_publicados") or data.get("capitulo_total") or 0)
+    data.setdefault("ultimo_capitulo_visto", data.get("capitulos_vistos") or data.get("capitulo_actual") or 0)
+    data.setdefault("tiempo_total_minutos", 0)
+    data.setdefault("tiempo_ultima_sesion_minutos", 0)
     _insert("obras", data)
 
 def update_obra(obra_id, data):
@@ -214,23 +99,14 @@ def add_tiempo_obra(obra_id, minutos, fecha=None):
     fecha = fecha or now[:10]
     minutos = int(minutos or 0)
     with get_conn() as conn:
-        conn.execute(
-            """
-            UPDATE obras
-            SET tiempo_total_minutos = COALESCE(tiempo_total_minutos, 0) + ?,
-                tiempo_ultima_sesion_minutos = ?,
-                fecha_ultima_sesion = ?,
-                updated_at = ?
-            WHERE id = ?
-            """,
-            (minutos, minutos, fecha, now, obra_id),
-        )
+        conn.execute("UPDATE obras SET tiempo_total_minutos = COALESCE(tiempo_total_minutos, 0) + ?, tiempo_ultima_sesion_minutos = ?, fecha_ultima_sesion = ?, updated_at = ? WHERE id = ?", (minutos, minutos, fecha, now, obra_id))
         conn.commit()
 
 def delete_obra(obra_id):
     with get_conn() as conn:
-        for table in ["votos_personaje", "personajes", "actividad", "capitulos", "obras"]:
-            conn.execute(f"DELETE FROM {table} WHERE obra_id=?" if table != "obras" else "DELETE FROM obras WHERE id=?", (obra_id,))
+        for table in ["votos_personaje", "personajes", "actividad", "capitulos"]:
+            conn.execute(f"DELETE FROM {table} WHERE obra_id=?", (obra_id,))
+        conn.execute("DELETE FROM obras WHERE id=?", (obra_id,))
         conn.commit()
 
 def list_obras():
@@ -277,7 +153,7 @@ def add_actividad(data):
         add_tiempo_obra(clean.get("obra_id"), int(clean.get("minutos") or 0), clean.get("fecha"))
 
 def list_actividad(fecha_inicio=None, fecha_fin=None):
-    q = "SELECT a.*, o.titulo, o.tipo, o.etiquetas, o.estrellas, o.clasificacion FROM actividad a LEFT JOIN obras o ON a.obra_id=o.id"
+    q = "SELECT a.*, o.titulo, o.tipo, o.etiquetas, o.estrellas, o.clasificacion, o.portada_path FROM actividad a LEFT JOIN obras o ON a.obra_id=o.id"
     params=[]; cond=[]
     if fecha_inicio: cond.append("a.fecha >= ?"); params.append(fecha_inicio)
     if fecha_fin: cond.append("a.fecha <= ?"); params.append(fecha_fin)
@@ -307,13 +183,7 @@ def add_voto_personaje(data):
     _insert("votos_personaje", {k: data.get(k) for k in allowed})
 
 def ranking_personajes(obra_id):
-    q = """
-    SELECT p.id, p.nombre, p.alias, p.rol, p.descripcion, p.favorito,
-           COALESCE(SUM(v.puntos),0) AS puntos, COUNT(v.id) AS veces_favorito
-    FROM personajes p LEFT JOIN votos_personaje v ON p.id=v.personaje_id
-    WHERE p.obra_id=? GROUP BY p.id
-    ORDER BY puntos DESC, veces_favorito DESC, p.favorito DESC, p.nombre ASC
-    """
+    q = "SELECT p.id, p.nombre, p.alias, p.rol, p.descripcion, p.favorito, COALESCE(SUM(v.puntos),0) AS puntos, COUNT(v.id) AS veces_favorito FROM personajes p LEFT JOIN votos_personaje v ON p.id=v.personaje_id WHERE p.obra_id=? GROUP BY p.id ORDER BY puntos DESC, veces_favorito DESC, p.favorito DESC, p.nombre ASC"
     with get_conn() as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(q, (obra_id,)).fetchall()
