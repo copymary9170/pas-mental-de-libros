@@ -42,9 +42,6 @@ def fmt_time(minutes):
 def pct(row):
     actual = int(row.get("capitulo_actual") or row.get("capitulos_vistos") or 0); total = int(row.get("capitulo_total") or row.get("capitulos_publicados") or 0)
     return 0 if total <= 0 else min(100, round(actual / total * 100))
-def faltan(row):
-    actual = int(row.get("capitulo_actual") or row.get("capitulos_vistos") or 0); total = int(row.get("capitulo_total") or row.get("capitulos_publicados") or 0)
-    return max(total - actual, 0) if total > 0 else 0
 def cover_src(path): return esc(path) if path and str(path).startswith("http") else ""
 def book_card(row):
     cover = cover_src(row.get("portada_path")); cover_html = f'<img src="{cover}" />' if cover else '<div class="book-empty">📖</div>'; progress = pct(row)
@@ -61,6 +58,31 @@ def elapsed_minutes():
         total += (datetime.now() - st.session_state["timer_started_at"]).total_seconds()
     return max(0, int(total // 60))
 
+def buscar_global(query, fuente):
+    q = query.strip()
+    if fuente == "Libros":
+        return buscar_libros_openlibrary(q), "book"
+    if fuente == "Manga / manhwa / novelas ligeras":
+        resultados = buscar_manga_jikan(q)
+        if not resultados: resultados = buscar_libros_openlibrary(q)
+        return resultados, "manga"
+    if fuente == "Webnovels":
+        resultados = buscar_webnovel_openlibrary(q)
+        if not resultados: resultados = buscar_manga_jikan(q)
+        return resultados, "webnovel"
+    if fuente == "Peliculas":
+        resultados = buscar_peliculas_tmdb(q, TMDB_API_KEY) if TMDB_API_KEY else []
+        if not resultados: resultados = buscar_peliculas_itunes(q)
+        if not resultados: resultados = buscar_series_tvmaze(q)
+        return resultados, "movie"
+    if fuente == "Kdramas":
+        resultados = buscar_kdramas_tmdb(q, TMDB_API_KEY) if TMDB_API_KEY else []
+        if not resultados: resultados = buscar_series_tvmaze(q)
+        return resultados, "kdrama"
+    resultados = buscar_series_tmdb(q, TMDB_API_KEY) if TMDB_API_KEY else []
+    if not resultados: resultados = buscar_series_tvmaze(q)
+    return resultados, "tv"
+
 obras = list_obras(); df = pd.DataFrame(obras)
 st.markdown("""<div class="app-hero"><div><div class="hero-label">Bookmory + TV Time personal</div><h1>Paz Mental</h1><p>Biblioteca de libros, fanfics, manga, manhwa, webnovels, kdramas, series, anime y peliculas.</p></div></div>""", unsafe_allow_html=True)
 tab_timer, tab_search, tab_link, tab_roulette, tab_calendar, tab_wrapped, tab_books, tab_tv, tab_add, tab_chapters, tab_stats, tab_export = st.tabs(["⏱️ Cronómetro", "🔎 Buscar e importar", "🔗 Importar link", "🎲 Ruleta", "📅 Calendario", "🏆 Wrapped", "📚 Biblioteca", "📺 Series y pelis", "➕ Agregar manual", "📝 Capitulos", "📊 Stats", "⬇️ Exportar"])
@@ -69,8 +91,7 @@ with tab_timer:
     st.subheader("Cronómetro de lectura")
     if not obras: st.info("Agrega una obra primero para usar el cronómetro.")
     else:
-        lecturas = [o for o in obras if o.get("tipo") in BOOK_TYPES]
-        if not lecturas: lecturas = obras
+        lecturas = [o for o in obras if o.get("tipo") in BOOK_TYPES] or obras
         choices = {f"{o['id']} - {o['titulo']} ({o.get('tipo')})": o["id"] for o in lecturas}
         selected_timer = st.selectbox("Obra para cronometrar", list(choices.keys()), key="timer_obra")
         obra_id_timer = choices[selected_timer]
@@ -80,7 +101,7 @@ with tab_timer:
         with col_a: cap_actual_timer = st.number_input("Capitulo actual opcional", min_value=0, value=0, step=1, key="timer_cap")
         with col_b: mood_timer = st.text_input("Mood", placeholder="cozy, intenso, lloré, fangirl...", key="timer_mood")
         with col_c: fecha_timer = st.date_input("Fecha", value=date.today(), key="timer_fecha")
-        comentario_timer = st.text_area("Comentario de la sesión", placeholder="Qué leíste, cómo te sentiste, teoría, etc.", key="timer_comment")
+        comentario_timer = st.text_area("Comentario de la sesión", key="timer_comment")
         minutos = elapsed_minutes(); st.metric("Tiempo acumulado", f"{minutos} min")
         c1,c2,c3,c4=st.columns(4)
         with c1:
@@ -108,36 +129,42 @@ with tab_timer:
 with tab_search:
     st.subheader("Buscar en bases de datos externas")
     fuente = st.radio("Que quieres buscar?", ["Libros", "Manga / manhwa / novelas ligeras", "Webnovels", "Series / anime / TV", "Kdramas", "Peliculas"], horizontal=True)
-    query = st.text_input("Nombre de la obra", key="external_query"); estado_import = st.selectbox("Estado al importar", ESTADOS, index=0)
-    buscar = st.button("Buscar")
-    if buscar and query.strip():
-        if fuente == "Libros": st.session_state["external_results"] = buscar_libros_openlibrary(query.strip()); st.session_state["external_kind"] = "book"
-        elif fuente == "Manga / manhwa / novelas ligeras": st.session_state["external_results"] = buscar_manga_jikan(query.strip()); st.session_state["external_kind"] = "manga"
-        elif fuente == "Webnovels": st.session_state["external_results"] = buscar_webnovel_openlibrary(query.strip()); st.session_state["external_kind"] = "webnovel"
-        elif fuente == "Peliculas":
-            resultados = buscar_peliculas_tmdb(query.strip(), TMDB_API_KEY) if TMDB_API_KEY else []
-            if not resultados: resultados = buscar_peliculas_itunes(query.strip())
-            st.session_state["external_results"] = resultados; st.session_state["external_kind"] = "movie"
-        elif fuente == "Kdramas":
-            resultados = buscar_kdramas_tmdb(query.strip(), TMDB_API_KEY) if TMDB_API_KEY else []
-            if not resultados: resultados = buscar_series_tvmaze(query.strip())
-            st.session_state["external_results"] = resultados; st.session_state["external_kind"] = "kdrama"
-        else:
-            resultados = buscar_series_tmdb(query.strip(), TMDB_API_KEY) if TMDB_API_KEY else []
-            if not resultados: resultados = buscar_series_tvmaze(query.strip())
-            st.session_state["external_results"] = resultados; st.session_state["external_kind"] = "tv"
-    results = st.session_state.get("external_results", []); kind = st.session_state.get("external_kind")
+    query = st.text_input("Nombre de la obra", key="external_query")
+    estado_import = st.selectbox("Estado al importar", ESTADOS, index=0)
+    if fuente in ["Peliculas", "Series / anime / TV", "Kdramas"] and not TMDB_API_KEY:
+        st.warning("Para mejores resultados en películas/series agrega TMDB_API_KEY en Streamlit Secrets. Mientras tanto usaré búsquedas alternativas.")
+    if st.button("Buscar") and query.strip():
+        resultados, kind = buscar_global(query, fuente)
+        st.session_state["external_results"] = resultados
+        st.session_state["external_kind"] = kind
+        st.session_state["external_source"] = fuente
+    results = st.session_state.get("external_results", [])
+    kind = st.session_state.get("external_kind")
     if results:
-        for i,item in enumerate(results):
-            col1,col2,col3=st.columns([1,4,1])
+        st.success(f"Resultados encontrados: {len(results)}")
+        for i, item in enumerate(results):
+            col1, col2, col3 = st.columns([1, 4, 1])
             with col1:
                 if item.get("portada_path"): st.image(item.get("portada_path"), use_container_width=True)
+                else: st.write("Sin portada")
             with col2:
-                st.markdown(f"### {item.get('titulo')}"); st.write(item.get("autor") or "Autor / canal no indicado")
+                st.markdown(f"### {item.get('titulo')}")
+                st.write(item.get("autor") or "Autor / canal no indicado")
+                st.caption(f"Año: {item.get('anio') or 'N/D'} · Tags: {item.get('etiquetas') or ''}")
+                if item.get("sinopsis"): st.write(str(item.get("sinopsis"))[:600])
             with col3:
-                opciones = BOOK_TYPES if kind == "book" else (["Pelicula","Documental","Otro"] if kind == "movie" else TIPOS)
+                if kind == "book": opciones = BOOK_TYPES
+                elif kind == "manga": opciones = ["Manga", "Manhwa", "Manhua", "Novela ligera", "Comic"]
+                elif kind == "webnovel": opciones = ["Webnovel", "Novela", "Novela ligera", "Fanfiction"]
+                elif kind == "movie": opciones = ["Pelicula", "Documental", "Otro"]
+                elif kind == "kdrama": opciones = ["Kdrama", "Serie"]
+                else: opciones = TV_TYPES
                 tipo_final = st.selectbox("Tipo", opciones, key=f"tipo_import_{i}")
-                if st.button("Importar", key=f"import_{i}"): guardar_importado(item, tipo_final, estado_import); st.success("Importado")
+                if st.button("Importar", key=f"import_{i}"):
+                    guardar_importado(item, tipo_final, estado_import); st.success(f"Importado: {item.get('titulo')}")
+            st.divider()
+    elif st.session_state.get("external_results") == [] and query:
+        st.info("Busca una obra. Si no aparece, usa 🔗 Importar link o ➕ Agregar manual.")
 
 with tab_link:
     st.subheader("Importar desde link")
@@ -190,7 +217,9 @@ with tab_add:
         modo_respaldo=st.radio("Como quieres guardar el contenido?", ["Solo registrar la obra", "Subir obra completa", "Subir capitulos uno por uno", "Subir varios capitulos de golpe"])
         respaldo = st.file_uploader("Archivo completo de la obra", type=["pdf","epub","txt","docx","zip"]) if modo_respaldo == "Subir obra completa" else None
         if st.form_submit_button("Guardar obra"):
-            add_obra({"titulo":titulo,"autor":"","tipo":tipo,"clasificacion":0,"estado_lectura":estado,"estado_publicacion":estado_pub,"capitulo_actual":int(capitulo_actual),"capitulos_vistos":int(capitulo_actual),"capitulos_publicados":int(capitulos_publicados),"capitulo_total":int(capitulo_total),"sinopsis":"","etiquetas":"","link_original":"","link_respaldo":"","portada_path":"","respaldo_path":save_uploaded_file(respaldo,RESPALDOS_DIR),"motivo_estado":modo_respaldo,"favorito":0,"fecha_inicio":str(date.today()),"fecha_fin":None}); st.success("Guardado")
+            if not titulo.strip(): st.error("El titulo es obligatorio")
+            else:
+                add_obra({"titulo":titulo,"autor":"","tipo":tipo,"clasificacion":0,"estado_lectura":estado,"estado_publicacion":estado_pub,"capitulo_actual":int(capitulo_actual),"capitulos_vistos":int(capitulo_actual),"capitulos_publicados":int(capitulos_publicados),"capitulo_total":int(capitulo_total),"sinopsis":"","etiquetas":"","link_original":"","link_respaldo":"","portada_path":"","respaldo_path":save_uploaded_file(respaldo,RESPALDOS_DIR),"motivo_estado":modo_respaldo,"favorito":0,"fecha_inicio":str(date.today()),"fecha_fin":None}); st.success("Guardado")
 with tab_chapters:
     st.subheader("Capitulos, episodios y respaldo")
     st.info("Próximo paso: restaurar formulario avanzado de capítulos.")
