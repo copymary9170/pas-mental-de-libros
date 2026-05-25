@@ -1,16 +1,11 @@
 import html
-from datetime import date, timedelta, datetime
+from datetime import date, datetime
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-try:
-    from src.database import init_db, add_obra, update_obra, delete_obra, list_obras, get_obra, add_capitulo, list_capitulos, list_actividad, add_actividad
-except ImportError:
-    from src.database import init_db, add_obra, update_obra, delete_obra, list_obras, get_obra, add_capitulo, list_capitulos
-    def list_actividad(fecha_inicio=None, fecha_fin=None): return []
-    def add_actividad(data): return None
+import src.database as db
 from src.utils import save_uploaded_file, parse_tags, PORTADAS_DIR, RESPALDOS_DIR, ensure_dirs, buscar_portada_openlibrary
 try:
     from src.utils import buscar_libros_openlibrary, buscar_series_tvmaze, buscar_peliculas_itunes, buscar_peliculas_tmdb, buscar_series_tmdb, buscar_manga_jikan, buscar_webnovel_openlibrary, buscar_kdramas_tmdb, importar_desde_link
@@ -25,6 +20,13 @@ except ImportError:
     def buscar_kdramas_tmdb(query, api_key=""): return []
     def importar_desde_link(url): return {"titulo":"Obra importada por link","autor":"link externo","tipo":"Webnovel","anio":"","sinopsis":url,"portada_path":"","capitulo_total":0,"temporada_total":1,"etiquetas":"importado por link, webnovel","estado_publicacion":"No aplica","link_original":url}
 from src.styles import apply_styles
+
+init_db = db.init_db
+add_obra = db.add_obra
+update_obra = db.update_obra
+list_obras = db.list_obras
+add_actividad = getattr(db, "add_actividad", lambda data: None)
+list_actividad = getattr(db, "list_actividad", lambda fecha_inicio=None, fecha_fin=None: [])
 
 st.set_page_config(page_title="Paz Mental", page_icon="📚", layout="wide")
 apply_styles(); ensure_dirs(); init_db()
@@ -45,7 +47,7 @@ def pct(row):
 def cover_src(path): return esc(path) if path and str(path).startswith("http") else ""
 def book_card(row):
     cover = cover_src(row.get("portada_path")); cover_html = f'<img src="{cover}" />' if cover else '<div class="book-empty">📖</div>'; progress = pct(row)
-    return f"""<div class="bookmory-card"><div class="bookmory-cover">{cover_html}</div><div class="bookmory-title">{esc(row.get('titulo'))}</div><div class="bookmory-author">{esc(row.get('autor') or 'Autor no indicado')}</div><div class="bookmory-meta"><span>{esc(row.get('estado_lectura'))}</span><span>{esc(row.get('clasificacion'))}/10</span></div><div class="bookmory-progress"><div style="width:{progress}%"></div></div><div class="bookmory-small">Leido: {esc(row.get('capitulos_vistos') or row.get('capitulo_actual') or 0)} / Publicados: {esc(row.get('capitulos_publicados') or row.get('capitulo_total') or 0)}</div><div class="bookmory-small">Tiempo: {fmt_time(row.get('tiempo_total_minutos'))} · Ultima: {esc(row.get('fecha_ultima_sesion') or 'N/D')}</div></div>"""
+    return f"""<div class="bookmory-card"><div class="bookmory-cover">{cover_html}</div><div class="bookmory-title">{esc(row.get('titulo'))}</div><div class="bookmory-author">{esc(row.get('autor') or 'Autor no indicado')}</div><div class="bookmory-meta"><span>{esc(row.get('estado_lectura'))}</span><span>{esc(row.get('clasificacion'))}/10</span></div><div class="bookmory-progress"><div style="width:{progress}%"></div></div><div class="bookmory-small">Leído: {esc(row.get('capitulos_vistos') or row.get('capitulo_actual') or 0)} / Publicados: {esc(row.get('capitulos_publicados') or row.get('capitulo_total') or 0)}</div><div class="bookmory-small">Tiempo: {fmt_time(row.get('tiempo_total_minutos'))} · Última: {esc(row.get('fecha_ultima_sesion') or 'N/D')}</div></div>"""
 def tv_card(row):
     cover = cover_src(row.get("portada_path")); cover_html = f'<img src="{cover}" />' if cover else '<div class="tv-empty">🎬</div>'; progress = pct(row)
     return f"""<div class="tv-card"><div class="tv-poster">{cover_html}</div><div class="tv-info"><div class="tv-title">{esc(row.get('titulo'))}</div><div class="tv-sub">Visto {esc(row.get('capitulos_vistos') or row.get('capitulo_actual') or 0)} · Emitidos {esc(row.get('capitulos_publicados') or row.get('capitulo_total') or 0)} · Estado {esc(row.get('estado_publicacion') or 'N/D')}</div><div class="tv-pills"><span>{esc(row.get('tipo'))}</span><span>{esc(row.get('estado_lectura'))}</span><span>{fmt_time(row.get('tiempo_total_minutos'))}</span></div><div class="tv-progress"><div style="width:{progress}%"></div></div><div class="tv-note">Último visto: {esc(row.get('ultimo_capitulo_visto') or 0)} · Fecha: {esc(row.get('fecha_ultimo_capitulo_visto') or row.get('fecha_ultima_sesion') or 'N/D')}</div></div></div>"""
@@ -60,27 +62,23 @@ def elapsed_minutes():
 
 def buscar_global(query, fuente):
     q = query.strip()
-    if fuente == "Libros":
-        return buscar_libros_openlibrary(q), "book"
+    if fuente == "Libros": return buscar_libros_openlibrary(q), "book"
     if fuente == "Manga / manhwa / novelas ligeras":
-        resultados = buscar_manga_jikan(q)
-        if not resultados: resultados = buscar_libros_openlibrary(q)
+        resultados = buscar_manga_jikan(q) or buscar_libros_openlibrary(q)
         return resultados, "manga"
     if fuente == "Webnovels":
-        resultados = buscar_webnovel_openlibrary(q)
-        if not resultados: resultados = buscar_manga_jikan(q)
+        resultados = buscar_webnovel_openlibrary(q) or buscar_manga_jikan(q)
         return resultados, "webnovel"
     if fuente == "Peliculas":
         resultados = buscar_peliculas_tmdb(q, TMDB_API_KEY) if TMDB_API_KEY else []
-        if not resultados: resultados = buscar_peliculas_itunes(q)
-        if not resultados: resultados = buscar_series_tvmaze(q)
+        resultados = resultados or buscar_peliculas_itunes(q) or buscar_series_tvmaze(q)
         return resultados, "movie"
     if fuente == "Kdramas":
         resultados = buscar_kdramas_tmdb(q, TMDB_API_KEY) if TMDB_API_KEY else []
-        if not resultados: resultados = buscar_series_tvmaze(q)
+        resultados = resultados or buscar_series_tvmaze(q)
         return resultados, "kdrama"
     resultados = buscar_series_tmdb(q, TMDB_API_KEY) if TMDB_API_KEY else []
-    if not resultados: resultados = buscar_series_tvmaze(q)
+    resultados = resultados or buscar_series_tvmaze(q)
     return resultados, "tv"
 
 obras = list_obras(); df = pd.DataFrame(obras)
@@ -137,7 +135,6 @@ with tab_search:
         resultados, kind = buscar_global(query, fuente)
         st.session_state["external_results"] = resultados
         st.session_state["external_kind"] = kind
-        st.session_state["external_source"] = fuente
     results = st.session_state.get("external_results", [])
     kind = st.session_state.get("external_kind")
     if results:
@@ -163,8 +160,6 @@ with tab_search:
                 if st.button("Importar", key=f"import_{i}"):
                     guardar_importado(item, tipo_final, estado_import); st.success(f"Importado: {item.get('titulo')}")
             st.divider()
-    elif st.session_state.get("external_results") == [] and query:
-        st.info("Busca una obra. Si no aparece, usa 🔗 Importar link o ➕ Agregar manual.")
 
 with tab_link:
     st.subheader("Importar desde link")
