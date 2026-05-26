@@ -22,6 +22,7 @@ from src.utils import (
 )
 from src.pages.calendario import render_calendario
 from src.pages.capitulos import render_capitulos
+from src.pages.fanfiction import render_fanfiction_fields, fanfiction_badges
 
 st.set_page_config(page_title="Paz Mental", page_icon="📚", layout="wide")
 apply_styles()
@@ -93,12 +94,16 @@ def mini_card(row):
     img = f'<img src="{portada}" />' if str(portada).startswith("http") else '<div class="book-empty">📖</div>'
     leidos = row.get("capitulos_vistos") or row.get("capitulo_actual") or 0
     publicados = row.get("capitulos_publicados") or row.get("capitulo_total") or 0
+    badges = fanfiction_badges(row)
+    sinopsis = (row.get("sinopsis") or "Sin sinopsis todavía.")[:180]
     return f"""
     <div class="bookmory-card">
       <div class="bookmory-cover">{img}</div>
       <div class="bookmory-title">{row.get('titulo','')}</div>
       <div class="bookmory-author">{row.get('autor') or 'Autor no indicado'}</div>
       <div class="bookmory-meta"><span>{row.get('tipo')}</span><span>{row.get('estado_lectura')}</span></div>
+      <div class="bookmory-small">{badges}</div>
+      <div class="bookmory-small">{sinopsis}</div>
       <div class="bookmory-small">{leidos} / {publicados} caps</div>
       <div class="bookmory-small">Tiempo: {fmt_time(row.get('tiempo_total_minutos'))}</div>
     </div>
@@ -227,6 +232,7 @@ with tab_link:
     url = st.text_input("Link de la obra")
     titulo_manual = st.text_input("Título manual opcional")
     tipo_link = st.selectbox("Tipo", ["Webnovel", "Novela ligera", "Manhwa", "Manga", "Manhua", "Fanfiction", "Libro"])
+    sinopsis_link = st.text_area("Sinopsis / descripción")
     portada = st.file_uploader("Subir portada desde tu dispositivo", type=["jpg", "jpeg", "png", "webp"])
     if st.button("Importar link"):
         if not url.strip():
@@ -235,6 +241,8 @@ with tab_link:
             item = importar_desde_link(url.strip())
             if titulo_manual.strip():
                 item["titulo"] = titulo_manual.strip()
+            if sinopsis_link.strip():
+                item["sinopsis"] = sinopsis_link.strip()
             portada_subida = save_uploaded_file(portada, PORTADAS_DIR)
             if portada_subida:
                 item["portada_path"] = portada_subida
@@ -255,12 +263,18 @@ with tab_add:
     st.subheader("Agregar obra manualmente")
     with st.form("obra_form_manual"):
         titulo = st.text_input("Título *")
+        autor = st.text_input("Autor / creador / estudio")
         tipo = st.selectbox("Tipo", TIPOS)
+        sinopsis = st.text_area("Sinopsis / descripción de la obra", height=160)
+        etiquetas = st.text_input("Etiquetas / géneros", placeholder="romance, fantasía, kdrama, comfort...")
         estado = st.selectbox("Estado personal", ESTADOS)
         estado_pub = st.selectbox("Estado de publicación", ESTADOS_PUBLICACION)
         cap_vistos = st.number_input("Capítulos leídos/vistos", min_value=0, step=1)
         cap_pub = st.number_input("Capítulos publicados/emitidos", min_value=0, step=1)
         cap_total = st.number_input("Capítulos totales esperados", min_value=0, step=1)
+        fanfic_data = {}
+        if tipo == "Fanfiction":
+            fanfic_data = render_fanfiction_fields(prefix="manual")
         portada = st.file_uploader("Subir portada", type=["jpg", "jpeg", "png", "webp"])
         st.markdown("### Modo de respaldo")
         modo_respaldo = st.radio("¿Cómo quieres guardar el contenido?", ["Solo registrar la obra", "Subir obra completa", "Subir capítulos uno por uno", "Subir varios capítulos de golpe"])
@@ -269,7 +283,9 @@ with tab_add:
             if not titulo.strip():
                 st.error("El título es obligatorio")
             else:
-                db.add_obra({"titulo": titulo.strip(), "autor": "", "tipo": tipo, "clasificacion": 0, "estado_lectura": estado, "estado_publicacion": estado_pub, "capitulo_actual": int(cap_vistos), "capitulos_vistos": int(cap_vistos), "capitulos_publicados": int(cap_pub), "capitulo_total": int(cap_total), "sinopsis": "", "etiquetas": "", "link_original": "", "link_respaldo": "", "portada_path": save_uploaded_file(portada, PORTADAS_DIR), "respaldo_path": save_uploaded_file(respaldo, RESPALDOS_DIR), "motivo_estado": modo_respaldo, "favorito": 0, "fecha_inicio": str(date.today()), "fecha_fin": None})
+                data = {"titulo": titulo.strip(), "autor": autor.strip(), "tipo": tipo, "clasificacion": 0, "estado_lectura": estado, "estado_publicacion": estado_pub, "capitulo_actual": int(cap_vistos), "capitulos_vistos": int(cap_vistos), "capitulos_publicados": int(cap_pub), "capitulo_total": int(cap_total), "sinopsis": sinopsis.strip(), "etiquetas": etiquetas.strip(), "link_original": "", "link_respaldo": "", "portada_path": save_uploaded_file(portada, PORTADAS_DIR), "respaldo_path": save_uploaded_file(respaldo, RESPALDOS_DIR), "motivo_estado": modo_respaldo, "favorito": 0, "fecha_inicio": str(date.today()), "fecha_fin": None}
+                data.update(fanfic_data)
+                db.add_obra(data)
                 st.success("Obra guardada.")
 
 with tab_chapters:
