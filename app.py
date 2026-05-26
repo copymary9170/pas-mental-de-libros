@@ -261,10 +261,16 @@ with tab_books:
 
 with tab_add:
     st.subheader("Agregar obra manualmente")
+    tipo_preview = st.selectbox("Tipo de obra", TIPOS, key="manual_tipo_visible")
+    fanfic_data = {}
+    if tipo_preview == "Fanfiction":
+        st.info("Seleccionaste Fanfiction. Aquí puedes registrar canon, fandom, ship, AU y crossovers.")
+        fanfic_data = render_fanfiction_fields(prefix="manual_visible")
+
     with st.form("obra_form_manual"):
         titulo = st.text_input("Título *")
         autor = st.text_input("Autor / creador / estudio")
-        tipo = st.selectbox("Tipo", TIPOS)
+        st.caption(f"Tipo seleccionado: {tipo_preview}")
         sinopsis = st.text_area("Sinopsis / descripción de la obra", height=160)
         etiquetas = st.text_input("Etiquetas / géneros", placeholder="romance, fantasía, kdrama, comfort...")
         estado = st.selectbox("Estado personal", ESTADOS)
@@ -272,9 +278,6 @@ with tab_add:
         cap_vistos = st.number_input("Capítulos leídos/vistos", min_value=0, step=1)
         cap_pub = st.number_input("Capítulos publicados/emitidos", min_value=0, step=1)
         cap_total = st.number_input("Capítulos totales esperados", min_value=0, step=1)
-        fanfic_data = {}
-        if tipo == "Fanfiction":
-            fanfic_data = render_fanfiction_fields(prefix="manual")
         portada = st.file_uploader("Subir portada", type=["jpg", "jpeg", "png", "webp"])
         st.markdown("### Modo de respaldo")
         modo_respaldo = st.radio("¿Cómo quieres guardar el contenido?", ["Solo registrar la obra", "Subir obra completa", "Subir capítulos uno por uno", "Subir varios capítulos de golpe"])
@@ -283,13 +286,14 @@ with tab_add:
             if not titulo.strip():
                 st.error("El título es obligatorio")
             else:
-                data = {"titulo": titulo.strip(), "autor": autor.strip(), "tipo": tipo, "clasificacion": 0, "estado_lectura": estado, "estado_publicacion": estado_pub, "capitulo_actual": int(cap_vistos), "capitulos_vistos": int(cap_vistos), "capitulos_publicados": int(cap_pub), "capitulo_total": int(cap_total), "sinopsis": sinopsis.strip(), "etiquetas": etiquetas.strip(), "link_original": "", "link_respaldo": "", "portada_path": save_uploaded_file(portada, PORTADAS_DIR), "respaldo_path": save_uploaded_file(respaldo, RESPALDOS_DIR), "motivo_estado": modo_respaldo, "favorito": 0, "fecha_inicio": str(date.today()), "fecha_fin": None}
-                data.update(fanfic_data)
+                data = {"titulo": titulo.strip(), "autor": autor.strip(), "tipo": tipo_preview, "clasificacion": 0, "estado_lectura": estado, "estado_publicacion": estado_pub, "capitulo_actual": int(cap_vistos), "capitulos_vistos": int(cap_vistos), "capitulos_publicados": int(cap_pub), "capitulo_total": int(cap_total), "sinopsis": sinopsis.strip(), "etiquetas": etiquetas.strip(), "link_original": "", "link_respaldo": "", "portada_path": save_uploaded_file(portada, PORTADAS_DIR), "respaldo_path": save_uploaded_file(respaldo, RESPALDOS_DIR), "motivo_estado": modo_respaldo, "favorito": 0, "fecha_inicio": str(date.today()), "fecha_fin": None}
+                if tipo_preview == "Fanfiction":
+                    data.update(fanfic_data)
                 db.add_obra(data)
                 st.success("Obra guardada.")
 
 with tab_chapters:
-    render_capitulos(obras, db.list_capitulos, db.get_obra)
+    render_capitulos(obras, db.list_capitulos, db.get_obra, db.add_capitulo)
 
 with tab_export:
     st.subheader("Exportar biblioteca")
