@@ -23,6 +23,8 @@ from src.utils import (
 from src.pages.calendario import render_calendario
 from src.pages.capitulos import render_capitulos
 from src.pages.fanfiction import render_fanfiction_fields, fanfiction_badges
+from src.pages.reportes import render_reportes
+from src.pages.canons import render_canons
 
 st.set_page_config(page_title="Paz Mental", page_icon="📚", layout="wide")
 apply_styles()
@@ -130,12 +132,14 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-tab_timer, tab_search, tab_link, tab_calendar, tab_books, tab_add, tab_chapters, tab_export = st.tabs([
+tab_timer, tab_search, tab_link, tab_calendar, tab_books, tab_reports, tab_canons, tab_add, tab_chapters, tab_export = st.tabs([
     "⏱️ Cronómetro",
     "🔎 Buscar e importar",
     "🔗 Importar link",
     "📅 Calendario",
     "📚 Biblioteca",
+    "🏆 Wrapped / Reportes",
+    "🌌 Canons",
     "➕ Agregar manual",
     "📝 Capitulos",
     "⬇️ Exportar",
@@ -258,6 +262,17 @@ with tab_books:
         st.info("Aún no tienes obras registradas.")
     else:
         st.markdown('<div class="bookmory-grid">' + ''.join(mini_card(row) for _, row in df.iterrows()) + '</div>', unsafe_allow_html=True)
+
+with tab_reports:
+    render_reportes(obras, db.list_actividad)
+
+with tab_canons:
+    add_canon = getattr(db, "add_canon", None)
+    list_canons = getattr(db, "list_canons", None)
+    if add_canon is None or list_canons is None:
+        st.warning("La base de datos de canons todavía no está conectada. Falta agregar add_canon y list_canons en src/database.py.")
+    else:
+        render_canons(add_canon, list_canons)
 
 with tab_add:
     st.subheader("Agregar obra manualmente")
