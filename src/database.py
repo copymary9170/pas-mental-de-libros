@@ -59,6 +59,20 @@ OBRAS_COLUMNS = {
     "updated_at": "TEXT",
 }
 
+CANONS_COLUMNS = {
+    "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "nombre": "TEXT NOT NULL",
+    "autor_original": "TEXT",
+    "tipo": "TEXT",
+    "fandom": "TEXT",
+    "universo": "TEXT",
+    "sinopsis": "TEXT",
+    "etiquetas": "TEXT",
+    "portada_path": "TEXT",
+    "created_at": "TEXT",
+    "updated_at": "TEXT",
+}
+
 def get_conn():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     return sqlite3.connect(DB_PATH)
@@ -76,7 +90,9 @@ def init_db():
         conn.execute("""CREATE TABLE IF NOT EXISTS actividad (id INTEGER PRIMARY KEY AUTOINCREMENT, obra_id INTEGER, capitulo_id INTEGER, fecha TEXT NOT NULL, tipo_actividad TEXT, cantidad INTEGER DEFAULT 1, minutos INTEGER DEFAULT 0, mood TEXT, comentario TEXT, premio TEXT, created_at TEXT)""")
         conn.execute("""CREATE TABLE IF NOT EXISTS personajes (id INTEGER PRIMARY KEY AUTOINCREMENT, obra_id INTEGER NOT NULL, nombre TEXT NOT NULL, alias TEXT, rol TEXT, descripcion TEXT, notas TEXT, imagen_path TEXT, favorito INTEGER DEFAULT 0, created_at TEXT, updated_at TEXT)""")
         conn.execute("""CREATE TABLE IF NOT EXISTS votos_personaje (id INTEGER PRIMARY KEY AUTOINCREMENT, obra_id INTEGER NOT NULL, capitulo_id INTEGER, personaje_id INTEGER NOT NULL, fecha TEXT, puntos INTEGER DEFAULT 1, comentario TEXT, created_at TEXT)""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS canons (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL, autor_original TEXT, tipo TEXT, fandom TEXT, universo TEXT, sinopsis TEXT, etiquetas TEXT, portada_path TEXT, created_at TEXT, updated_at TEXT)""")
         _ensure_columns(conn, "obras", OBRAS_COLUMNS)
+        _ensure_columns(conn, "canons", CANONS_COLUMNS)
         conn.commit()
 
 def _insert(table, data):
@@ -199,4 +215,18 @@ def ranking_personajes(obra_id):
     with get_conn() as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(q, (obra_id,)).fetchall()
+    return [dict(row) for row in rows]
+
+def add_canon(data):
+    now = datetime.now().isoformat(timespec="seconds")
+    data = dict(data)
+    data["created_at"] = now
+    data["updated_at"] = now
+    allowed = ["nombre", "autor_original", "tipo", "fandom", "universo", "sinopsis", "etiquetas", "portada_path", "created_at", "updated_at"]
+    _insert("canons", {k: data.get(k) for k in allowed})
+
+def list_canons():
+    with get_conn() as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM canons ORDER BY nombre ASC").fetchall()
     return [dict(row) for row in rows]
