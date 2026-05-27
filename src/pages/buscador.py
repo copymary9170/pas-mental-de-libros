@@ -101,7 +101,7 @@ def _calidad_label(score):
 
 def _quality_stars(score):
     stars = min(5, max(1, round((score / 6) * 5)))
-    return "★" * stars + "☆" * (5 - stars)
+    return "⭐" * stars + "☆" * (5 - stars)
 
 
 def _chip(label, ok=True):
@@ -145,8 +145,9 @@ def _inject_styles():
         .quality-row{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 10px 0}
         .quality-chip{display:inline-flex;align-items:center;border-radius:999px;padding:5px 10px;font-size:.78rem;font-weight:700;background:rgba(245,240,250,.85);border:1px solid rgba(120,90,140,.18);color:#3d3145}
         .quality-chip.strong{background:rgba(235,224,247,.95);border-color:rgba(120,90,140,.28)}
-        .quality-chip.stars{background:rgba(255,248,223,.95);border-color:rgba(180,140,50,.3);color:#5c4310}
+        .quality-chip.stars{background:rgba(255,248,223,.98);border-color:rgba(180,140,50,.35);color:#5c4310;font-size:.95rem}
         .quality-chip.heart{background:rgba(255,232,240,.95);border-color:rgba(180,80,120,.3);color:#7b2144}
+        .stars-line{font-size:1.15rem;font-weight:900;color:#7a5512;margin:2px 0 8px 0;background:rgba(255,248,223,.7);border-radius:14px;padding:7px 10px;display:inline-block}
         .result-card{border:1px solid rgba(120,90,140,.15);border-radius:18px;padding:14px;margin:12px 0;background:rgba(255,255,255,.62);box-shadow:0 8px 28px rgba(30,10,50,.06)}
         </style>
         """,
@@ -157,7 +158,7 @@ def _inject_styles():
 def render_buscador_avanzado(obras, buscar_global, guardar_importado):
     _inject_styles()
     st.subheader("🔎 Buscar e importar")
-    st.caption("Fase 6: calidad con estrellas, favoritos con corazón, búsqueda global, revisión, cola y filtros.")
+    st.caption("Fase 6.1: estrellas de calidad visibles, favoritos con corazón, búsqueda global, revisión, cola y filtros.")
 
     if "import_queue" not in st.session_state:
         st.session_state["import_queue"] = []
@@ -288,6 +289,9 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
         item_kind = item.get("kind") or kind
         key = _item_key(item)
         is_fav = key in st.session_state["result_favorites"]
+        score = _calidad_score(item)
+        estrellas = _quality_stars(score)
+        calidad = _calidad_label(score)
 
         st.markdown("<div class='result-card'>", unsafe_allow_html=True)
         col1, col2 = st.columns([1, 4])
@@ -298,6 +302,7 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
                 st.write("Sin portada")
         with col2:
             st.markdown(f"### {titulo_original or 'Sin título'}")
+            st.markdown(f"<div class='stars-line'>Calidad visual: {estrellas} · {calidad}</div>", unsafe_allow_html=True)
             st.markdown(_quality_html(item, duplicados, query_actual, is_fav), unsafe_allow_html=True)
             st.caption(f"Grupo: {item.get('grupo_resultado') or item.get('fuente_importacion') or fuente_actual}")
             st.write(item.get("autor") or "Autor / canal no indicado")
