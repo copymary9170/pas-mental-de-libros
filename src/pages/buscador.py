@@ -5,6 +5,7 @@ import streamlit as st
 BOOK_TYPES = ["Libro", "Fanfiction", "Novela", "Novela ligera", "Manga", "Manhwa", "Manhua", "Webnovel", "Comic"]
 TV_TYPES = ["Anime", "Serie", "Kdrama", "Pelicula", "Documental", "Podcast", "Otro"]
 ESTADOS = ["Pendiente", "Leyendo", "Viendo", "Terminado", "Pausado", "Abandonado", "Releyendo", "Rewatch"]
+ESTADOS_PUBLICACION = ["En emision", "Terminada", "Hiatus con aviso", "Hiatus sin aviso", "Cancelada", "Abandonada por autor", "No aplica"]
 FUENTES_BUSQUEDA = ["Buscar en todo", "Libros", "Manga / manhwa / novelas ligeras", "Webnovels", "Series / anime / TV", "Kdramas", "Peliculas"]
 
 
@@ -128,14 +129,9 @@ def _inject_styles():
 def render_buscador_avanzado(obras, buscar_global, guardar_importado):
     _inject_styles()
     st.subheader("🔎 Buscar e importar")
-    st.caption("Fase 2.5: búsqueda global, edición, calidad, filtros rápidos, orden y alerta de duplicados.")
+    st.caption("Fase 3: búsqueda global, edición completa, importación rápida, calidad, filtros y revisión antes de guardar.")
 
-    fuente = st.radio(
-        "¿Qué quieres buscar?",
-        FUENTES_BUSQUEDA,
-        horizontal=True,
-        key="buscador_fuente",
-    )
+    fuente = st.radio("¿Qué quieres buscar?", FUENTES_BUSQUEDA, horizontal=True, key="buscador_fuente")
     query = st.text_input("Nombre de la obra", key="buscador_query")
     estado_import = st.selectbox("Estado al importar", ESTADOS, index=0, key="buscador_estado")
 
@@ -158,16 +154,12 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
         return
 
     st.success(f"Resultados encontrados: {len(results)}")
-
     grupos = sorted(set([r.get("grupo_resultado") or r.get("fuente_importacion") or "Otros" for r in results]))
     col_r1, col_r2, col_r3, col_r4 = st.columns(4)
-    total_portada = sum(1 for r in results if r.get("portada_path"))
-    total_sinopsis = sum(1 for r in results if r.get("sinopsis"))
-    total_alta = sum(1 for r in results if _calidad_score(r) >= 5)
     col_r1.metric("Resultados", len(results))
-    col_r2.metric("Con portada", total_portada)
-    col_r3.metric("Con sinopsis", total_sinopsis)
-    col_r4.metric("Calidad alta", total_alta)
+    col_r2.metric("Con portada", sum(1 for r in results if r.get("portada_path")))
+    col_r3.metric("Con sinopsis", sum(1 for r in results if r.get("sinopsis")))
+    col_r4.metric("Calidad alta", sum(1 for r in results if _calidad_score(r) >= 5))
 
     with st.expander("🎛️ Filtros rápidos y orden", expanded=True):
         filtro_grupo = st.multiselect("Fuentes / grupos", grupos, default=grupos, key="buscador_filtro_grupo")
@@ -233,7 +225,14 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
         if duplicados:
             st.warning("Posibles duplicados ya guardados: " + ", ".join([d.get("titulo", "Sin título") for d in duplicados]))
 
-        with st.expander("✏️ Editar antes de importar"):
+        col_fast, col_edit = st.columns([1, 3])
+        with col_fast:
+            if st.button("⚡ Importar rápido", key=f"quick_import_{i}"):
+                guardar_importado(item, _opciones_tipo(item_kind)[0], estado_import)
+                st.success(f"Importado rápido: {titulo_original}")
+
+        with st.expander("✏️ Revisar / editar antes de importar"):
+            st.markdown("#### 1. Datos principales")
             tipo_opts = _opciones_tipo(item_kind)
             col_a, col_b = st.columns(2)
             with col_a:
@@ -242,30 +241,45 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
                 tipo_edit = st.selectbox("Tipo", tipo_opts, key=f"imp_tipo_{i}")
                 anio_edit = st.text_input("Año", value=str(item.get("anio") or ""), key=f"imp_anio_{i}")
             with col_b:
-                portada_edit = st.text_input("URL portada", value=item.get("portada_path", ""), key=f"imp_portada_{i}")
-                etiquetas_edit = st.text_input("Etiquetas", value=item.get("etiquetas", "importado"), key=f"imp_tags_{i}")
-                capitulos_total = st.number_input("Capítulos / episodios publicados", min_value=0, value=int(item.get("capitulo_total") or 0), step=1, key=f"imp_caps_{i}")
+                estado_edit = st.selectbox("Estado personal", ESTADOS, index=ESTADOS.index(estado_import) if estado_import in ESTADOS else 0, key=f"imp_estado_{i}")
+                estado_pub = st.selectbox("Estado de publicación", ESTADOS_PUBLICACION, index=6, key=f"imp_estado_pub_{i}")
+                fecha_pub = st.text_input("Fecha de publicación", value=item.get("fecha_publicacion") or item.get("anio") or "", key=f"imp_fecha_pub_{i}")
                 fuente_edit = st.text_input("Fuente importación", value=item.get("fuente_importacion") or fuente_actual, key=f"imp_fuente_{i}")
-            sinopsis_edit = st.text_area("Sinopsis", value=item.get("sinopsis", ""), height=160, key=f"imp_sinopsis_{i}")
-            url_fuente_edit = st.text_input("URL / link fuente", value=item.get("url_fuente", ""), key=f"imp_url_{i}")
 
-            col_import, col_skip = st.columns([1, 3])
-            with col_import:
-                if st.button("Importar editado", key=f"import_edit_{i}"):
-                    item_editado = dict(item)
-                    item_editado.update({
-                        "titulo": titulo_edit.strip(),
-                        "autor": autor_edit.strip(),
-                        "anio": anio_edit.strip(),
-                        "sinopsis": sinopsis_edit.strip(),
-                        "portada_path": portada_edit.strip(),
-                        "etiquetas": etiquetas_edit.strip(),
-                        "capitulo_total": int(capitulos_total),
-                        "fuente_importacion": fuente_edit.strip(),
-                        "url_fuente": url_fuente_edit.strip(),
-                        "link_original": url_fuente_edit.strip(),
-                    })
-                    guardar_importado(item_editado, tipo_edit, estado_import)
-                    st.success(f"Importado: {titulo_edit}")
+            st.markdown("#### 2. Progreso inicial")
+            col_c, col_d = st.columns(2)
+            with col_c:
+                capitulos_total = st.number_input("Capítulos / episodios publicados", min_value=0, value=int(item.get("capitulo_total") or 0), step=1, key=f"imp_caps_{i}")
+            with col_d:
+                capitulos_vistos = st.number_input("Capítulos / episodios ya vistos/leídos", min_value=0, value=0, step=1, key=f"imp_caps_vistos_{i}")
+
+            st.markdown("#### 3. Portada, etiquetas y fuente")
+            portada_edit = st.text_input("URL portada", value=item.get("portada_path", ""), key=f"imp_portada_{i}")
+            etiquetas_edit = st.text_input("Etiquetas", value=item.get("etiquetas", "importado"), key=f"imp_tags_{i}")
+            url_fuente_edit = st.text_input("URL / link fuente", value=item.get("url_fuente", ""), key=f"imp_url_{i}")
+            sinopsis_edit = st.text_area("Sinopsis", value=item.get("sinopsis", ""), height=160, key=f"imp_sinopsis_{i}")
+
+            st.markdown("#### 4. Confirmación")
+            st.info(f"Se importará como **{tipo_edit}** con estado **{estado_edit}** y {int(capitulos_vistos)} / {int(capitulos_total)} capítulos.")
+            if st.button("✅ Confirmar importación revisada", key=f"import_edit_{i}"):
+                item_editado = dict(item)
+                item_editado.update({
+                    "titulo": titulo_edit.strip(),
+                    "autor": autor_edit.strip(),
+                    "anio": anio_edit.strip(),
+                    "fecha_publicacion": fecha_pub.strip(),
+                    "estado_publicacion": estado_pub,
+                    "sinopsis": sinopsis_edit.strip(),
+                    "portada_path": portada_edit.strip(),
+                    "etiquetas": etiquetas_edit.strip(),
+                    "capitulo_total": int(capitulos_total),
+                    "capitulos_vistos": int(capitulos_vistos),
+                    "capitulo_actual": int(capitulos_vistos),
+                    "fuente_importacion": fuente_edit.strip(),
+                    "url_fuente": url_fuente_edit.strip(),
+                    "link_original": url_fuente_edit.strip(),
+                })
+                guardar_importado(item_editado, tipo_edit, estado_edit)
+                st.success(f"Importado revisado: {titulo_edit}")
         st.markdown("</div>", unsafe_allow_html=True)
         st.divider()
