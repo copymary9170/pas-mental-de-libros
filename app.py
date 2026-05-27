@@ -3,7 +3,7 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "Paz Mental deploy 2026-05-27 v9 - temporadas en buscador"
+APP_VERSION = "Paz Mental deploy 2026-05-27 v10 - buscador avanzado extendido"
 
 import src.database as db
 from src.styles import apply_styles
@@ -78,11 +78,29 @@ def guardar_importado(item, tipo, estado):
     cap_vistos = _to_int(item.get("capitulos_vistos", item.get("capitulo_actual")), 0)
     temporada_actual = max(1, _to_int(item.get("temporada_actual"), 1))
     temporada_total = max(1, _to_int(item.get("temporada_total"), temporada_actual))
+    motivo_extra = []
+    if item.get("division_obra"):
+        motivo_extra.append(f"División: {item.get('division_obra')}")
+    if item.get("ao3_work_id"):
+        motivo_extra.append(f"AO3 work ID: {item.get('ao3_work_id')}")
+    if item.get("ao3_tracking"):
+        motivo_extra.append("Seguimiento AO3 activado")
 
-    db.add_obra({
+    data = {
         "titulo": item.get("titulo", "Sin titulo"),
         "autor": item.get("autor", ""),
         "tipo": tipo,
+        "obra_original_tipo": item.get("obra_original_tipo", ""),
+        "obra_original_nombre": item.get("obra_original_nombre", ""),
+        "fandom": item.get("fandom", ""),
+        "ship": item.get("ship", ""),
+        "universo_au": item.get("universo_au", ""),
+        "fuente_fanfic": item.get("fuente_fanfic", ""),
+        "es_crossover": _to_int(item.get("es_crossover"), 0),
+        "crossover_obras": item.get("crossover_obras", ""),
+        "crossover_fandoms": item.get("crossover_fandoms", ""),
+        "crossover_tipo": item.get("crossover_tipo", ""),
+        "crossover_notas": item.get("crossover_notas", ""),
         "clasificacion": 0,
         "estrellas": _to_int(item.get("estrellas"), 0),
         "estado_lectura": estado,
@@ -100,11 +118,12 @@ def guardar_importado(item, tipo, estado):
         "link_respaldo": "",
         "portada_path": item.get("portada_path", ""),
         "respaldo_path": "",
-        "motivo_estado": f"Importado desde {item.get('fuente_importacion', 'fuente externa')}. Año: {item.get('anio') or 'N/D'}. URL: {item.get('url_fuente') or 'N/D'}",
+        "motivo_estado": f"Importado desde {item.get('fuente_importacion', 'fuente externa')}. Año: {item.get('anio') or 'N/D'}. URL: {item.get('url_fuente') or 'N/D'}. {' | '.join(motivo_extra)}",
         "favorito": _to_int(item.get("favorito"), 0),
         "fecha_inicio": str(date.today()),
         "fecha_fin": None,
-    })
+    }
+    db.add_obra(data)
 
 
 def mini_card(row):
@@ -159,7 +178,7 @@ with tab_timer:
     render_cronometro(obras, db.add_actividad, db.update_obra, db.list_actividad)
 
 with tab_search:
-    st.info("Versión del buscador: Fase 2 con opción BUSCAR EN TODO.")
+    st.info("Versión del buscador: Fase 7 avanzada con temporadas, AO3, fanfiction, duplicados y cola enriquecida.")
     render_buscador_avanzado(obras, buscar_global, guardar_importado)
 
 with tab_link:
