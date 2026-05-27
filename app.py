@@ -3,7 +3,7 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "Paz Mental deploy 2026-05-27 v10 - buscador avanzado extendido"
+APP_VERSION = "Paz Mental deploy 2026-05-27 v11 - buscador pro con merge y cache"
 
 import src.database as db
 from src.styles import apply_styles
@@ -101,6 +101,12 @@ def guardar_importado(item, tipo, estado):
         "crossover_fandoms": item.get("crossover_fandoms", ""),
         "crossover_tipo": item.get("crossover_tipo", ""),
         "crossover_notas": item.get("crossover_notas", ""),
+        "division_obra": item.get("division_obra", ""),
+        "ao3_work_id": item.get("ao3_work_id", ""),
+        "ao3_tracking": _to_int(item.get("ao3_tracking"), 0),
+        "fuente_confiabilidad": _to_int(item.get("fuente_confiabilidad"), 0),
+        "calidad_datos": _to_int(item.get("calidad_datos"), 0),
+        "ultima_importacion_fuente": item.get("fuente_importacion", ""),
         "clasificacion": 0,
         "estrellas": _to_int(item.get("estrellas"), 0),
         "estado_lectura": estado,
@@ -178,7 +184,7 @@ with tab_timer:
     render_cronometro(obras, db.add_actividad, db.update_obra, db.list_actividad)
 
 with tab_search:
-    st.info("Versión del buscador: Fase 7 avanzada con temporadas, AO3, fanfiction, duplicados y cola enriquecida.")
+    st.info("Versión del buscador: Fase 8 pro con cache, merge seguro, paginación, tags y preview.")
     render_buscador_avanzado(obras, buscar_global, guardar_importado)
 
 with tab_link:
