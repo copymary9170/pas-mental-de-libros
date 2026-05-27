@@ -9,6 +9,18 @@ ESTADOS_PUBLICACION = ["En emision", "Terminada", "Hiatus con aviso", "Hiatus si
 FUENTES_BUSQUEDA = ["Buscar en todo", "Libros", "Manga / manhwa / novelas ligeras", "Webnovels", "Series / anime / TV", "Kdramas", "Peliculas"]
 
 
+def _relevancia(item, query):
+    if not query:
+        return 0
+    titulo = str(item.get("titulo") or "").lower()
+    autor = str(item.get("autor") or "").lower()
+    q = query.lower().strip()
+    titulo_score = difflib.SequenceMatcher(None, q, titulo).ratio()
+    autor_score = difflib.SequenceMatcher(None, q, autor).ratio() * 0.35 if autor else 0
+    contains_bonus = 0.35 if q in titulo else 0
+    return round(min(1.0, titulo_score + autor_score + contains_bonus), 3)
+
+
 def _detectar_duplicados(titulo, obras):
     if not titulo or not obras:
         return []
@@ -88,7 +100,7 @@ def _chip(label, ok=True):
     return f"<span class='quality-chip'>{estado} {label}</span>"
 
 
-def _quality_html(item, duplicados):
+def _quality_html(item, duplicados, query=""):
     has_cover = bool(item.get("portada_path"))
     has_synopsis = bool(item.get("sinopsis"))
     has_author = bool(item.get("autor"))
@@ -98,9 +110,11 @@ def _quality_html(item, duplicados):
     source = item.get("fuente_importacion") or "fuente externa"
     score = _calidad_score(item)
     calidad = _calidad_label(score)
+    relevancia = int(_relevancia(item, query) * 100)
     chips = [
         f"<span class='quality-chip strong'>Fuente: {source}</span>",
         f"<span class='quality-chip strong'>Calidad: {calidad}</span>",
+        f"<span class='quality-chip strong'>Relevancia: {relevancia}%</span>",
         _chip("Portada", has_cover),
         _chip("Sinopsis", has_synopsis),
         _chip("Autor", has_author),
@@ -129,14 +143,32 @@ def _inject_styles():
 def render_buscador_avanzado(obras, buscar_global, guardar_importado):
     _inject_styles()
     st.subheader("🔎 Buscar e importar")
-    st.caption("Fase 4: búsqueda global, edición completa, importación rápida, filtros, revisión y cola por lote.")
+    st.caption("Fase 5: búsqueda global, relevancia, búsquedas favoritas, revisión, cola por lote y filtros.")
 
     if "import_queue" not in st.session_state:
         st.session_state["import_queue"] = []
+    if "busquedas_favoritas" not in st.session_state:
+        st.session_state["busquedas_favoritas"] = []
 
     fuente = st.radio("¿Qué quieres buscar?", FUENTES_BUSQUEDA, horizontal=True, key="buscador_fuente")
+
+    favs = st.session_state["busquedas_favoritas"]
+    if favs:
+        fav_selected = st.selectbox("⭐ Búsquedas favoritas", ["No usar"] + favs, key="fav_search_select")
+        if fav_selected != "No usar":
+            st.session_state["buscador_query"] = fav_selected
+
     query = st.text_input("Nombre de la obra", key="buscador_query")
     estado_import = st.selectbox("Estado al importar", ESTADOS, index=0, key="buscador_estado")
+
+    cf1, cf2 = st.columns([1, 3])
+    with cf1:
+        if st.button("⭐ Guardar búsqueda", key="guardar_busqueda_fav") and query.strip():
+            if query.strip() not in st.session_state["busquedas_favoritas"]:
+                st.session_state["busquedas_favoritas"].append(query.strip())
+                st.success("Búsqueda guardada.")
+            else:
+                st.info("Ya estaba guardada.")
 
     if st.button("Buscar", key="buscador_btn") and query.strip():
         if fuente == "Buscar en todo":
@@ -147,10 +179,12 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
         st.session_state["external_results"] = resultados
         st.session_state["external_kind"] = kind
         st.session_state["external_source"] = fuente
+        st.session_state["external_query"] = query.strip()
 
     results = st.session_state.get("external_results", [])
     kind = st.session_state.get("external_kind")
     fuente_actual = st.session_state.get("external_source", fuente)
+    query_actual = st.session_state.get("external_query", query)
 
     if st.session_state["import_queue"]:
         with st.expander(f"📥 Cola de importación ({len(st.session_state['import_queue'])})", expanded=True):
@@ -194,7 +228,7 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
             solo_alta = st.checkbox("Solo calidad alta", key="filtro_alta")
         with col_f4:
             ocultar_duplicados = st.checkbox("Ocultar duplicados", key="filtro_dupes")
-        ordenar = st.selectbox("Ordenar", ["Calidad primero", "Fuente", "Título A-Z"], key="orden_resultados")
+        ordenar = st.selectbox("Ordenar", ["Relevancia primero", "Calidad primero", "Fuente", "Título A-Z"], key="orden_resultados")
 
     filtered = []
     for r in results:
@@ -212,7 +246,9 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
             continue
         filtered.append(r)
 
-    if ordenar == "Calidad primero":
+    if ordenar == "Relevancia primero":
+        filtered.sort(key=lambda x: (_relevancia(x, query_actual), _calidad_score(x)), reverse=True)
+    elif ordenar == "Calidad primero":
         filtered.sort(key=lambda x: _calidad_score(x), reverse=True)
     elif ordenar == "Fuente":
         filtered.sort(key=lambda x: (x.get("grupo_resultado") or x.get("fuente_importacion") or "", x.get("titulo") or ""))
@@ -236,7 +272,7 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
                 st.write("Sin portada")
         with col2:
             st.markdown(f"### {titulo_original or 'Sin título'}")
-            st.markdown(_quality_html(item, duplicados), unsafe_allow_html=True)
+            st.markdown(_quality_html(item, duplicados, query_actual), unsafe_allow_html=True)
             st.caption(f"Grupo: {item.get('grupo_resultado') or item.get('fuente_importacion') or fuente_actual}")
             st.write(item.get("autor") or "Autor / canal no indicado")
             if item.get("sinopsis"):
