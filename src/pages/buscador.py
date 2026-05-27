@@ -9,6 +9,10 @@ ESTADOS_PUBLICACION = ["En emision", "Terminada", "Hiatus con aviso", "Hiatus si
 FUENTES_BUSQUEDA = ["Buscar en todo", "Libros", "Manga / manhwa / novelas ligeras", "Webnovels", "Series / anime / TV", "Kdramas", "Peliculas"]
 
 
+def _item_key(item):
+    return f"{item.get('titulo','')}|{item.get('fuente_importacion','')}|{item.get('url_fuente','')}"
+
+
 def _relevancia(item, query):
     if not query:
         return 0
@@ -95,12 +99,17 @@ def _calidad_label(score):
     return "Baja"
 
 
+def _quality_stars(score):
+    stars = min(5, max(1, round((score / 6) * 5)))
+    return "★" * stars + "☆" * (5 - stars)
+
+
 def _chip(label, ok=True):
     estado = "✅" if ok else "⚠️"
     return f"<span class='quality-chip'>{estado} {label}</span>"
 
 
-def _quality_html(item, duplicados, query=""):
+def _quality_html(item, duplicados, query="", favorito=False):
     has_cover = bool(item.get("portada_path"))
     has_synopsis = bool(item.get("sinopsis"))
     has_author = bool(item.get("autor"))
@@ -110,10 +119,13 @@ def _quality_html(item, duplicados, query=""):
     source = item.get("fuente_importacion") or "fuente externa"
     score = _calidad_score(item)
     calidad = _calidad_label(score)
+    estrellas = _quality_stars(score)
     relevancia = int(_relevancia(item, query) * 100)
+    heart = "❤️ Favorito" if favorito else "🤍 No favorito"
     chips = [
+        f"<span class='quality-chip heart'>{heart}</span>",
         f"<span class='quality-chip strong'>Fuente: {source}</span>",
-        f"<span class='quality-chip strong'>Calidad: {calidad}</span>",
+        f"<span class='quality-chip stars'>Calidad: {estrellas} ({calidad})</span>",
         f"<span class='quality-chip strong'>Relevancia: {relevancia}%</span>",
         _chip("Portada", has_cover),
         _chip("Sinopsis", has_synopsis),
@@ -133,6 +145,8 @@ def _inject_styles():
         .quality-row{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 10px 0}
         .quality-chip{display:inline-flex;align-items:center;border-radius:999px;padding:5px 10px;font-size:.78rem;font-weight:700;background:rgba(245,240,250,.85);border:1px solid rgba(120,90,140,.18);color:#3d3145}
         .quality-chip.strong{background:rgba(235,224,247,.95);border-color:rgba(120,90,140,.28)}
+        .quality-chip.stars{background:rgba(255,248,223,.95);border-color:rgba(180,140,50,.3);color:#5c4310}
+        .quality-chip.heart{background:rgba(255,232,240,.95);border-color:rgba(180,80,120,.3);color:#7b2144}
         .result-card{border:1px solid rgba(120,90,140,.15);border-radius:18px;padding:14px;margin:12px 0;background:rgba(255,255,255,.62);box-shadow:0 8px 28px rgba(30,10,50,.06)}
         </style>
         """,
@@ -143,12 +157,14 @@ def _inject_styles():
 def render_buscador_avanzado(obras, buscar_global, guardar_importado):
     _inject_styles()
     st.subheader("🔎 Buscar e importar")
-    st.caption("Fase 5: búsqueda global, relevancia, búsquedas favoritas, revisión, cola por lote y filtros.")
+    st.caption("Fase 6: calidad con estrellas, favoritos con corazón, búsqueda global, revisión, cola y filtros.")
 
     if "import_queue" not in st.session_state:
         st.session_state["import_queue"] = []
     if "busquedas_favoritas" not in st.session_state:
         st.session_state["busquedas_favoritas"] = []
+    if "result_favorites" not in st.session_state:
+        st.session_state["result_favorites"] = []
 
     fuente = st.radio("¿Qué quieres buscar?", FUENTES_BUSQUEDA, horizontal=True, key="buscador_fuente")
 
@@ -219,7 +235,7 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
 
     with st.expander("🎛️ Filtros rápidos y orden", expanded=True):
         filtro_grupo = st.multiselect("Fuentes / grupos", grupos, default=grupos, key="buscador_filtro_grupo")
-        col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+        col_f1, col_f2, col_f3, col_f4, col_f5 = st.columns(5)
         with col_f1:
             solo_portada = st.checkbox("Solo con portada", key="filtro_portada")
         with col_f2:
@@ -228,12 +244,16 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
             solo_alta = st.checkbox("Solo calidad alta", key="filtro_alta")
         with col_f4:
             ocultar_duplicados = st.checkbox("Ocultar duplicados", key="filtro_dupes")
-        ordenar = st.selectbox("Ordenar", ["Relevancia primero", "Calidad primero", "Fuente", "Título A-Z"], key="orden_resultados")
+        with col_f5:
+            solo_favoritos = st.checkbox("Solo favoritos ❤️", key="filtro_favoritos")
+        ordenar = st.selectbox("Ordenar", ["Relevancia primero", "Calidad primero", "Favoritos primero", "Fuente", "Título A-Z"], key="orden_resultados")
 
     filtered = []
+    favoritos = st.session_state["result_favorites"]
     for r in results:
         grupo = r.get("grupo_resultado") or r.get("fuente_importacion") or "Otros"
         duplicados_tmp = _detectar_duplicados(r.get("titulo", ""), obras)
+        key = _item_key(r)
         if grupo not in filtro_grupo:
             continue
         if solo_portada and not r.get("portada_path"):
@@ -244,12 +264,16 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
             continue
         if ocultar_duplicados and duplicados_tmp:
             continue
+        if solo_favoritos and key not in favoritos:
+            continue
         filtered.append(r)
 
     if ordenar == "Relevancia primero":
         filtered.sort(key=lambda x: (_relevancia(x, query_actual), _calidad_score(x)), reverse=True)
     elif ordenar == "Calidad primero":
         filtered.sort(key=lambda x: _calidad_score(x), reverse=True)
+    elif ordenar == "Favoritos primero":
+        filtered.sort(key=lambda x: (_item_key(x) in favoritos, _relevancia(x, query_actual), _calidad_score(x)), reverse=True)
     elif ordenar == "Fuente":
         filtered.sort(key=lambda x: (x.get("grupo_resultado") or x.get("fuente_importacion") or "", x.get("titulo") or ""))
     else:
@@ -262,6 +286,8 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
         titulo_original = item.get("titulo", "")
         duplicados = _detectar_duplicados(titulo_original, obras)
         item_kind = item.get("kind") or kind
+        key = _item_key(item)
+        is_fav = key in st.session_state["result_favorites"]
 
         st.markdown("<div class='result-card'>", unsafe_allow_html=True)
         col1, col2 = st.columns([1, 4])
@@ -272,7 +298,7 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
                 st.write("Sin portada")
         with col2:
             st.markdown(f"### {titulo_original or 'Sin título'}")
-            st.markdown(_quality_html(item, duplicados, query_actual), unsafe_allow_html=True)
+            st.markdown(_quality_html(item, duplicados, query_actual, is_fav), unsafe_allow_html=True)
             st.caption(f"Grupo: {item.get('grupo_resultado') or item.get('fuente_importacion') or fuente_actual}")
             st.write(item.get("autor") or "Autor / canal no indicado")
             if item.get("sinopsis"):
@@ -283,7 +309,15 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
         if duplicados:
             st.warning("Posibles duplicados ya guardados: " + ", ".join([d.get("titulo", "Sin título") for d in duplicados]))
 
-        col_fast, col_queue = st.columns([1, 1])
+        col_heart, col_fast, col_queue = st.columns([1, 1, 1])
+        with col_heart:
+            if st.button("❤️ Quitar fav" if is_fav else "🤍 Favorito", key=f"heart_{i}"):
+                if is_fav:
+                    st.session_state["result_favorites"].remove(key)
+                    st.success("Quitado de favoritos.")
+                else:
+                    st.session_state["result_favorites"].append(key)
+                    st.success("Marcado como favorito.")
         with col_fast:
             if st.button("⚡ Importar rápido", key=f"quick_import_{i}"):
                 guardar_importado(item, _opciones_tipo(item_kind)[0], estado_import)
