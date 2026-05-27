@@ -3,7 +3,7 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "Paz Mental deploy 2026-05-26 v6 - buscador avanzado sin duplicados"
+APP_VERSION = "Paz Mental deploy 2026-05-26 v7 - BUSCAR EN TODO activo"
 
 import src.database as db
 from src.styles import apply_styles
@@ -140,6 +140,7 @@ with tab_timer:
     render_cronometro(obras, db.add_actividad, db.update_obra, db.list_actividad)
 
 with tab_search:
+    st.info("Versión del buscador: Fase 2 con opción BUSCAR EN TODO.")
     render_buscador_avanzado(obras, buscar_global, guardar_importado)
 
 with tab_link:
