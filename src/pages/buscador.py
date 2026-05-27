@@ -5,6 +5,7 @@ import streamlit as st
 BOOK_TYPES = ["Libro", "Fanfiction", "Novela", "Novela ligera", "Manga", "Manhwa", "Manhua", "Webnovel", "Comic"]
 TV_TYPES = ["Anime", "Serie", "Kdrama", "Pelicula", "Documental", "Podcast", "Otro"]
 ESTADOS = ["Pendiente", "Leyendo", "Viendo", "Terminado", "Pausado", "Abandonado", "Releyendo", "Rewatch"]
+FUENTES_BUSQUEDA = ["Buscar en todo", "Libros", "Manga / manhwa / novelas ligeras", "Webnovels", "Series / anime / TV", "Kdramas", "Peliculas"]
 
 
 def _detectar_duplicados(titulo, obras):
@@ -32,12 +33,34 @@ def _opciones_tipo(kind):
     return TV_TYPES
 
 
-def _normalizar_item(item, fuente_nombre):
+def _normalizar_item(item, fuente_nombre, kind=None):
     item = dict(item or {})
     item.setdefault("fuente_importacion", fuente_nombre)
+    item.setdefault("grupo_resultado", fuente_nombre)
+    item.setdefault("kind", kind or item.get("kind") or "")
     item.setdefault("id_externo", item.get("id") or item.get("external_id") or "")
     item.setdefault("url_fuente", item.get("url") or item.get("link") or item.get("link_original") or "")
     return item
+
+
+def _buscar_en_todo(query, buscar_global):
+    todos = []
+    for fuente in FUENTES_BUSQUEDA[1:]:
+        try:
+            resultados, kind = buscar_global(query, fuente)
+            for r in resultados:
+                todos.append(_normalizar_item(r, fuente, kind))
+        except Exception as exc:
+            todos.append({
+                "titulo": f"Error buscando en {fuente}",
+                "autor": "",
+                "sinopsis": str(exc),
+                "portada_path": "",
+                "fuente_importacion": fuente,
+                "grupo_resultado": fuente,
+                "kind": "error",
+            })
+    return todos, "global"
 
 
 def _chip(label, ok=True):
@@ -91,11 +114,11 @@ def _inject_styles():
 def render_buscador_avanzado(obras, buscar_global, guardar_importado):
     _inject_styles()
     st.subheader("🔎 Buscar e importar")
-    st.caption("Fase 1.5: vista previa, edición antes de importar, fuente, calidad de datos y alerta de duplicados.")
+    st.caption("Fase 2: búsqueda por categoría o Buscar en todo, con edición, calidad de datos y alerta de duplicados.")
 
     fuente = st.radio(
         "¿Qué quieres buscar?",
-        ["Libros", "Manga / manhwa / novelas ligeras", "Webnovels", "Series / anime / TV", "Kdramas", "Peliculas"],
+        FUENTES_BUSQUEDA,
         horizontal=True,
         key="buscador_fuente",
     )
@@ -103,8 +126,11 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
     estado_import = st.selectbox("Estado al importar", ESTADOS, index=0, key="buscador_estado")
 
     if st.button("Buscar", key="buscador_btn") and query.strip():
-        resultados, kind = buscar_global(query, fuente)
-        resultados = [_normalizar_item(r, fuente) for r in resultados]
+        if fuente == "Buscar en todo":
+            resultados, kind = _buscar_en_todo(query, buscar_global)
+        else:
+            resultados, kind = buscar_global(query, fuente)
+            resultados = [_normalizar_item(r, fuente, kind) for r in resultados]
         st.session_state["external_results"] = resultados
         st.session_state["external_kind"] = kind
         st.session_state["external_source"] = fuente
@@ -119,10 +145,16 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
 
     st.success(f"Resultados encontrados: {len(results)}")
 
+    if fuente_actual == "Buscar en todo":
+        grupos = sorted(set([r.get("grupo_resultado") or r.get("fuente_importacion") or "Otros" for r in results]))
+        filtro_grupo = st.multiselect("Filtrar resultados por fuente", grupos, default=grupos, key="buscador_filtro_grupo")
+        results = [r for r in results if (r.get("grupo_resultado") or r.get("fuente_importacion") or "Otros") in filtro_grupo]
+
     for i, item in enumerate(results):
-        item = _normalizar_item(item, fuente_actual)
+        item = _normalizar_item(item, item.get("fuente_importacion") or fuente_actual, item.get("kind") or kind)
         titulo_original = item.get("titulo", "")
         duplicados = _detectar_duplicados(titulo_original, obras)
+        item_kind = item.get("kind") or kind
 
         st.markdown("<div class='result-card'>", unsafe_allow_html=True)
         col1, col2 = st.columns([1, 4])
@@ -134,6 +166,7 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
         with col2:
             st.markdown(f"### {titulo_original or 'Sin título'}")
             st.markdown(_quality_html(item, duplicados), unsafe_allow_html=True)
+            st.caption(f"Grupo: {item.get('grupo_resultado') or item.get('fuente_importacion') or fuente_actual}")
             st.write(item.get("autor") or "Autor / canal no indicado")
             if item.get("sinopsis"):
                 st.write(str(item.get("sinopsis"))[:700])
@@ -144,7 +177,7 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
             st.warning("Posibles duplicados ya guardados: " + ", ".join([d.get("titulo", "Sin título") for d in duplicados]))
 
         with st.expander("✏️ Editar antes de importar"):
-            tipo_opts = _opciones_tipo(kind)
+            tipo_opts = _opciones_tipo(item_kind)
             col_a, col_b = st.columns(2)
             with col_a:
                 titulo_edit = st.text_input("Título", value=item.get("titulo", ""), key=f"imp_titulo_{i}")
