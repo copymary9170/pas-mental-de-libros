@@ -3,7 +3,7 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "Paz Mental deploy 2026-05-26 v7 - BUSCAR EN TODO activo"
+APP_VERSION = "Paz Mental deploy 2026-05-27 v8 - AO3 conectado"
 
 import src.database as db
 from src.styles import apply_styles
@@ -29,6 +29,7 @@ from src.pages.capitulos import render_capitulos
 from src.pages.fanfiction import render_fanfiction_fields, fanfiction_badges
 from src.pages.reportes import render_reportes
 from src.pages.canons import render_canons
+from src.pages.ao3_updates import render_ao3_updates
 
 st.set_page_config(page_title="Paz Mental", page_icon="📚", layout="wide")
 apply_styles()
@@ -123,11 +124,12 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-tab_timer, tab_search, tab_link, tab_calendar, tab_books, tab_reports, tab_canons, tab_add, tab_chapters, tab_export = st.tabs([
+tab_timer, tab_search, tab_link, tab_calendar, tab_ao3, tab_books, tab_reports, tab_canons, tab_add, tab_chapters, tab_export = st.tabs([
     "⏱️ Cronómetro",
     "🔎 Buscar e importar",
     "🔗 Importar link",
     "📅 Calendario",
+    "🔔 AO3",
     "📚 Biblioteca",
     "🏆 Wrapped / Reportes",
     "🌌 Canons",
@@ -167,6 +169,9 @@ with tab_link:
 
 with tab_calendar:
     render_calendario(db.list_actividad)
+
+with tab_ao3:
+    render_ao3_updates(obras)
 
 with tab_books:
     st.subheader("Biblioteca")
