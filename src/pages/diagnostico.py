@@ -54,8 +54,8 @@ def _backup_json():
         "obras": db.list_obras(),
     }
     with db.get_conn() as conn:
+        conn.row_factory = sqlite3.Row
         for table in ["capitulos", "actividad", "personajes", "votos_personaje", "canons"]:
-            conn.row_factory = sqlite3.Row
             try:
                 payload[table] = [dict(r) for r in conn.execute(f"SELECT * FROM {table}").fetchall()]
             except Exception:
@@ -95,7 +95,8 @@ def _find_duplicates(obras):
         title = str(obra.get("titulo") or "").strip().lower()
         author = str(obra.get("autor") or "").strip().lower()
         url = str(obra.get("link_original") or "").strip().lower()
-        key = url or f"{title}|{author}"
+        ao3 = str(obra.get("ao3_work_id") or "").strip().lower()
+        key = ao3 or url or f"{title}|{author}"
         if not key.strip("|"):
             continue
         if key in seen:
@@ -105,25 +106,34 @@ def _find_duplicates(obras):
     return dupes
 
 
+def _to_int(value, default=0):
+    try:
+        if value is None or value == "":
+            return default
+        return int(value)
+    except Exception:
+        return default
+
+
 def _repair_progress(obras):
     fixed = 0
     for obra in obras:
         updates = {}
-        cap_actual = int(obra.get("capitulo_actual") or 0)
-        vistos = int(obra.get("capitulos_vistos") or 0)
-        cap_total = int(obra.get("capitulo_total") or 0)
-        publicados = int(obra.get("capitulos_publicados") or 0)
-        temporada_actual = max(1, int(obra.get("temporada_actual") or 1))
-        temporada_total = max(temporada_actual, int(obra.get("temporada_total") or 1))
+        cap_actual = _to_int(obra.get("capitulo_actual"), 0)
+        vistos = _to_int(obra.get("capitulos_vistos"), 0)
+        cap_total = _to_int(obra.get("capitulo_total"), 0)
+        publicados = _to_int(obra.get("capitulos_publicados"), 0)
+        temporada_actual = max(1, _to_int(obra.get("temporada_actual"), 1))
+        temporada_total = max(temporada_actual, _to_int(obra.get("temporada_total"), 1))
         if vistos < cap_actual:
             updates["capitulos_vistos"] = cap_actual
         if cap_actual < vistos:
             updates["capitulo_actual"] = vistos
         if publicados < cap_total:
             updates["capitulos_publicados"] = cap_total
-        if temporada_actual != obra.get("temporada_actual"):
+        if temporada_actual != _to_int(obra.get("temporada_actual"), 1):
             updates["temporada_actual"] = temporada_actual
-        if temporada_total != obra.get("temporada_total"):
+        if temporada_total != _to_int(obra.get("temporada_total"), 1):
             updates["temporada_total"] = temporada_total
         if updates:
             db.update_obra(obra["id"], updates)
@@ -143,7 +153,7 @@ def _normalize_all_tags(obras):
 
 
 def _diagnose_dependencies():
-    deps = {
+    return {
         "streamlit": importlib.util.find_spec("streamlit") is not None,
         "pandas": importlib.util.find_spec("pandas") is not None,
         "plotly": importlib.util.find_spec("plotly") is not None,
@@ -151,7 +161,33 @@ def _diagnose_dependencies():
         "requests": importlib.util.find_spec("requests") is not None,
         "beautifulsoup4/bs4": importlib.util.find_spec("bs4") is not None,
     }
-    return deps
+
+
+def _health_flags(obras, deps, missing_obras, missing_canons):
+    flags = []
+    if missing_obras or missing_canons:
+        flags.append("faltan columnas")
+    if not all(deps.values()):
+        flags.append("faltan dependencias")
+    for obra in obras:
+        if _to_int(obra.get("temporada_actual"), 1) < 1:
+            flags.append("temporadas inválidas")
+            break
+        if _to_int(obra.get("capitulos_vistos"), 0) > max(_to_int(obra.get("capitulos_publicados"), 0), _to_int(obra.get("capitulo_total"), 0)) and max(_to_int(obra.get("capitulos_publicados"), 0), _to_int(obra.get("capitulo_total"), 0)) > 0:
+            flags.append("progreso mayor que publicados")
+            break
+    return flags
+
+
+def _render_download_for_file(path: Path):
+    if path and path.exists():
+        st.download_button(
+            f"Descargar {path.name}",
+            data=path.read_bytes(),
+            file_name=path.name,
+            mime="application/octet-stream",
+            key=f"download_{path.name}",
+        )
 
 
 def render_diagnostico():
@@ -167,6 +203,14 @@ def render_diagnostico():
         missing_canons = _missing_columns(conn, "canons", db.CANONS_COLUMNS)
         cols_obras = _columns(conn, "obras")
 
+    deps = _diagnose_dependencies()
+    flags = _health_flags(obras, deps, missing_obras, missing_canons)
+
+    if flags:
+        st.warning("Estado general: revisar — " + ", ".join(sorted(set(flags))))
+    else:
+        st.success("Estado general: estable. No se detectaron problemas básicos.")
+
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Obras", counts.get("obras", 0))
     c2.metric("Capítulos", counts.get("capitulos", 0))
@@ -179,7 +223,6 @@ def render_diagnostico():
     else:
         st.warning("La base de datos todavía no existe.")
 
-    deps = _diagnose_dependencies()
     dep_df = pd.DataFrame([{"dependencia": k, "ok": "✅" if v else "❌"} for k, v in deps.items()])
     st.dataframe(dep_df, use_container_width=True, hide_index=True)
 
@@ -202,16 +245,19 @@ def render_diagnostico():
             target = _backup_db()
             if target:
                 st.success(f"Backup creado: {target}")
+                _render_download_for_file(target)
             else:
                 st.error("No existe base de datos para respaldar.")
     with b2:
         if st.button("Exportar JSON", key="backup_json"):
             target = _backup_json()
             st.success(f"JSON creado: {target}")
+            _render_download_for_file(target)
     with b3:
         if st.button("Exportar CSV", key="backup_csv"):
             target = _backup_csv()
             st.success(f"CSV creado: {target}")
+            _render_download_for_file(target)
 
     if BACKUP_DIR.exists():
         backups = sorted(BACKUP_DIR.glob("*"), reverse=True)[:10]
@@ -221,6 +267,7 @@ def render_diagnostico():
                 st.write(f"- {path.name}")
 
     st.markdown("### Reparaciones seguras")
+    st.caption("Estas acciones no borran obras ni capítulos. Antes de usarlas, crea un backup si vas a hacer mantenimiento masivo.")
     r1, r2, r3 = st.columns(3)
     with r1:
         if st.button("Reparar esquema", key="repair_schema"):
@@ -238,14 +285,25 @@ def render_diagnostico():
     st.markdown("### Duplicados detectados")
     dupes = _find_duplicates(obras)
     if not dupes:
-        st.success("No se detectaron duplicados exactos por link o título+autor.")
+        st.success("No se detectaron duplicados exactos por link, AO3 work ID o título+autor.")
     else:
         st.warning(f"Duplicados posibles: {len(dupes)}")
-        for original, duplicate in dupes[:50]:
+        for idx, (original, duplicate) in enumerate(dupes[:50]):
             with st.container(border=True):
                 st.write(f"Original: **{original.get('titulo')}** — id {original.get('id')}")
                 st.write(f"Duplicado: **{duplicate.get('titulo')}** — id {duplicate.get('id')}")
                 st.caption("No se fusiona ni borra automáticamente desde aquí para evitar pérdida de datos.")
+                merge_fields = st.multiselect(
+                    "Preparar comparación de campos",
+                    ["sinopsis", "portada_path", "etiquetas", "capitulos_publicados", "capitulo_total", "temporada_total", "fandom", "ship", "universo_au"],
+                    default=["sinopsis", "portada_path", "etiquetas"],
+                    key=f"diag_dupe_fields_{idx}",
+                )
+                if merge_fields:
+                    rows = []
+                    for field in merge_fields:
+                        rows.append({"campo": field, "original": original.get(field, ""), "duplicado": duplicate.get(field, "")})
+                    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
     st.markdown("### Resumen rápido de datos")
     if obras:
