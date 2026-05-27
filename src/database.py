@@ -20,6 +20,12 @@ OBRAS_COLUMNS = {
     "crossover_fandoms": "TEXT",
     "crossover_tipo": "TEXT",
     "crossover_notas": "TEXT",
+    "division_obra": "TEXT",
+    "ao3_work_id": "TEXT",
+    "ao3_tracking": "INTEGER DEFAULT 0",
+    "fuente_confiabilidad": "INTEGER DEFAULT 0",
+    "calidad_datos": "INTEGER DEFAULT 0",
+    "ultima_importacion_fuente": "TEXT",
     "clasificacion": "REAL DEFAULT 0",
     "estrellas": "INTEGER DEFAULT 0",
     "comentario": "TEXT",
@@ -102,6 +108,11 @@ def _insert(table, data):
         conn.execute(f"INSERT INTO {table} ({keys}) VALUES ({placeholders})", list(data.values()))
         conn.commit()
 
+def _filter_columns(table, data):
+    with get_conn() as conn:
+        existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    return {k: v for k, v in dict(data).items() if k in existing}
+
 def add_obra(data):
     now = datetime.now().isoformat(timespec="seconds")
     data = dict(data); data["created_at"] = now; data["updated_at"] = now
@@ -112,15 +123,37 @@ def add_obra(data):
     data.setdefault("tiempo_total_minutos", 0)
     data.setdefault("tiempo_ultima_sesion_minutos", 0)
     data.setdefault("es_crossover", 0)
+    data = _filter_columns("obras", data)
     _insert("obras", data)
 
 def update_obra(obra_id, data):
     now = datetime.now().isoformat(timespec="seconds")
-    data = dict(data); data["updated_at"] = now
+    data = _filter_columns("obras", dict(data)); data["updated_at"] = now
     setters = ", ".join([f"{k}=?" for k in data.keys()])
     with get_conn() as conn:
         conn.execute(f"UPDATE obras SET {setters} WHERE id=?", list(data.values()) + [obra_id])
         conn.commit()
+
+def merge_obra_metadata(obra_id, data, only_empty=True):
+    actual = get_obra(obra_id)
+    if not actual:
+        return False
+    data = _filter_columns("obras", data)
+    merged = {}
+    for key, value in data.items():
+        if key in ["id", "created_at", "updated_at"]:
+            continue
+        if value is None or value == "":
+            continue
+        if only_empty:
+            if actual.get(key) in [None, "", 0] or key in ["capitulos_publicados", "capitulo_total", "temporada_total"]:
+                merged[key] = value
+        else:
+            merged[key] = value
+    if merged:
+        update_obra(obra_id, merged)
+        return True
+    return False
 
 def add_tiempo_obra(obra_id, minutos, fecha=None):
     now = datetime.now().isoformat(timespec="seconds")
@@ -219,9 +252,7 @@ def ranking_personajes(obra_id):
 
 def add_canon(data):
     now = datetime.now().isoformat(timespec="seconds")
-    data = dict(data)
-    data["created_at"] = now
-    data["updated_at"] = now
+    data = dict(data); data["created_at"] = now; data["updated_at"] = now
     allowed = ["nombre", "autor_original", "tipo", "fandom", "universo", "sinopsis", "etiquetas", "portada_path", "created_at", "updated_at"]
     _insert("canons", {k: data.get(k) for k in allowed})
 
