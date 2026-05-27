@@ -13,6 +13,15 @@ def _item_key(item):
     return f"{item.get('titulo','')}|{item.get('fuente_importacion','')}|{item.get('url_fuente','')}"
 
 
+def _safe_int(value, default=0):
+    try:
+        if value is None or value == "":
+            return default
+        return int(value)
+    except Exception:
+        return default
+
+
 def _relevancia(item, query):
     if not query:
         return 0
@@ -57,6 +66,8 @@ def _normalizar_item(item, fuente_nombre, kind=None):
     item.setdefault("kind", kind or item.get("kind") or "")
     item.setdefault("id_externo", item.get("id") or item.get("external_id") or "")
     item.setdefault("url_fuente", item.get("url") or item.get("link") or item.get("link_original") or "")
+    item.setdefault("temporada_actual", _safe_int(item.get("temporada_actual"), 1) or 1)
+    item.setdefault("temporada_total", max(1, _safe_int(item.get("temporada_total"), 1) or 1))
     return item
 
 
@@ -91,6 +102,7 @@ def _quality_html(item, duplicados, query="", favorito=False):
     has_author = bool(item.get("autor"))
     has_year = bool(item.get("anio"))
     has_caps = int(item.get("capitulo_total") or 0) > 0
+    has_season = int(item.get("temporada_total") or 1) > 0
     has_url = bool(item.get("url_fuente") or item.get("link_original"))
     source = item.get("fuente_importacion") or "fuente externa"
     calidad = _calidad_100(item)
@@ -101,7 +113,7 @@ def _quality_html(item, duplicados, query="", favorito=False):
         f"<span class='quality-chip strong'>Fuente: {source}</span>",
         f"<span class='quality-chip score'>Calidad de datos: {calidad}/100</span>",
         f"<span class='quality-chip strong'>Relevancia: {relevancia}%</span>",
-        _chip("Portada", has_cover), _chip("Sinopsis", has_synopsis), _chip("Autor", has_author), _chip("Año", has_year), _chip("Caps/Eps", has_caps), _chip("Link", has_url), _chip("Sin duplicado", not bool(duplicados)),
+        _chip("Portada", has_cover), _chip("Sinopsis", has_synopsis), _chip("Autor", has_author), _chip("Año", has_year), _chip("Temporadas", has_season), _chip("Caps/Eps", has_caps), _chip("Link", has_url), _chip("Sin duplicado", not bool(duplicados)),
     ]
     return "<div class='quality-row'>" + "".join(chips) + "</div>"
 
@@ -123,7 +135,7 @@ def _inject_styles():
 def render_buscador_avanzado(obras, buscar_global, guardar_importado):
     _inject_styles()
     st.subheader("🔎 Buscar e importar")
-    st.caption("Fase 6.2: calidad de datos 0/100, estrellas solo para tu opinión, favoritos con corazón, búsqueda global, revisión y cola.")
+    st.caption("Fase 6.3: temporadas visibles, calidad de datos 0/100, estrellas solo para tu opinión, favoritos con corazón, búsqueda global, revisión y cola.")
 
     if "import_queue" not in st.session_state: st.session_state["import_queue"] = []
     if "busquedas_favoritas" not in st.session_state: st.session_state["busquedas_favoritas"] = []
@@ -156,7 +168,7 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
 
     if st.session_state["import_queue"]:
         with st.expander(f"📥 Cola de importación ({len(st.session_state['import_queue'])})", expanded=True):
-            for idx, queued in enumerate(st.session_state["import_queue"]): st.write(f"{idx + 1}. {queued.get('titulo') or 'Sin título'} — {queued.get('fuente_importacion') or 'fuente externa'}")
+            for idx, queued in enumerate(st.session_state["import_queue"]): st.write(f"{idx + 1}. {queued.get('titulo') or 'Sin título'} — T{queued.get('temporada_actual') or 1}/{queued.get('temporada_total') or 1} — {queued.get('fuente_importacion') or 'fuente externa'}")
             cqa, cqb, cqc = st.columns([1, 1, 3])
             with cqa:
                 if st.button("✅ Importar cola", key="importar_cola"):
@@ -218,6 +230,7 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
             st.markdown(f"<div class='score-line'>Calidad de datos: {calidad}/100</div>", unsafe_allow_html=True)
             st.markdown(_quality_html(item, duplicados, query_actual, is_fav), unsafe_allow_html=True)
             st.caption(f"Grupo: {item.get('grupo_resultado') or item.get('fuente_importacion') or fuente_actual}")
+            st.caption(f"Temporadas: T{item.get('temporada_actual') or 1} de {item.get('temporada_total') or 1}")
             st.write(item.get("autor") or "Autor / canal no indicado")
             if item.get("sinopsis"): st.write(str(item.get("sinopsis"))[:700])
             if item.get("url_fuente"): st.caption(f"URL fuente: {item.get('url_fuente')}")
@@ -243,17 +256,20 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
                 titulo_edit = st.text_input("Título", value=item.get("titulo", ""), key=f"imp_titulo_{i}"); autor_edit = st.text_input("Autor / creador", value=item.get("autor", ""), key=f"imp_autor_{i}"); tipo_edit = st.selectbox("Tipo", tipo_opts, key=f"imp_tipo_{i}"); anio_edit = st.text_input("Año", value=str(item.get("anio") or ""), key=f"imp_anio_{i}")
             with col_b:
                 estado_edit = st.selectbox("Estado personal", ESTADOS, index=ESTADOS.index(estado_import) if estado_import in ESTADOS else 0, key=f"imp_estado_{i}"); estado_pub = st.selectbox("Estado de publicación", ESTADOS_PUBLICACION, index=6, key=f"imp_estado_pub_{i}"); fecha_pub = st.text_input("Fecha de publicación", value=item.get("fecha_publicacion") or item.get("anio") or "", key=f"imp_fecha_pub_{i}"); fuente_edit = st.text_input("Fuente importación", value=item.get("fuente_importacion") or fuente_actual, key=f"imp_fuente_{i}")
-            st.markdown("#### 2. Progreso inicial y opinión")
+            st.markdown("#### 2. Temporadas, progreso inicial y opinión")
+            col_t1, col_t2 = st.columns(2)
+            with col_t1: temporada_actual = st.number_input("Temporada actual", min_value=1, value=max(1, _safe_int(item.get("temporada_actual"), 1)), step=1, key=f"imp_temporada_actual_{i}")
+            with col_t2: temporada_total = st.number_input("Temporadas totales", min_value=1, value=max(1, _safe_int(item.get("temporada_total"), 1)), step=1, key=f"imp_temporada_total_{i}")
             col_c, col_d, col_e = st.columns(3)
-            with col_c: capitulos_total = st.number_input("Capítulos / episodios publicados", min_value=0, value=int(item.get("capitulo_total") or 0), step=1, key=f"imp_caps_{i}")
-            with col_d: capitulos_vistos = st.number_input("Capítulos / episodios ya vistos/leídos", min_value=0, value=0, step=1, key=f"imp_caps_vistos_{i}")
-            with col_e: estrellas_personales = st.slider("Tu puntuación ⭐", 0, 5, 0, 1, key=f"imp_estrellas_{i}")
+            with col_c: capitulos_total = st.number_input("Capítulos / episodios publicados", min_value=0, value=_safe_int(item.get("capitulo_total"), 0), step=1, key=f"imp_caps_{i}")
+            with col_d: capitulos_vistos = st.number_input("Capítulos / episodios ya vistos/leídos", min_value=0, value=_safe_int(item.get("capitulos_vistos", item.get("capitulo_actual")), 0), step=1, key=f"imp_caps_vistos_{i}")
+            with col_e: estrellas_personales = st.slider("Tu puntuación ⭐", 0, 5, _safe_int(item.get("estrellas"), 0), 1, key=f"imp_estrellas_{i}")
             st.markdown("#### 3. Portada, etiquetas y fuente")
             portada_edit = st.text_input("URL portada", value=item.get("portada_path", ""), key=f"imp_portada_{i}"); etiquetas_edit = st.text_input("Etiquetas", value=item.get("etiquetas", "importado"), key=f"imp_tags_{i}"); url_fuente_edit = st.text_input("URL / link fuente", value=item.get("url_fuente", ""), key=f"imp_url_{i}"); sinopsis_edit = st.text_area("Sinopsis", value=item.get("sinopsis", ""), height=160, key=f"imp_sinopsis_{i}")
             st.markdown("#### 4. Confirmación")
-            st.info(f"Se importará como **{tipo_edit}**, estado **{estado_edit}**, progreso {int(capitulos_vistos)} / {int(capitulos_total)} y tu puntuación ⭐ {estrellas_personales}/5.")
+            st.info(f"Se importará como **{tipo_edit}**, estado **{estado_edit}**, temporada **T{int(temporada_actual)} de {int(temporada_total)}**, progreso {int(capitulos_vistos)} / {int(capitulos_total)} y tu puntuación ⭐ {estrellas_personales}/5.")
             if st.button("✅ Confirmar importación revisada", key=f"import_edit_{i}"):
                 item_editado = dict(item)
-                item_editado.update({"titulo": titulo_edit.strip(), "autor": autor_edit.strip(), "anio": anio_edit.strip(), "fecha_publicacion": fecha_pub.strip(), "estado_publicacion": estado_pub, "sinopsis": sinopsis_edit.strip(), "portada_path": portada_edit.strip(), "etiquetas": etiquetas_edit.strip(), "capitulo_total": int(capitulos_total), "capitulos_vistos": int(capitulos_vistos), "capitulo_actual": int(capitulos_vistos), "estrellas": int(estrellas_personales), "favorito": 1 if is_fav else 0, "fuente_importacion": fuente_edit.strip(), "url_fuente": url_fuente_edit.strip(), "link_original": url_fuente_edit.strip()})
+                item_editado.update({"titulo": titulo_edit.strip(), "autor": autor_edit.strip(), "anio": anio_edit.strip(), "fecha_publicacion": fecha_pub.strip(), "estado_publicacion": estado_pub, "temporada_actual": int(temporada_actual), "temporada_total": int(max(temporada_total, temporada_actual)), "sinopsis": sinopsis_edit.strip(), "portada_path": portada_edit.strip(), "etiquetas": etiquetas_edit.strip(), "capitulo_total": int(capitulos_total), "capitulos_publicados": int(capitulos_total), "capitulos_vistos": int(capitulos_vistos), "capitulo_actual": int(capitulos_vistos), "estrellas": int(estrellas_personales), "favorito": 1 if is_fav else 0, "fuente_importacion": fuente_edit.strip(), "url_fuente": url_fuente_edit.strip(), "link_original": url_fuente_edit.strip()})
                 guardar_importado(item_editado, tipo_edit, estado_edit); st.success(f"Importado revisado: {titulo_edit}")
         st.markdown("</div>", unsafe_allow_html=True); st.divider()
