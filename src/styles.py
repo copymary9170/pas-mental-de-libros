@@ -8,15 +8,15 @@ def apply_styles():
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 
         :root {
-            --cream: #fff8ee;
+            --cream: #eef6ff;
             --paper: #ffffff;
-            --ink: #2f241d;
-            --muted: #8a7567;
-            --caramel: #c9834a;
-            --caramel-dark: #9f6132;
-            --peach: #ffe5ce;
-            --sage: #d9ead3;
-            --line: rgba(112, 84, 62, 0.16);
+            --ink: #0f172a;
+            --muted: #475569;
+            --blue: #2563eb;
+            --blue-dark: #1e3a8a;
+            --blue-soft: #dbeafe;
+            --cyan-soft: #e0f2fe;
+            --line: rgba(37, 99, 235, 0.18);
         }
 
         html, body, [class*="css"] {
@@ -25,9 +25,9 @@ def apply_styles():
 
         .stApp {
             background:
-                radial-gradient(circle at top left, rgba(255, 217, 179, 0.85), transparent 34%),
-                radial-gradient(circle at bottom right, rgba(217, 234, 211, 0.80), transparent 28%),
-                linear-gradient(180deg, #fff8ee 0%, #f7ecdf 100%);
+                radial-gradient(circle at top left, rgba(191, 219, 254, 0.90), transparent 34%),
+                radial-gradient(circle at bottom right, rgba(186, 230, 253, 0.84), transparent 28%),
+                linear-gradient(180deg, #eff6ff 0%, #e0f2fe 100%);
             color: var(--ink);
         }
 
@@ -60,30 +60,34 @@ def apply_styles():
         }
 
         [data-testid="stSidebar"] {
-            background: rgba(255, 248, 238, 0.92);
+            background: rgba(239, 246, 255, 0.94);
             border-right: 1px solid var(--line);
-            box-shadow: 14px 0 40px rgba(112, 84, 62, 0.08);
+            box-shadow: 14px 0 40px rgba(30, 58, 138, 0.08);
         }
 
         .stTabs [data-baseweb="tab-list"] {
             gap: 0.45rem;
-            background: rgba(255, 255, 255, 0.76);
+            background: rgba(255, 255, 255, 0.82);
             border: 1px solid var(--line);
             padding: 0.45rem;
             border-radius: 22px;
-            box-shadow: 0 12px 35px rgba(112, 84, 62, 0.08);
+            box-shadow: 0 12px 35px rgba(30, 58, 138, 0.10);
         }
 
         .stTabs [data-baseweb="tab"] {
             border-radius: 17px;
             padding: 0.62rem 0.9rem;
-            color: var(--muted);
+            color: var(--blue-dark) !important;
             font-weight: 900;
         }
 
         .stTabs [aria-selected="true"] {
-            background: #3b2a20;
-            color: #fff8ee !important;
+            background: var(--blue-dark) !important;
+            color: #ffffff !important;
+        }
+
+        .stTabs [aria-selected="true"] * {
+            color: #ffffff !important;
         }
 
         .book-card {
@@ -93,19 +97,19 @@ def apply_styles():
             border-radius: 28px;
             padding: 1.05rem;
             margin-bottom: 1rem;
-            background: rgba(255, 255, 255, 0.86);
-            box-shadow: 0 18px 45px rgba(112, 84, 62, 0.12);
+            background: rgba(255, 255, 255, 0.90);
+            box-shadow: 0 18px 45px rgba(30, 58, 138, 0.12);
             transition: transform 0.18s ease, box-shadow 0.18s ease;
         }
 
         .book-card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 26px 70px rgba(112, 84, 62, 0.18);
+            box-shadow: 0 26px 70px rgba(30, 58, 138, 0.18);
         }
 
         .book-card img {
             border-radius: 18px !important;
-            box-shadow: 0 18px 35px rgba(65, 45, 32, 0.24);
+            box-shadow: 0 18px 35px rgba(30, 58, 138, 0.24);
             aspect-ratio: 2 / 3;
             object-fit: cover;
         }
@@ -120,9 +124,9 @@ def apply_styles():
             display: inline-block;
             padding: 0.28rem 0.68rem;
             border-radius: 999px;
-            border: 1px solid rgba(201, 131, 74, 0.20);
-            background: #fff1df;
-            color: #7c4a26;
+            border: 1px solid rgba(37, 99, 235, 0.24);
+            background: var(--blue-soft);
+            color: var(--blue-dark);
             font-size: 0.76rem;
             font-weight: 900;
             margin-right: 0.35rem;
@@ -135,8 +139,8 @@ def apply_styles():
             padding: 1.25rem 1.4rem;
             margin: 0.65rem 0 1.05rem 0;
             background:
-                linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255, 229, 206, 0.72));
-            box-shadow: 0 20px 50px rgba(112, 84, 62, 0.12);
+                linear-gradient(135deg, rgba(255,255,255,0.94), rgba(219, 234, 254, 0.76));
+            box-shadow: 0 20px 50px rgba(30, 58, 138, 0.12);
         }
 
         .hero-title {
@@ -160,11 +164,11 @@ def apply_styles():
         }
 
         [data-testid="stMetric"] {
-            background: rgba(255, 255, 255, 0.86);
+            background: rgba(255, 255, 255, 0.90);
             border: 1px solid var(--line);
             border-radius: 24px;
             padding: 1rem;
-            box-shadow: 0 18px 45px rgba(112, 84, 62, 0.10);
+            box-shadow: 0 18px 45px rgba(30, 58, 138, 0.10);
         }
 
         [data-testid="stMetricLabel"] {
@@ -180,22 +184,60 @@ def apply_styles():
         .stButton > button, .stDownloadButton > button, .stLinkButton > a {
             border-radius: 18px !important;
             border: 0 !important;
-            background: #3b2a20 !important;
-            color: #fff8ee !important;
+            background: var(--blue-dark) !important;
+            color: #ffffff !important;
             font-weight: 900 !important;
-            box-shadow: 0 12px 28px rgba(59, 42, 32, 0.18);
+            box-shadow: 0 12px 28px rgba(30, 58, 138, 0.22);
+        }
+
+        .stButton > button:hover, .stDownloadButton > button:hover, .stLinkButton > a:hover {
+            background: var(--blue) !important;
+            color: #ffffff !important;
+        }
+
+        .stButton > button *, .stDownloadButton > button *, .stLinkButton > a * {
+            color: #ffffff !important;
         }
 
         .stTextInput input, .stTextArea textarea, .stNumberInput input, .stSelectbox div[data-baseweb="select"], .stMultiSelect div[data-baseweb="select"] {
-            background: rgba(255, 255, 255, 0.92) !important;
+            background: rgba(255, 255, 255, 0.96) !important;
             color: var(--ink) !important;
             border-radius: 18px !important;
             border-color: var(--line) !important;
             font-weight: 700;
         }
 
+        .stSelectbox div[data-baseweb="select"] *, .stMultiSelect div[data-baseweb="select"] * {
+            color: var(--ink) !important;
+        }
+
+        div[data-baseweb="popover"], div[data-baseweb="menu"] {
+            background: #ffffff !important;
+            color: var(--ink) !important;
+        }
+
+        div[role="option"] {
+            color: var(--ink) !important;
+            background: #ffffff !important;
+            font-weight: 800 !important;
+        }
+
+        div[role="option"][aria-selected="true"], div[role="option"]:hover {
+            background: var(--blue-dark) !important;
+            color: #ffffff !important;
+        }
+
+        div[role="option"][aria-selected="true"] *, div[role="option"]:hover * {
+            color: #ffffff !important;
+        }
+
+        .stRadio label, .stCheckbox label {
+            color: var(--ink) !important;
+            font-weight: 800;
+        }
+
         .stSlider [data-baseweb="slider"] > div {
-            color: var(--caramel) !important;
+            color: var(--blue) !important;
         }
 
         .stDataFrame, [data-testid="stDataFrame"] {
@@ -207,11 +249,11 @@ def apply_styles():
         div[data-testid="stAlert"] {
             border-radius: 20px;
             border: 1px solid var(--line);
-            background: rgba(255, 255, 255, 0.82);
+            background: rgba(255, 255, 255, 0.88);
         }
 
         .small-muted {
-            opacity: .85;
+            opacity: .88;
             font-size: .92rem;
             color: var(--muted);
             font-weight: 700;
