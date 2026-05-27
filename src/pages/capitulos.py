@@ -19,6 +19,16 @@ def _leer_archivo_texto(uploaded_file):
             return ""
 
 
+def _temporadas_existentes(capitulos):
+    temporadas = sorted({int(c.get("temporada") or 1) for c in capitulos})
+    return temporadas or [1]
+
+
+def _siguiente_capitulo_temporada(capitulos, temporada):
+    nums = [int(c.get("numero") or 0) for c in capitulos if int(c.get("temporada") or 1) == int(temporada)]
+    return (max(nums) + 1) if nums else 1
+
+
 def _guardar_capitulo(add_capitulo, obra_id, temporada, numero, titulo, resumen, texto, notas, mood, etiquetas, estrellas, fecha_lectura, archivo):
     archivo_path = save_uploaded_file(archivo, RESPALDOS_DIR)
     add_capitulo({
@@ -44,29 +54,34 @@ def _guardar_capitulo(add_capitulo, obra_id, temporada, numero, titulo, resumen,
 
 
 def render_capitulos(obras, list_capitulos, get_obra, add_capitulo=None):
-    st.subheader("📚 Capítulos, episodios y compilado")
+    st.subheader("📚 Temporadas, capítulos, episodios y compilado")
 
     if not obras:
         st.info("Agrega una obra primero.")
         return
 
-    opciones = {
-        f"{o['id']} - {o['titulo']} ({o.get('tipo')})": o['id']
-        for o in obras
-    }
+    opciones = {f"{o['id']} - {o['titulo']} ({o.get('tipo')})": o['id'] for o in obras}
 
-    seleccion = st.selectbox(
-        "Selecciona una obra",
-        list(opciones.keys()),
-        key="capitulos_obra"
-    )
+    seleccion = st.selectbox("Selecciona una obra", list(opciones.keys()), key="capitulos_obra")
 
     obra_id = opciones[seleccion]
     obra = get_obra(obra_id)
     capitulos = list_capitulos(obra_id)
+    temporadas = _temporadas_existentes(capitulos)
+    temporada_total = int(obra.get("temporada_total") or max(temporadas or [1]) or 1)
+    temporada_actual = int(obra.get("temporada_actual") or 1)
 
     st.markdown(f"### {obra.get('titulo')}")
-    st.caption(f"Capítulos guardados: {len(capitulos)}")
+    st.caption(f"Temporadas registradas: {len(temporadas)} · Capítulos guardados: {len(capitulos)}")
+
+    st.markdown("### 🗂️ Resumen por temporadas")
+    cols = st.columns(min(4, max(1, len(temporadas))))
+    for idx, temp in enumerate(temporadas):
+        caps_temp = [c for c in capitulos if int(c.get("temporada") or 1) == int(temp)]
+        vistos = len(caps_temp)
+        ultimo = max([int(c.get("numero") or 0) for c in caps_temp], default=0)
+        with cols[idx % len(cols)]:
+            st.metric(f"Temporada {temp}", f"{vistos} caps", f"Último: {ultimo}")
 
     if add_capitulo is None:
         st.warning("La función para agregar capítulos no está conectada todavía.")
@@ -79,13 +94,21 @@ def render_capitulos(obras, list_capitulos, get_obra, add_capitulo=None):
                 key=f"modo_cap_{obra_id}"
             )
 
+            temporadas_opciones = temporadas + ([max(temporadas) + 1] if temporadas else [1])
+
             if modo == "Un capítulo":
                 with st.form(f"form_capitulo_{obra_id}"):
-                    col1, col2, col3 = st.columns(3)
+                    st.markdown("#### Temporada")
+                    col0, col1, col2, col3 = st.columns(4)
+                    with col0:
+                        temporada_modo = st.radio("Temporada", ["Existente", "Nueva"], horizontal=True, key=f"temp_modo_{obra_id}")
                     with col1:
-                        temporada = st.number_input("Temporada", min_value=1, value=1, step=1, key=f"temp_{obra_id}")
+                        if temporada_modo == "Existente":
+                            temporada = st.selectbox("Seleccionar temporada", temporadas, index=temporadas.index(temporada_actual) if temporada_actual in temporadas else 0, key=f"temp_select_{obra_id}")
+                        else:
+                            temporada = st.number_input("Nueva temporada", min_value=1, value=max(temporadas) + 1, step=1, key=f"temp_nueva_{obra_id}")
                     with col2:
-                        numero = st.number_input("Número de capítulo / episodio", min_value=0, value=(len(capitulos) + 1), step=1, key=f"num_{obra_id}")
+                        numero = st.number_input("Número de capítulo / episodio", min_value=0, value=_siguiente_capitulo_temporada(capitulos, temporada), step=1, key=f"num_{obra_id}")
                     with col3:
                         fecha_lectura = st.date_input("Fecha leído/visto", value=date.today(), key=f"fecha_{obra_id}")
 
@@ -113,13 +136,21 @@ def render_capitulos(obras, list_capitulos, get_obra, add_capitulo=None):
                         if texto_archivo:
                             texto_final = (texto_final + "\n\n" + texto_archivo).strip()
                         _guardar_capitulo(add_capitulo, obra_id, temporada, numero, titulo, resumen, texto_final, notas, mood, etiquetas, estrellas, fecha_lectura, archivo)
-                        st.success("Capítulo guardado. El compilado se actualizará automáticamente al recargar esta pestaña.")
+                        st.success(f"Capítulo guardado en Temporada {int(temporada)}. El compilado se actualizará automáticamente al recargar esta pestaña.")
 
             else:
                 st.caption("Pega varios capítulos separados por una línea que empiece con ###. Ejemplo: ### Capítulo 1")
                 with st.form(f"form_masivo_{obra_id}"):
-                    temporada = st.number_input("Temporada", min_value=1, value=1, step=1, key=f"temp_masivo_{obra_id}")
-                    inicio_num = st.number_input("Número inicial", min_value=1, value=len(capitulos) + 1, step=1, key=f"inicio_masivo_{obra_id}")
+                    colm1, colm2, colm3 = st.columns(3)
+                    with colm1:
+                        temporada_modo = st.radio("Temporada", ["Existente", "Nueva"], horizontal=True, key=f"temp_modo_masivo_{obra_id}")
+                    with colm2:
+                        if temporada_modo == "Existente":
+                            temporada = st.selectbox("Seleccionar temporada", temporadas, index=temporadas.index(temporada_actual) if temporada_actual in temporadas else 0, key=f"temp_masivo_select_{obra_id}")
+                        else:
+                            temporada = st.number_input("Nueva temporada", min_value=1, value=max(temporadas) + 1, step=1, key=f"temp_masivo_nueva_{obra_id}")
+                    with colm3:
+                        inicio_num = st.number_input("Número inicial", min_value=1, value=_siguiente_capitulo_temporada(capitulos, temporada), step=1, key=f"inicio_masivo_{obra_id}")
                     fecha_lectura = st.date_input("Fecha leído/visto", value=date.today(), key=f"fecha_masivo_{obra_id}")
                     texto_masivo = st.text_area("Capítulos pegados", height=360, key=f"texto_masivo_{obra_id}")
                     estrellas = st.slider("Estrellas por defecto", 0, 5, 0, key=f"estrellas_masivo_{obra_id}")
@@ -145,7 +176,7 @@ def render_capitulos(obras, list_capitulos, get_obra, add_capitulo=None):
                             cuerpo = "\n".join(lineas[1:]).strip() if len(lineas) > 1 else bloque
                             _guardar_capitulo(add_capitulo, obra_id, temporada, int(inicio_num) + idx, titulo, "", cuerpo, "", mood, etiquetas, estrellas, fecha_lectura, None)
                             guardados += 1
-                        st.success(f"Capítulos guardados: {guardados}. El compilado se actualizará automáticamente.")
+                        st.success(f"Capítulos guardados en Temporada {int(temporada)}: {guardados}. El compilado se actualizará automáticamente.")
 
     capitulos = list_capitulos(obra_id)
     if not capitulos:
@@ -157,29 +188,26 @@ def render_capitulos(obras, list_capitulos, get_obra, add_capitulo=None):
     st.success("Compilado actualizado automáticamente.")
 
     with st.expander("📖 Vista previa del compilado", expanded=True):
-        st.text_area(
-            "Contenido compilado",
-            value=texto,
-            height=500,
-            key=f"preview_{obra_id}"
-        )
+        st.text_area("Contenido compilado", value=texto, height=500, key=f"preview_{obra_id}")
 
-    st.download_button(
-        "⬇️ Descargar compilado .md",
-        data=texto.encode("utf-8"),
-        file_name=f"{obra.get('titulo','obra')}_compilado.md",
-        mime="text/markdown"
-    )
+    st.download_button("⬇️ Descargar compilado .md", data=texto.encode("utf-8"), file_name=f"{obra.get('titulo','obra')}_compilado.md", mime="text/markdown")
 
     st.caption(f"Archivo generado: {path}")
 
-    st.markdown("### Capítulos guardados")
-    for cap in capitulos:
-        etiqueta = f"T{cap.get('temporada') or 1} · Cap. {cap.get('numero') or 0}"
-        with st.expander(f"{etiqueta} — {cap.get('titulo') or 'Sin título'}"):
-            if cap.get("sinopsis"):
-                st.write(cap.get("sinopsis"))
-            if cap.get("notas") or cap.get("comentario"):
-                st.info(cap.get("notas") or cap.get("comentario"))
-            if cap.get("texto_completo"):
-                st.text_area("Texto guardado", value=cap.get("texto_completo"), height=220, disabled=True, key=f"cap_text_{cap.get('id')}")
+    st.markdown("### Capítulos guardados por temporada")
+    temporadas = _temporadas_existentes(capitulos)
+    tabs = st.tabs([f"T{t}" for t in temporadas])
+    for tab, temp in zip(tabs, temporadas):
+        with tab:
+            caps_temp = [c for c in capitulos if int(c.get("temporada") or 1) == int(temp)]
+            caps_temp = sorted(caps_temp, key=lambda c: int(c.get("numero") or 0))
+            st.caption(f"Temporada {temp}: {len(caps_temp)} capítulos")
+            for cap in caps_temp:
+                etiqueta = f"T{cap.get('temporada') or 1} · Cap. {cap.get('numero') or 0}"
+                with st.expander(f"{etiqueta} — {cap.get('titulo') or 'Sin título'}"):
+                    if cap.get("sinopsis"):
+                        st.write(cap.get("sinopsis"))
+                    if cap.get("notas") or cap.get("comentario"):
+                        st.info(cap.get("notas") or cap.get("comentario"))
+                    if cap.get("texto_completo"):
+                        st.text_area("Texto guardado", value=cap.get("texto_completo"), height=220, disabled=True, key=f"cap_text_{cap.get('id')}")
