@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 
 import pandas as pd
 import streamlit as st
@@ -20,6 +20,7 @@ from src.utils import (
     buscar_kdramas_tmdb,
     importar_desde_link,
 )
+from src.pages.cronometro import render_cronometro, fmt_time
 from src.pages.calendario import render_calendario
 from src.pages.capitulos import render_capitulos
 from src.pages.fanfiction import render_fanfiction_fields, fanfiction_badges
@@ -37,13 +38,6 @@ TV_TYPES = ["Anime", "Serie", "Kdrama", "Pelicula", "Documental", "Podcast", "Ot
 TIPOS = BOOK_TYPES + TV_TYPES
 ESTADOS = ["Pendiente", "Leyendo", "Viendo", "Terminado", "Pausado", "Abandonado", "Releyendo", "Rewatch"]
 ESTADOS_PUBLICACION = ["En emision", "Terminada", "Hiatus con aviso", "Hiatus sin aviso", "Cancelada", "Abandonada por autor", "No aplica"]
-
-
-def fmt_time(minutes):
-    minutes = int(minutes or 0)
-    h = minutes // 60
-    m = minutes % 60
-    return f"{h}h {m}m" if h else f"{m}m"
 
 
 def buscar_global(query, fuente):
@@ -112,13 +106,6 @@ def mini_card(row):
     """
 
 
-def elapsed_minutes():
-    total = st.session_state.get("timer_elapsed", 0)
-    if st.session_state.get("timer_running") and st.session_state.get("timer_started_at"):
-        total += (datetime.now() - st.session_state["timer_started_at"]).total_seconds()
-    return max(0, int(total // 60))
-
-
 obras = db.list_obras()
 df = pd.DataFrame(obras)
 
@@ -146,52 +133,7 @@ tab_timer, tab_search, tab_link, tab_calendar, tab_books, tab_reports, tab_canon
 ])
 
 with tab_timer:
-    st.subheader("Cronómetro de lectura")
-    if not obras:
-        st.info("Agrega una obra primero.")
-    else:
-        opciones = {f"{o['id']} - {o['titulo']} ({o.get('tipo')})": o["id"] for o in obras}
-        seleccion = st.selectbox("Obra", list(opciones.keys()), key="timer_obra")
-        obra_id = opciones[seleccion]
-        obra = next((o for o in obras if o["id"] == obra_id), {})
-        st.caption(f"Tiempo total: {fmt_time(obra.get('tiempo_total_minutos'))} · Última sesión: {fmt_time(obra.get('tiempo_ultima_sesion_minutos'))}")
-        cap_actual = st.number_input("Capítulo actual opcional", min_value=0, value=0, step=1)
-        mood = st.text_input("Mood")
-        comentario = st.text_area("Comentario de la sesión")
-        fecha = st.date_input("Fecha", value=date.today())
-        st.metric("Tiempo acumulado", f"{elapsed_minutes()} min")
-        c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            if st.button("▶️ Iniciar / continuar"):
-                if not st.session_state.get("timer_running"):
-                    st.session_state["timer_running"] = True
-                    st.session_state["timer_started_at"] = datetime.now()
-                st.rerun()
-        with c2:
-            if st.button("⏸️ Pausar"):
-                if st.session_state.get("timer_running") and st.session_state.get("timer_started_at"):
-                    st.session_state["timer_elapsed"] = st.session_state.get("timer_elapsed", 0) + (datetime.now() - st.session_state["timer_started_at"]).total_seconds()
-                st.session_state["timer_running"] = False
-                st.session_state["timer_started_at"] = None
-                st.rerun()
-        with c3:
-            if st.button("💾 Guardar sesión"):
-                if st.session_state.get("timer_running") and st.session_state.get("timer_started_at"):
-                    st.session_state["timer_elapsed"] = st.session_state.get("timer_elapsed", 0) + (datetime.now() - st.session_state["timer_started_at"]).total_seconds()
-                final_min = max(1, int(st.session_state.get("timer_elapsed", 0) // 60))
-                db.add_actividad({"obra_id": obra_id, "capitulo_id": None, "fecha": str(fecha), "tipo_actividad": "lectura cronometrada", "cantidad": 0, "minutos": final_min, "mood": mood, "comentario": comentario, "premio": "sesion de lectura"})
-                if cap_actual > 0:
-                    db.update_obra(obra_id, {"capitulo_actual": int(cap_actual), "capitulos_vistos": int(cap_actual), "ultimo_capitulo_visto": int(cap_actual), "fecha_ultimo_capitulo_visto": str(fecha), "estado_lectura": "Leyendo"})
-                st.session_state["timer_elapsed"] = 0
-                st.session_state["timer_running"] = False
-                st.session_state["timer_started_at"] = None
-                st.success(f"Sesión guardada: {final_min} minutos.")
-        with c4:
-            if st.button("🔄 Reiniciar"):
-                st.session_state["timer_elapsed"] = 0
-                st.session_state["timer_running"] = False
-                st.session_state["timer_started_at"] = None
-                st.rerun()
+    render_cronometro(obras, db.add_actividad, db.update_obra, db.list_actividad)
 
 with tab_search:
     st.subheader("Buscar en bases externas")
@@ -267,12 +209,7 @@ with tab_reports:
     render_reportes(obras, db.list_actividad)
 
 with tab_canons:
-    add_canon = getattr(db, "add_canon", None)
-    list_canons = getattr(db, "list_canons", None)
-    if add_canon is None or list_canons is None:
-        st.warning("La base de datos de canons todavía no está conectada. Falta agregar add_canon y list_canons en src/database.py.")
-    else:
-        render_canons(add_canon, list_canons)
+    render_canons(db.add_canon, db.list_canons)
 
 with tab_add:
     st.subheader("Agregar obra manualmente")
