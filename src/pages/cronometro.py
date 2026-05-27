@@ -3,6 +3,8 @@ from datetime import date, datetime
 import pandas as pd
 import streamlit as st
 
+CRONOMETRO_VERSION = "Cronómetro avanzado v2 - redeploy forzado"
+
 TIPOS_SESION = [
     "Lectura",
     "Relectura",
@@ -42,6 +44,7 @@ def _historial_obra(list_actividad, obra_id):
 
 def render_cronometro(obras, add_actividad, update_obra, list_actividad):
     st.subheader("⏱️ Cronómetro de lectura / visionado")
+    st.caption(CRONOMETRO_VERSION)
 
     if not obras:
         st.info("Agrega una obra primero para usar el cronómetro.")
