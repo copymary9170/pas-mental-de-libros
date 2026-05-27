@@ -3,7 +3,7 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "Paz Mental deploy 2026-05-26 v3 - cronometro modular activo"
+APP_VERSION = "Paz Mental deploy 2026-05-26 v4 - buscador avanzado activo"
 
 import src.database as db
 from src.styles import apply_styles
@@ -23,6 +23,7 @@ from src.utils import (
     importar_desde_link,
 )
 from src.pages.cronometro import render_cronometro, fmt_time
+from src.pages.buscador import render_buscador_avanzado
 from src.pages.calendario import render_calendario
 from src.pages.capitulos import render_capitulos
 from src.pages.fanfiction import render_fanfiction_fields, fanfiction_badges
@@ -77,11 +78,11 @@ def guardar_importado(item, tipo, estado):
         "capitulos_vistos": 0,
         "sinopsis": item.get("sinopsis", ""),
         "etiquetas": item.get("etiquetas", "importado"),
-        "link_original": item.get("link_original", ""),
+        "link_original": item.get("link_original") or item.get("url_fuente", ""),
         "link_respaldo": "",
         "portada_path": item.get("portada_path", ""),
         "respaldo_path": "",
-        "motivo_estado": f"Importado. Año: {item.get('anio') or 'N/D'}",
+        "motivo_estado": f"Importado desde {item.get('fuente_importacion', 'fuente externa')}. Año: {item.get('anio') or 'N/D'}. URL: {item.get('url_fuente') or 'N/D'}",
         "favorito": 0,
         "fecha_inicio": str(date.today()),
         "fecha_fin": None,
@@ -139,42 +140,7 @@ with tab_timer:
     render_cronometro(obras, db.add_actividad, db.update_obra, db.list_actividad)
 
 with tab_search:
-    st.subheader("Buscar en bases externas")
-    fuente = st.radio("¿Qué quieres buscar?", ["Libros", "Manga / manhwa / novelas ligeras", "Webnovels", "Series / anime / TV", "Kdramas", "Peliculas"], horizontal=True)
-    query = st.text_input("Nombre de la obra")
-    estado_import = st.selectbox("Estado al importar", ESTADOS, index=0)
-    if st.button("Buscar") and query.strip():
-        resultados, kind = buscar_global(query, fuente)
-        st.session_state["external_results"] = resultados
-        st.session_state["external_kind"] = kind
-    results = st.session_state.get("external_results", [])
-    kind = st.session_state.get("external_kind")
-    if results:
-        st.success(f"Resultados encontrados: {len(results)}")
-        for i, item in enumerate(results):
-            col1, col2, col3 = st.columns([1, 4, 1])
-            with col1:
-                if item.get("portada_path"):
-                    st.image(item.get("portada_path"), use_container_width=True)
-            with col2:
-                st.markdown(f"### {item.get('titulo')}")
-                st.write(item.get("autor") or "Autor / canal no indicado")
-                if item.get("sinopsis"):
-                    st.write(str(item.get("sinopsis"))[:600])
-            with col3:
-                if kind == "movie":
-                    opciones = ["Pelicula", "Documental", "Otro"]
-                elif kind == "kdrama":
-                    opciones = ["Kdrama", "Serie"]
-                elif kind in ["manga", "webnovel"]:
-                    opciones = ["Manga", "Manhwa", "Manhua", "Novela ligera", "Webnovel", "Fanfiction"]
-                else:
-                    opciones = BOOK_TYPES if kind == "book" else TV_TYPES
-                tipo_final = st.selectbox("Tipo", opciones, key=f"tipo_import_{i}")
-                if st.button("Importar", key=f"import_{i}"):
-                    guardar_importado(item, tipo_final, estado_import)
-                    st.success("Importado")
-            st.divider()
+    render_buscador_avanzado(obras, buscar_global, guardar_importado)
 
 with tab_link:
     st.subheader("Importar desde link")
