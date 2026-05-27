@@ -63,6 +63,25 @@ def _buscar_en_todo(query, buscar_global):
     return todos, "global"
 
 
+def _calidad_score(item):
+    return sum([
+        bool(item.get("portada_path")),
+        bool(item.get("sinopsis")),
+        bool(item.get("autor")),
+        bool(item.get("anio")),
+        int(item.get("capitulo_total") or 0) > 0,
+        bool(item.get("url_fuente") or item.get("link_original")),
+    ])
+
+
+def _calidad_label(score):
+    if score >= 5:
+        return "Alta"
+    if score >= 3:
+        return "Media"
+    return "Baja"
+
+
 def _chip(label, ok=True):
     estado = "✅" if ok else "⚠️"
     return f"<span class='quality-chip'>{estado} {label}</span>"
@@ -76,13 +95,8 @@ def _quality_html(item, duplicados):
     has_caps = int(item.get("capitulo_total") or 0) > 0
     has_url = bool(item.get("url_fuente") or item.get("link_original"))
     source = item.get("fuente_importacion") or "fuente externa"
-    score = sum([has_cover, has_synopsis, has_author, has_year, has_caps, has_url])
-    if score >= 5:
-        calidad = "Alta"
-    elif score >= 3:
-        calidad = "Media"
-    else:
-        calidad = "Baja"
+    score = _calidad_score(item)
+    calidad = _calidad_label(score)
     chips = [
         f"<span class='quality-chip strong'>Fuente: {source}</span>",
         f"<span class='quality-chip strong'>Calidad: {calidad}</span>",
@@ -114,7 +128,7 @@ def _inject_styles():
 def render_buscador_avanzado(obras, buscar_global, guardar_importado):
     _inject_styles()
     st.subheader("🔎 Buscar e importar")
-    st.caption("Fase 2: búsqueda por categoría o Buscar en todo, con edición, calidad de datos y alerta de duplicados.")
+    st.caption("Fase 2.5: búsqueda global, edición, calidad, filtros rápidos, orden y alerta de duplicados.")
 
     fuente = st.radio(
         "¿Qué quieres buscar?",
@@ -145,12 +159,55 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
 
     st.success(f"Resultados encontrados: {len(results)}")
 
-    if fuente_actual == "Buscar en todo":
-        grupos = sorted(set([r.get("grupo_resultado") or r.get("fuente_importacion") or "Otros" for r in results]))
-        filtro_grupo = st.multiselect("Filtrar resultados por fuente", grupos, default=grupos, key="buscador_filtro_grupo")
-        results = [r for r in results if (r.get("grupo_resultado") or r.get("fuente_importacion") or "Otros") in filtro_grupo]
+    grupos = sorted(set([r.get("grupo_resultado") or r.get("fuente_importacion") or "Otros" for r in results]))
+    col_r1, col_r2, col_r3, col_r4 = st.columns(4)
+    total_portada = sum(1 for r in results if r.get("portada_path"))
+    total_sinopsis = sum(1 for r in results if r.get("sinopsis"))
+    total_alta = sum(1 for r in results if _calidad_score(r) >= 5)
+    col_r1.metric("Resultados", len(results))
+    col_r2.metric("Con portada", total_portada)
+    col_r3.metric("Con sinopsis", total_sinopsis)
+    col_r4.metric("Calidad alta", total_alta)
 
-    for i, item in enumerate(results):
+    with st.expander("🎛️ Filtros rápidos y orden", expanded=True):
+        filtro_grupo = st.multiselect("Fuentes / grupos", grupos, default=grupos, key="buscador_filtro_grupo")
+        col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+        with col_f1:
+            solo_portada = st.checkbox("Solo con portada", key="filtro_portada")
+        with col_f2:
+            solo_sinopsis = st.checkbox("Solo con sinopsis", key="filtro_sinopsis")
+        with col_f3:
+            solo_alta = st.checkbox("Solo calidad alta", key="filtro_alta")
+        with col_f4:
+            ocultar_duplicados = st.checkbox("Ocultar duplicados", key="filtro_dupes")
+        ordenar = st.selectbox("Ordenar", ["Calidad primero", "Fuente", "Título A-Z"], key="orden_resultados")
+
+    filtered = []
+    for r in results:
+        grupo = r.get("grupo_resultado") or r.get("fuente_importacion") or "Otros"
+        duplicados_tmp = _detectar_duplicados(r.get("titulo", ""), obras)
+        if grupo not in filtro_grupo:
+            continue
+        if solo_portada and not r.get("portada_path"):
+            continue
+        if solo_sinopsis and not r.get("sinopsis"):
+            continue
+        if solo_alta and _calidad_score(r) < 5:
+            continue
+        if ocultar_duplicados and duplicados_tmp:
+            continue
+        filtered.append(r)
+
+    if ordenar == "Calidad primero":
+        filtered.sort(key=lambda x: _calidad_score(x), reverse=True)
+    elif ordenar == "Fuente":
+        filtered.sort(key=lambda x: (x.get("grupo_resultado") or x.get("fuente_importacion") or "", x.get("titulo") or ""))
+    else:
+        filtered.sort(key=lambda x: (x.get("titulo") or "").lower())
+
+    st.caption(f"Mostrando {len(filtered)} de {len(results)} resultados después de filtros.")
+
+    for i, item in enumerate(filtered):
         item = _normalizar_item(item, item.get("fuente_importacion") or fuente_actual, item.get("kind") or kind)
         titulo_original = item.get("titulo", "")
         duplicados = _detectar_duplicados(titulo_original, obras)
