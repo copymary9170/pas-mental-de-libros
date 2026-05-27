@@ -3,6 +3,8 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
+APP_VERSION = "Paz Mental deploy 2026-05-26 v3 - cronometro modular activo"
+
 import src.database as db
 from src.styles import apply_styles
 from src.utils import (
@@ -31,6 +33,7 @@ st.set_page_config(page_title="Paz Mental", page_icon="📚", layout="wide")
 apply_styles()
 ensure_dirs()
 db.init_db()
+st.caption(APP_VERSION)
 
 TMDB_API_KEY = st.secrets.get("TMDB_API_KEY", "")
 BOOK_TYPES = ["Libro", "Fanfiction", "Novela", "Novela ligera", "Manga", "Manhwa", "Manhua", "Webnovel", "Comic"]
