@@ -3,7 +3,7 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "Paz Mental deploy 2026-05-27 v8 - AO3 conectado"
+APP_VERSION = "Paz Mental deploy 2026-05-27 v9 - temporadas en buscador"
 
 import src.database as db
 from src.styles import apply_styles
@@ -63,20 +63,37 @@ def buscar_global(query, fuente):
     return (resultados or buscar_series_tvmaze(q)), "tv"
 
 
+def _to_int(value, default=0):
+    try:
+        if value is None or value == "":
+            return default
+        return int(value)
+    except Exception:
+        return default
+
+
 def guardar_importado(item, tipo, estado):
+    cap_total = _to_int(item.get("capitulo_total"), 0)
+    cap_publicados = _to_int(item.get("capitulos_publicados"), cap_total)
+    cap_vistos = _to_int(item.get("capitulos_vistos", item.get("capitulo_actual")), 0)
+    temporada_actual = max(1, _to_int(item.get("temporada_actual"), 1))
+    temporada_total = max(1, _to_int(item.get("temporada_total"), temporada_actual))
+
     db.add_obra({
         "titulo": item.get("titulo", "Sin titulo"),
         "autor": item.get("autor", ""),
         "tipo": tipo,
         "clasificacion": 0,
+        "estrellas": _to_int(item.get("estrellas"), 0),
         "estado_lectura": estado,
         "estado_publicacion": item.get("estado_publicacion", "No aplica"),
-        "temporada_actual": 1,
-        "temporada_total": int(item.get("temporada_total") or 1),
-        "capitulo_actual": 0,
-        "capitulo_total": int(item.get("capitulo_total") or 0),
-        "capitulos_publicados": int(item.get("capitulo_total") or 0),
-        "capitulos_vistos": 0,
+        "fecha_publicacion": item.get("fecha_publicacion", ""),
+        "temporada_actual": temporada_actual,
+        "temporada_total": temporada_total,
+        "capitulo_actual": cap_vistos,
+        "capitulo_total": cap_total,
+        "capitulos_publicados": cap_publicados,
+        "capitulos_vistos": cap_vistos,
         "sinopsis": item.get("sinopsis", ""),
         "etiquetas": item.get("etiquetas", "importado"),
         "link_original": item.get("link_original") or item.get("url_fuente", ""),
@@ -84,7 +101,7 @@ def guardar_importado(item, tipo, estado):
         "portada_path": item.get("portada_path", ""),
         "respaldo_path": "",
         "motivo_estado": f"Importado desde {item.get('fuente_importacion', 'fuente externa')}. Año: {item.get('anio') or 'N/D'}. URL: {item.get('url_fuente') or 'N/D'}",
-        "favorito": 0,
+        "favorito": _to_int(item.get("favorito"), 0),
         "fecha_inicio": str(date.today()),
         "fecha_fin": None,
     })
@@ -105,7 +122,7 @@ def mini_card(row):
       <div class="bookmory-meta"><span>{row.get('tipo')}</span><span>{row.get('estado_lectura')}</span></div>
       <div class="bookmory-small">{badges}</div>
       <div class="bookmory-small">{sinopsis}</div>
-      <div class="bookmory-small">{leidos} / {publicados} caps</div>
+      <div class="bookmory-small">T{row.get('temporada_actual') or 1} · {leidos} / {publicados} caps</div>
       <div class="bookmory-small">Tiempo: {fmt_time(row.get('tiempo_total_minutos'))}</div>
     </div>
     """
