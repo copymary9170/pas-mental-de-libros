@@ -3,7 +3,7 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "Paz Mental deploy 2026-05-26 v4 - buscador avanzado activo"
+APP_VERSION = "Paz Mental deploy 2026-05-26 v5 - pestaña buscar avanzado"
 
 import src.database as db
 from src.styles import apply_styles
@@ -123,9 +123,10 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-tab_timer, tab_search, tab_link, tab_calendar, tab_books, tab_reports, tab_canons, tab_add, tab_chapters, tab_export = st.tabs([
+tab_timer, tab_search, tab_search_adv, tab_link, tab_calendar, tab_books, tab_reports, tab_canons, tab_add, tab_chapters, tab_export = st.tabs([
     "⏱️ Cronómetro",
     "🔎 Buscar e importar",
+    "🔎 Buscar avanzado",
     "🔗 Importar link",
     "📅 Calendario",
     "📚 Biblioteca",
@@ -140,6 +141,10 @@ with tab_timer:
     render_cronometro(obras, db.add_actividad, db.update_obra, db.list_actividad)
 
 with tab_search:
+    render_buscador_avanzado(obras, buscar_global, guardar_importado)
+
+with tab_search_adv:
+    st.info("Esta es la pestaña separada para verificar que el buscador avanzado está activo.")
     render_buscador_avanzado(obras, buscar_global, guardar_importado)
 
 with tab_link:
