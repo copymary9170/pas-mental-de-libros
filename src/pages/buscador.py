@@ -129,7 +129,10 @@ def _inject_styles():
 def render_buscador_avanzado(obras, buscar_global, guardar_importado):
     _inject_styles()
     st.subheader("🔎 Buscar e importar")
-    st.caption("Fase 3: búsqueda global, edición completa, importación rápida, calidad, filtros y revisión antes de guardar.")
+    st.caption("Fase 4: búsqueda global, edición completa, importación rápida, filtros, revisión y cola por lote.")
+
+    if "import_queue" not in st.session_state:
+        st.session_state["import_queue"] = []
 
     fuente = st.radio("¿Qué quieres buscar?", FUENTES_BUSQUEDA, horizontal=True, key="buscador_fuente")
     query = st.text_input("Nombre de la obra", key="buscador_query")
@@ -148,6 +151,25 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
     results = st.session_state.get("external_results", [])
     kind = st.session_state.get("external_kind")
     fuente_actual = st.session_state.get("external_source", fuente)
+
+    if st.session_state["import_queue"]:
+        with st.expander(f"📥 Cola de importación ({len(st.session_state['import_queue'])})", expanded=True):
+            for idx, queued in enumerate(st.session_state["import_queue"]):
+                st.write(f"{idx + 1}. {queued.get('titulo') or 'Sin título'} — {queued.get('fuente_importacion') or 'fuente externa'}")
+            cqa, cqb, cqc = st.columns([1, 1, 3])
+            with cqa:
+                if st.button("✅ Importar cola", key="importar_cola"):
+                    total = 0
+                    for queued in st.session_state["import_queue"]:
+                        qkind = queued.get("kind") or kind
+                        guardar_importado(queued, _opciones_tipo(qkind)[0], estado_import)
+                        total += 1
+                    st.session_state["import_queue"] = []
+                    st.success(f"Importados desde la cola: {total}")
+            with cqb:
+                if st.button("🗑️ Vaciar cola", key="vaciar_cola"):
+                    st.session_state["import_queue"] = []
+                    st.success("Cola vaciada.")
 
     if not results:
         st.info("Busca una obra. Si no aparece, usa Importar link o Agregar manual.")
@@ -225,11 +247,19 @@ def render_buscador_avanzado(obras, buscar_global, guardar_importado):
         if duplicados:
             st.warning("Posibles duplicados ya guardados: " + ", ".join([d.get("titulo", "Sin título") for d in duplicados]))
 
-        col_fast, col_edit = st.columns([1, 3])
+        col_fast, col_queue = st.columns([1, 1])
         with col_fast:
             if st.button("⚡ Importar rápido", key=f"quick_import_{i}"):
                 guardar_importado(item, _opciones_tipo(item_kind)[0], estado_import)
                 st.success(f"Importado rápido: {titulo_original}")
+        with col_queue:
+            if st.button("➕ Añadir a cola", key=f"queue_import_{i}"):
+                exists = any((q.get("titulo") == item.get("titulo") and q.get("fuente_importacion") == item.get("fuente_importacion")) for q in st.session_state["import_queue"])
+                if not exists:
+                    st.session_state["import_queue"].append(item)
+                    st.success("Añadido a la cola.")
+                else:
+                    st.info("Ya estaba en la cola.")
 
         with st.expander("✏️ Revisar / editar antes de importar"):
             st.markdown("#### 1. Datos principales")
