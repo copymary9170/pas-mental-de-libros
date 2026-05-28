@@ -3,7 +3,7 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "Paz Mental deploy 2026-05-27 v13 - importar link avanzado conectado"
+APP_VERSION = "Paz Mental deploy 2026-05-28 v14 - biblioteca avanzada + ao3 inbox + calendario expandido"
 
 import src.database as db
 from src.styles import apply_styles
@@ -32,6 +32,7 @@ from src.pages.reportes import render_reportes
 from src.pages.canons import render_canons
 from src.pages.ao3_updates import render_ao3_updates
 from src.pages.diagnostico import render_diagnostico
+from src.pages.biblioteca import render_biblioteca
 
 st.set_page_config(page_title="Paz Mental", page_icon="📚", layout="wide")
 apply_styles()
@@ -134,27 +135,6 @@ def guardar_importado(item, tipo, estado):
     db.add_obra(data)
 
 
-def mini_card(row):
-    portada = row.get("portada_path") or ""
-    img = f'<img src="{portada}" />' if str(portada).startswith("http") else '<div class="book-empty">📖</div>'
-    leidos = row.get("capitulos_vistos") or row.get("capitulo_actual") or 0
-    publicados = row.get("capitulos_publicados") or row.get("capitulo_total") or 0
-    badges = fanfiction_badges(row)
-    sinopsis = (row.get("sinopsis") or "Sin sinopsis todavía.")[:180]
-    return f"""
-    <div class="bookmory-card">
-      <div class="bookmory-cover">{img}</div>
-      <div class="bookmory-title">{row.get('titulo','')}</div>
-      <div class="bookmory-author">{row.get('autor') or 'Autor no indicado'}</div>
-      <div class="bookmory-meta"><span>{row.get('tipo')}</span><span>{row.get('estado_lectura')}</span></div>
-      <div class="bookmory-small">{badges}</div>
-      <div class="bookmory-small">{sinopsis}</div>
-      <div class="bookmory-small">T{row.get('temporada_actual') or 1} · {leidos} / {publicados} caps</div>
-      <div class="bookmory-small">Tiempo: {fmt_time(row.get('tiempo_total_minutos'))}</div>
-    </div>
-    """
-
-
 obras = db.list_obras()
 df = pd.DataFrame(obras)
 
@@ -200,11 +180,7 @@ with tab_ao3:
     render_ao3_updates(obras)
 
 with tab_books:
-    st.subheader("Biblioteca")
-    if df.empty:
-        st.info("Aún no tienes obras registradas.")
-    else:
-        st.markdown('<div class="bookmory-grid">' + ''.join(mini_card(row) for _, row in df.iterrows()) + '</div>', unsafe_allow_html=True)
+    render_biblioteca(obras)
 
 with tab_reports:
     render_reportes(obras, db.list_actividad)
@@ -252,9 +228,10 @@ with tab_diag:
     render_diagnostico()
 
 with tab_export:
-    st.subheader("Exportar biblioteca")
+    st.subheader("Exportar")
     if df.empty:
-        st.info("No hay datos.")
+        st.info("No hay datos para exportar.")
     else:
-        st.download_button("Descargar CSV", df.to_csv(index=False).encode("utf-8"), "paz-mental.csv", "text/csv")
-        st.dataframe(df, use_container_width=True)
+        csv = df.to_csv(index=False).encode("utf-8")
+        st.download_button("Descargar CSV", csv, "paz_mental_export.csv", "text/csv")
+        st.download_button("Descargar JSON", df.to_json(orient="records", force_ascii=False, indent=2).encode("utf-8"), "paz_mental_export.json", "application/json")
