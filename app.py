@@ -3,7 +3,7 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "Paz Mental deploy 2026-05-27 v12 - diagnostico conectado"
+APP_VERSION = "Paz Mental deploy 2026-05-27 v13 - importar link avanzado conectado"
 
 import src.database as db
 from src.styles import apply_styles
@@ -24,6 +24,7 @@ from src.utils import (
 )
 from src.pages.cronometro import render_cronometro, fmt_time
 from src.pages.buscador import render_buscador_avanzado
+from src.pages.importar_link import render_importar_link
 from src.pages.calendario import render_calendario
 from src.pages.capitulos import render_capitulos
 from src.pages.fanfiction import render_fanfiction_fields, fanfiction_badges
@@ -190,26 +191,7 @@ with tab_search:
     render_buscador_avanzado(obras, buscar_global, guardar_importado)
 
 with tab_link:
-    st.subheader("Importar desde link")
-    url = st.text_input("Link de la obra")
-    titulo_manual = st.text_input("Título manual opcional")
-    tipo_link = st.selectbox("Tipo", ["Webnovel", "Novela ligera", "Manhwa", "Manga", "Manhua", "Fanfiction", "Libro"])
-    sinopsis_link = st.text_area("Sinopsis / descripción")
-    portada = st.file_uploader("Subir portada desde tu dispositivo", type=["jpg", "jpeg", "png", "webp"])
-    if st.button("Importar link"):
-        if not url.strip():
-            st.error("Pega un link primero.")
-        else:
-            item = importar_desde_link(url.strip())
-            if titulo_manual.strip():
-                item["titulo"] = titulo_manual.strip()
-            if sinopsis_link.strip():
-                item["sinopsis"] = sinopsis_link.strip()
-            portada_subida = save_uploaded_file(portada, PORTADAS_DIR)
-            if portada_subida:
-                item["portada_path"] = portada_subida
-            guardar_importado(item, tipo_link, "Pendiente")
-            st.success("Link importado.")
+    render_importar_link(obras, importar_desde_link, guardar_importado, save_uploaded_file, PORTADAS_DIR)
 
 with tab_calendar:
     render_calendario(db.list_actividad)
