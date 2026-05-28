@@ -12,6 +12,7 @@ import pandas as pd
 import streamlit as st
 
 import src.database as db
+from src.services.storage_service import guardar_json
 
 BACKUP_DIR = Path("data/backups")
 
@@ -60,7 +61,9 @@ def _backup_json():
                 payload[table] = [dict(r) for r in conn.execute(f"SELECT * FROM {table}").fetchall()]
             except Exception:
                 payload[table] = []
-    target.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    guardar_json(target, payload)
+
     return target
 
 
