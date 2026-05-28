@@ -187,10 +187,6 @@ def render_importar_link(obras, importar_desde_link, guardar_importado, save_upl
             st.markdown("### Fanfiction / canon / crossover")
             fanfic_data = render_fanfiction_fields(prefix="link_fanfic")
 
-        portada_subida_path = ""
-        if portada_upload is not None:
-            portada_subida_path = save_uploaded_file(portada_upload, portadas_dir)
-
         edits = {
             "titulo": titulo.strip(),
             "autor": autor.strip(),
@@ -210,7 +206,7 @@ def render_importar_link(obras, importar_desde_link, guardar_importado, save_upl
             "etiquetas": etiquetas.strip(),
             "url_fuente": url.strip(),
             "link_original": url.strip(),
-            "portada_path": portada_subida_path or portada_url.strip(),
+            "portada_path": portada_url.strip(),
             "ao3_tracking": 1 if ao3_tracking and detected["ao3"] else 0,
         }
         item_preview = _build_item(base, detected, edits, fanfic_data)
@@ -234,7 +230,11 @@ def render_importar_link(obras, importar_desde_link, guardar_importado, save_upl
             elif caps_vistos > max(caps_publicados, caps_total) and max(caps_publicados, caps_total) > 0:
                 st.error("Los capítulos vistos/leídos no pueden ser mayores que los publicados/totales.")
             else:
-                guardar_importado(item_preview, tipo, estado)
+                final_item = dict(item_preview)
+                if portada_upload is not None:
+                    final_item["portada_path"] = save_uploaded_file(portada_upload, portadas_dir)
+                    final_item["calidad_datos"] = _quality(final_item)[0]
+                guardar_importado(final_item, tipo, estado)
                 st.success(f"Importado desde link: {titulo}")
 
     with tab_many:
