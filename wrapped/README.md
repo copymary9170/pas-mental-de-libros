@@ -26,6 +26,7 @@ El objetivo es mirar el año completo como si fuera un resumen personal: favorit
 - Premios de experiencia personal
 - Premios automaticos por fechas, actividad, maratones y bloqueos
 - Premios de personajes por capitulo, obra y compendio
+- Premios ampliados por risa, aburrimiento, finales, ships, isekai, epocas historicas, temas oscuros y obras demasiado largas
 
 ## Como se llenan los premios
 
@@ -41,6 +42,8 @@ Los premios no tienen que llenarse todos manualmente. La idea es que se puedan d
 - Tus personajes favoritos por capitulo
 - Tus momentos fuertes de personajes
 - Tus compendios de personaje
+- Tus sensores opcionales
+- Tus datos de ambientacion, subgenero, expectativas, finales y ships
 
 ## Archivos clave
 
@@ -48,6 +51,7 @@ Los premios no tienen que llenarse todos manualmente. La idea es que se puedan d
 - Criterios de personajes: [`criterios-personajes.md`](criterios-personajes.md)
 - Mapa de datos automaticos: [`mapa-de-datos-automaticos.md`](mapa-de-datos-automaticos.md)
 - Plantilla de premios automaticos: [`../plantillas/premios-experiencia-automatica.md`](../plantillas/premios-experiencia-automatica.md)
+- Plantilla de premios ampliados automaticos: [`../plantillas/premios-ampliados-automaticos.md`](../plantillas/premios-ampliados-automaticos.md)
 - Plantilla de compendio de personaje: [`../plantillas/compendio-personaje.md`](../plantillas/compendio-personaje.md)
 - Plantilla de wrapped anual: [`../plantillas/wrapped-anual.md`](../plantillas/wrapped-anual.md)
 - Plantilla de reporte mensual: [`../plantillas/reporte-mensual.md`](../plantillas/reporte-mensual.md)
