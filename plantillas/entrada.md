@@ -54,6 +54,31 @@ Estos campos solo se llenan si aplican. Si no los activo o los dejo vacios, no c
 - Nivel de cringe de la historia: 0/5
 - Tipo de cringe: divertido / incomodo / vergüenza ajena / malo / delicioso / no aplica
 - Comentario de cringe:
+- Activar sensor de red flag: Si / No
+- Nivel de red flag: 0/5
+- Comentario de red flag:
+- Activar sensor de traicion: Si / No
+- Nivel de traicion: 0/5
+- Comentario de traicion:
+- Activar sensor de redencion: Si / No
+- Nivel de redencion: 0/5
+- Redencion funciono?: Si / No / A medias
+- Comentario de redencion:
+- Activar sensor de morbo / chisme: Si / No
+- Nivel de morbo / chisme: 0/5
+- Comentario de morbo / chisme:
+- Activar sensor de resaca emocional: Si / No
+- Nivel de resaca emocional: 0/5
+- Cuanto duro la resaca:
+- Comentario de resaca emocional:
+- Activar sensor de gusto culposo: Si / No
+- Por que se siente como gusto culposo:
+- Activar sensor de obra mala pero adictiva: Si / No
+- Que la hizo mala:
+- Que la hizo adictiva:
+- Activar sensor de obra buena pero fria: Si / No
+- Que estuvo bien hecho:
+- Por que no conecte:
 
 ## Registro diario de avance
 
@@ -117,7 +142,7 @@ Importante: para evitar confusiones con fanfiction u otras versiones, cada perso
 
 | Capitulo / episodio | Obra / version | Personaje | Tipo de momento | Intensidad 0/5 | Comentario |
 |---|---|---|---|---:|---|
-|  |  |  | muerte / sacrificio / orgullo / sonrojo / odio / ganas de matarlo / villania / cringe / traicion / redencion / trauma / victoria |  |  |
+|  |  |  | muerte / sacrificio / orgullo / sonrojo / odio / ganas de matarlo / villania / cringe / red flag / traicion / redencion / trauma / victoria |  |  |
 
 ## Evolucion de personajes
 
