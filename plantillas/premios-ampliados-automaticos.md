@@ -40,6 +40,7 @@ Estos premios complementan `premios-experiencia-automatica.md` y usan los nuevos
 | Final mas frustrante |  | Satisfaccion del final baja + comentario negativo |  |
 | Final que salvo la obra |  | El final salvo la obra = Si |  |
 | Final que arruino la obra |  | El final arruino la obra = Si |  |
+| Obra que el autor arruino al final |  | El autor arruino la obra al final = Si + comentario del final |  |
 | Final que me dejo en negacion |  | Comentario menciona negacion, vacio o incredulidad |  |
 
 ## Premios por escritura, ritmo y calidad narrativa
