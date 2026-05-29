@@ -101,17 +101,25 @@ Este registro permite calcular maratones, ritmo, pausas, dias mas intensos y tie
 
 ## Personajes por capitulo
 
-Esta seccion sirve para registrar como viste a los personajes en cada capitulo. Despues puedo usar estos datos para detectar favoritos, evolucion, apariciones importantes y cambios de opinion.
+Esta seccion sirve para registrar como viste a los personajes en cada capitulo. Despues puedo usar estos datos para detectar favoritos, evolucion, apariciones importantes, cambios de opinion, muerte dolorosa, orgullo y sonrojo.
 
-| Capitulo / episodio | Personaje | Rol en el capitulo | Como estuvo | Cambio de opinion | Frase / momento clave | Nota del personaje |
-|---|---|---|---|---|---|---|
-| 1 |  | protagonista / secundario / villano / cameo |  |  |  |  |
+Importante: para evitar confusiones con fanfiction u otras versiones, cada personaje debe quedar asociado a la obra donde aparece.
+
+| Capitulo / episodio | Obra / version | Personaje | Rol en el capitulo | Como estuvo | Cambio de opinion | Frase / momento clave | Nota del personaje | Llore por el personaje | Orgullo por el personaje | Me hizo sonrojar |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 |  |  | protagonista / secundario / villano / cameo |  |  |  |  | Si / No | Si / No | Si / No |
+
+## Momentos fuertes de personajes
+
+| Capitulo / episodio | Obra / version | Personaje | Tipo de momento | Intensidad 0/5 | Comentario |
+|---|---|---|---|---:|---|
+|  |  |  | muerte / sacrificio / orgullo / sonrojo / traicion / redencion / trauma / victoria |  |  |
 
 ## Evolucion de personajes
 
-| Personaje | Inicio | Mitad | Final | Cambio principal | Termino gustandome mas o menos? |
-|---|---|---|---|---|---|
-|  |  |  |  |  |  |
+| Obra / version | Personaje | Inicio | Mitad | Final | Cambio principal | Termino gustandome mas o menos? |
+|---|---|---|---|---|---|---|
+|  |  |  |  |  |  |  |
 
 ## Frases favoritas
 
