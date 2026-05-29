@@ -123,6 +123,167 @@
 | Recomendacion que valio la pena |  |  |
 | Recomendacion que no era para mi |  |  |
 
+## Premios por tipo de obra
+
+Estos premios son para separar los ganadores por categoria. Asi no compiten todos contra todos y puedes tener favoritos distintos en libros, series, anime, peliculas, manga, comics, fanfiction y documentales.
+
+### 📚 Libros
+
+| Categoria | Ganador | Comentario |
+|---|---|---|
+| Mejor libro |  |  |
+| Libro favorito |  |  |
+| Mejor protagonista de libro |  |  |
+| Mejor personaje secundario de libro |  |  |
+| Mejor villano de libro |  |  |
+| Mejor romance de libro |  |  |
+| Mejor mundo / ambientacion de libro |  |  |
+| Mejor frase de libro |  |  |
+| Mejor final de libro |  |  |
+| Libro que mas me destruyo emocionalmente |  |  |
+| Libro mas adictivo |  |  |
+| Libro mas lento pero valioso |  |  |
+| Libro que mas me sorprendio |  |  |
+| Libro que mas me decepciono |  |  |
+| Libro que quiero releer |  |  |
+
+### 📺 Series
+
+| Categoria | Ganador | Comentario |
+|---|---|---|
+| Mejor serie |  |  |
+| Serie favorita |  |  |
+| Mejor temporada |  |  |
+| Mejor episodio |  |  |
+| Mejor protagonista de serie |  |  |
+| Mejor personaje secundario de serie |  |  |
+| Mejor villano de serie |  |  |
+| Mejor pareja / ship de serie |  |  |
+| Mejor grupo o elenco |  |  |
+| Mejor plot twist de serie |  |  |
+| Mejor final de temporada |  |  |
+| Mejor final de serie |  |  |
+| Serie mas adictiva |  |  |
+| Serie que mas me decepciono |  |  |
+| Serie que quiero rever |  |  |
+
+### 🎌 Anime
+
+| Categoria | Ganador | Comentario |
+|---|---|---|
+| Mejor anime |  |  |
+| Anime favorito |  |  |
+| Mejor temporada de anime |  |  |
+| Mejor arco de anime |  |  |
+| Mejor episodio de anime |  |  |
+| Mejor opening |  |  |
+| Mejor ending |  |  |
+| Mejor protagonista de anime |  |  |
+| Mejor personaje secundario de anime |  |  |
+| Mejor villano de anime |  |  |
+| Mejor pelea |  |  |
+| Mejor escena emocional de anime |  |  |
+| Anime mas bonito visualmente |  |  |
+| Anime mas adictivo |  |  |
+| Anime que quiero rever |  |  |
+
+### 🎬 Peliculas
+
+| Categoria | Ganador | Comentario |
+|---|---|---|
+| Mejor pelicula |  |  |
+| Pelicula favorita |  |  |
+| Mejor protagonista de pelicula |  |  |
+| Mejor personaje secundario de pelicula |  |  |
+| Mejor villano de pelicula |  |  |
+| Mejor escena de pelicula |  |  |
+| Mejor final de pelicula |  |  |
+| Mejor fotografia / estilo visual |  |  |
+| Mejor banda sonora de pelicula |  |  |
+| Pelicula mas emocional |  |  |
+| Pelicula mas divertida |  |  |
+| Pelicula mas intensa |  |  |
+| Pelicula que mas me sorprendio |  |  |
+| Pelicula que mas me decepciono |  |  |
+| Pelicula que quiero volver a ver |  |  |
+
+### 📖 Manga
+
+| Categoria | Ganador | Comentario |
+|---|---|---|
+| Mejor manga |  |  |
+| Manga favorito |  |  |
+| Mejor arco de manga |  |  |
+| Mejor capitulo de manga |  |  |
+| Mejor protagonista de manga |  |  |
+| Mejor personaje secundario de manga |  |  |
+| Mejor villano de manga |  |  |
+| Mejor dibujo / arte |  |  |
+| Mejor panel |  |  |
+| Mejor pelea de manga |  |  |
+| Mejor escena emocional de manga |  |  |
+| Mejor desarrollo de personaje en manga |  |  |
+| Manga mas adictivo |  |  |
+| Manga que mas me sorprendio |  |  |
+| Manga que quiero releer |  |  |
+
+### 🦸 Comics
+
+| Categoria | Ganador | Comentario |
+|---|---|---|
+| Mejor comic |  |  |
+| Comic favorito |  |  |
+| Mejor arco de comic |  |  |
+| Mejor numero / capitulo de comic |  |  |
+| Mejor protagonista de comic |  |  |
+| Mejor personaje secundario de comic |  |  |
+| Mejor villano de comic |  |  |
+| Mejor equipo |  |  |
+| Mejor dibujo / arte de comic |  |  |
+| Mejor portada |  |  |
+| Mejor pelea de comic |  |  |
+| Mejor momento emocional de comic |  |  |
+| Comic mas adictivo |  |  |
+| Comic que mas me sorprendio |  |  |
+| Comic que quiero releer |  |  |
+
+### ✍️ Fanfiction
+
+| Categoria | Ganador | Comentario |
+|---|---|---|
+| Mejor fanfiction |  |  |
+| Fanfiction favorita |  |  |
+| Mejor autora / autor de fanfiction |  |  |
+| Mejor ship de fanfiction |  |  |
+| Mejor dinamica entre personajes |  |  |
+| Mejor universo alternativo |  |  |
+| Mejor slow burn |  |  |
+| Mejor angst |  |  |
+| Mejor hurt/comfort |  |  |
+| Mejor final de fanfiction |  |  |
+| Mejor escena de fanfiction |  |  |
+| Fanfiction mas adictiva |  |  |
+| Fanfiction que mas me destruyo |  |  |
+| Fanfiction que no esperaba amar |  |  |
+| Fanfiction que quiero releer |  |  |
+
+### 🎥 Documentales
+
+| Categoria | Ganador | Comentario |
+|---|---|---|
+| Mejor documental |  |  |
+| Documental favorito |  |  |
+| Tema mas interesante |  |  |
+| Documental mas impactante |  |  |
+| Documental mas educativo |  |  |
+| Documental mas incomodo |  |  |
+| Mejor narracion de documental |  |  |
+| Mejor investigacion |  |  |
+| Mejor material visual / archivo |  |  |
+| Documental que me dejo pensando |  |  |
+| Documental que mas me sorprendio |  |  |
+| Documental que recomendaria |  |  |
+
 ## Estadisticas por tipo
 
 | Tipo | Cantidad terminada | Favorita |
