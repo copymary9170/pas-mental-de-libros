@@ -34,6 +34,23 @@ Estas señales ayudan a que despues pueda determinar premios sin que tengas que 
 - Estado emocional al verla o leerla:
 - Momento personal: mal momento / buen momento / momento perfecto / etapa importante / no aplica
 
+## Sensores opcionales
+
+Estos campos solo se llenan si aplican. Si no los activo o los dejo vacios, no cuentan para premios.
+
+- Activar sensor de lujuria / caliente: Si / No
+- Nivel de lujuria: 0/5
+- Comentario de lujuria:
+- Activar sensor de llanto: Si / No
+- Nivel de llanto: 0/5
+- Veces que llore:
+- Comentario de llanto:
+- Activar sensor de humor negro: Si / No
+- Nivel de humor negro: 0/5
+- Comentario de humor negro:
+- Activar sensor de tesoro oculto: Si / No
+- Por que se siente como tesoro oculto:
+
 ## Registro diario de avance
 
 Este registro permite calcular maratones, ritmo, pausas, dias mas intensos y tiempo real de consumo.
