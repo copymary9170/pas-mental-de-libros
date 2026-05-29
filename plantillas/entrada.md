@@ -52,6 +52,10 @@ Estos campos ayudan a detectar patrones de lo que mas consumo o disfruto.
 ## Expectativas y resultado
 
 - Expectativa inicial: ninguna / baja / media / alta / demasiado hype
+- Nivel de esperanza inicial: 0/5
+- Le tenia esperanza: Si / No
+- Le tenia pocas esperanzas: Si / No
+- Por que tenia esperanza o pocas esperanzas:
 - Resultado contra expectativa: supero / cumplio / decepciono / fue diferente / no aplica
 - Nivel de decepcion: 0/5
 - Nivel de satisfaccion general: 0/5
