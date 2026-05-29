@@ -15,13 +15,14 @@ La idea es tener un espacio ordenado para registrar lo que quiero ver, lo que es
 - Personajes favoritos
 - Frases, escenas y momentos importantes
 - Relecturas o rewatches
+- Wrapped anual y reportes mensuales
 
 ## Como usarlo
 
 1. Copia la plantilla de `plantillas/entrada.md`.
 2. Crea un archivo nuevo dentro de `entradas/` o en la carpeta que corresponda.
 3. Rellena tus datos, opiniones, capitulos y nota.
-4. Actualiza las listas y rankings cuando quieras.
+4. Actualiza las listas, rankings, wrapped y reportes cuando quieras.
 
 ## Carpetas principales
 
@@ -32,6 +33,7 @@ La idea es tener un espacio ordenado para registrar lo que quiero ver, lo que es
 | `plantillas/` | Modelos para copiar y crear nuevas entradas |
 | `ranking/` | Tus favoritos y clasificaciones personales |
 | `capitulos/` | Registros detallados por episodios o capitulos |
+| `wrapped/` | Wrapped anual, reportes, estadisticas y resumenes emocionales |
 
 ## Estados sugeridos
 
@@ -55,6 +57,14 @@ La idea es tener un espacio ordenado para registrar lo que quiero ver, lo que es
 | 6/10 | Regular |
 | 5/10 o menos | No me gusto |
 
+## Wrapped y reportes
+
+Usa esta seccion para hacer resumenes mensuales, anuales o emocionales sin borrar las listas principales.
+
+- [Guia de Wrapped y reportes](wrapped/README.md)
+- [Plantilla de wrapped anual](plantillas/wrapped-anual.md)
+- [Plantilla de reporte mensual](plantillas/reporte-mensual.md)
+
 ## Indice rapido
 
 - [Pendientes](listas/pendientes.md)
@@ -63,6 +73,7 @@ La idea es tener un espacio ordenado para registrar lo que quiero ver, lo que es
 - [Abandonados](listas/abandonados.md)
 - [Favoritos](ranking/favoritos.md)
 - [Ranking general](ranking/ranking-general.md)
+- [Wrapped y reportes](wrapped/README.md)
 
 ## Nota sobre el nombre
 
