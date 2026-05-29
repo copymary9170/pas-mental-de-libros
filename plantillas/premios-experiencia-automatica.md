@@ -101,6 +101,22 @@ Estos premios solo se calculan si el sensor correspondiente esta activado en la 
 | Cringe que casi me saca de la historia |  | Nivel de cringe alto + comentario negativo, pausa o abandono |  |
 | Cringe que funciono |  | Cringe activo + nota buena u opinion positiva |  |
 | Tesoro cringe del año |  | Cringe activo + sensor de tesoro oculto activo o comentario de rareza divertida |  |
+| Red flag que igual me gusto |  | Sensor red flag activo + nota/opinion positiva o sonrojo/lujuria alto |  |
+| Mayor red flag |  | Sensor red flag activo + mayor nivel de red flag |  |
+| Obra que me dio energia de chisme |  | Sensor morbo/chisme activo + nivel alto |  |
+| Obra que empece por morbo |  | Sensor morbo/chisme activo + como la empece por hype/chisme/curiosidad |  |
+| Traicion que me dolio mas |  | Sensor traicion activo + nivel alto + opinion fuerte |  |
+| Personaje que me traiciono personalmente |  | Momento de personaje tipo traicion + comentario fuerte |  |
+| Mejor redencion |  | Sensor redencion activo + funciono = Si + nivel alto/opinion positiva |  |
+| Peor redencion |  | Sensor redencion activo + funciono = No + comentario negativo |  |
+| Redencion a medias |  | Sensor redencion activo + funciono = A medias |  |
+| Obra que me dejo en resaca emocional |  | Sensor resaca emocional activo + nivel alto o duracion larga |  |
+| Resaca emocional mas larga |  | Sensor resaca emocional activo + mayor duracion registrada |  |
+| Gusto culposo del año |  | Sensor gusto culposo activo + disfrute alto |  |
+| Obra que me dio verguenza admitir que me gusto |  | Sensor gusto culposo activo + cringe/red flag alto + opinion positiva |  |
+| Obra mala pero adictiva |  | Sensor obra mala pero adictiva activo |  |
+| Obra buena pero fria |  | Sensor obra buena pero fria activo |  |
+| Obra que fue buena pero no conecte |  | Buena ejecucion registrada + no conecte emocionalmente |  |
 
 ## Premios automaticos de personajes
 
@@ -116,6 +132,9 @@ Estos premios solo se calculan si el sensor correspondiente esta activado en la 
 | Personaje que llore con su muerte |  | Momento tipo muerte + llanto activo o comentario de llanto |  |
 | Personaje que me dio mas orgullo |  | Momentos tipo orgullo/victoria/redencion + intensidad alta |  |
 | Personaje que mas me hizo sonrojar |  | Campo `Me hizo sonrojar` repetido o momento tipo sonrojo con intensidad alta |  |
+| Personaje que me hizo cambiar de bando |  | Cambio de opinion fuerte de negativo a positivo o viceversa |  |
+| Personaje que defendi aunque no debia |  | Red flag/odio alto + comentario de defensa o gusto culposo |  |
+| Personaje que me hizo comerme mis palabras |  | Cambio de opinion fuerte + comentario de sorpresa |  |
 | Mejor version de un personaje |  | Compendio del personaje + version con mas premios, nota u opinion positiva |  |
 | Version que mas odie |  | Compendio del personaje + version con mas odio acumulado |  |
 | Version con mejor villania |  | Compendio del personaje + version villana mas destacada |  |
@@ -137,6 +156,13 @@ Estos premios solo se calculan si el sensor correspondiente esta activado en la 
 | Obra efecto domino |  | Obra que llevo a ver/leer otras parecidas |  |
 | Obra rompe rutina |  | Obra de un tipo/genero que casi no consumo pero disfrute |  |
 | Retorno mas inesperado |  | Tipo u obra que llevaba mucho tiempo sin tocar y volvio fuerte |  |
+| Obra que empezo horrible y termino salvandose |  | Registros iniciales negativos + opinion final positiva |  |
+| Obra que empezo perfecta y se cayo |  | Registros iniciales positivos + opinion final negativa |  |
+| Final que me dejo en negacion |  | Opinion final menciona negacion, no aceptar, vacio o incredulidad |  |
+| Plot twist que me hizo sentir payasa |  | Momento/Opinion de plot twist + comentario de sorpresa o engaño |  |
+| Pareja que no deberia funcionar pero funciono |  | Red flag/cringe alto + opinion positiva de pareja/ship |  |
+| Pareja que tenia todo para funcionar y fallo |  | Opinion positiva inicial + final decepcionante sobre pareja/ship |  |
+| Escena que me dio pena ajena pero igual disfrute |  | Cringe activo + comentario positivo o gusto culposo |  |
 
 ## Niveles de certeza
 
