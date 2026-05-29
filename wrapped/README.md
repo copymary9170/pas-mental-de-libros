@@ -24,6 +24,7 @@ El objetivo es mirar el año completo como si fuera un resumen personal: favorit
 - Premios generales
 - Premios por tipo de obra
 - Premios de experiencia personal
+- Premios automaticos por fechas, actividad, maratones y bloqueos
 
 ## Como se llenan los premios
 
@@ -34,9 +35,16 @@ Los premios no tienen que llenarse todos manualmente. La idea es que se puedan d
 - Tus opiniones
 - Tus fechas de inicio y finalizacion
 - Tus notas
-- Tus señales personales, como si fue maraton, recomendacion, hype, estreno reciente o pendiente antiguo
+- Tus registros diarios de avance
+- Tus cambios de estado: pendiente, viendo/leyendo, pausado, terminado o abandonado
 
-Guia de criterios: [`criterios-automaticos.md`](criterios-automaticos.md)
+## Archivos clave
+
+- Guia de criterios: [`criterios-automaticos.md`](criterios-automaticos.md)
+- Mapa de datos automaticos: [`mapa-de-datos-automaticos.md`](mapa-de-datos-automaticos.md)
+- Plantilla de premios automaticos: [`../plantillas/premios-experiencia-automatica.md`](../plantillas/premios-experiencia-automatica.md)
+- Plantilla de wrapped anual: [`../plantillas/wrapped-anual.md`](../plantillas/wrapped-anual.md)
+- Plantilla de reporte mensual: [`../plantillas/reporte-mensual.md`](../plantillas/reporte-mensual.md)
 
 ## Diferencia entre wrapped y reporte
 
@@ -56,4 +64,4 @@ Guia de criterios: [`criterios-automaticos.md`](criterios-automaticos.md)
 
 No borres las listas principales para hacer el wrapped. Usa este espacio como resumen final, no como reemplazo de `listas/`, `entradas/` o `ranking/`.
 
-Si falta informacion para un premio, es mejor marcarlo como **posible ganador** o **no determinado** antes que inventar.
+Si falta informacion para un premio, es mejor marcarlo como **posible ganador**, **ganador probable** o **no determinado** antes que inventar.
