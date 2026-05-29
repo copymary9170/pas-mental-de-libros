@@ -21,6 +21,7 @@ La idea es que no tengas que dar toda la informacion de nuevo. Si tus fichas tie
 | Fecha de finalizacion | Saber cuanto tardaste en terminarla |
 | Registro diario de capitulos / episodios | Detectar maratones, pausas, ritmo y dias de mas actividad |
 | Estado personal | Saber si esta pendiente, en progreso, pausada, terminada o abandonada |
+| Tipo de obra | Detectar bloqueos por categoria: series, libros, manhwas, peliculas, anime, manga, comics, fanfiction, documentales |
 | Nota final | Comparar favoritos, decepciones y recomendaciones |
 | Opinion general | Detectar emociones, obsesiones, decepcion, sorpresa o apego |
 | Lo mejor / lo peor | Detectar premios especificos sin preguntarte otra vez |
@@ -59,6 +60,8 @@ Para detectar estos premios, se revisa la tabla de **registro diario** de cada e
 | Obra que debi ver mas despacio | Registro rapido y opinion indica saturacion, confusion o que hubiera sido mejor pausarla |
 | Dia mas intenso del año | Dia con mas capitulos / episodios / paginas registrados entre todas las obras |
 | Mes con mas actividad | Mes con mas registros de avance o mas obras terminadas |
+| Obra que me saco de un bloqueo por tipo | Primer registro de un tipo de obra despues de mucho tiempo sin consumir ese tipo |
+| Tipo de obra que revivi este año | Categoria que paso de tener mucha inactividad a varios registros nuevos |
 
 ## Premios que puedo inferir por cambios de estado
 
@@ -74,6 +77,33 @@ Para detectar estos premios, se revisa la tabla de **registro diario** de cada e
 | Obra que casi abandono pero salvo el final | Opinion inicial o registros negativos, pero final positivo |
 | Obra que casi abandono pero despues ame | Registros iniciales negativos y opinion final muy positiva |
 
+## Premios que puedo inferir por bloqueos de consumo
+
+Un bloqueo no tiene que depender solo de que escribas "me saco de un bloqueo". Tambien se puede calcular viendo cuanto tiempo paso sin consumir un tipo de obra y cuando volviste a tocar ese tipo.
+
+Ejemplos de tipos: libros, series, anime, peliculas, manga, manhwa, comics, fanfiction, documentales.
+
+| Premio | Como se determina |
+|---|---|
+| Obra que me saco de un bloqueo de series | Primera serie iniciada o registrada despues de mucho tiempo sin ver series |
+| Obra que me saco de un bloqueo de libros | Primer libro iniciado o registrado despues de mucho tiempo sin leer libros |
+| Obra que me saco de un bloqueo de peliculas | Primera pelicula registrada despues de mucho tiempo sin ver peliculas |
+| Obra que me saco de un bloqueo de manga / manhwa | Primer manga o manhwa registrado despues de mucho tiempo sin leer ese tipo |
+| Obra que me saco de un bloqueo general | Primera obra registrada despues de mucho tiempo sin actividad en ningun tipo |
+| Tipo que mas abandone este año | Tipo con mas tiempo de inactividad o mas obras pausadas/abandonadas |
+| Tipo que mas retome este año | Tipo que tuvo inactividad larga y luego varios avances nuevos |
+
+Criterio sugerido para detectar bloqueo por tipo:
+
+| Resultado | Tiempo sin registros de ese tipo |
+|---|---|
+| Pausa normal | 15 a 29 dias |
+| Bloqueo leve | 30 a 59 dias |
+| Bloqueo fuerte | 60 a 119 dias |
+| Bloqueo largo | 120 dias o mas |
+
+Para calcularlo se revisan las fechas de `Fecha de inicio`, `Fecha de finalizacion` y el `Registro diario de avance`. Si una obra aparece despues de una pausa larga en su tipo, puede ganar el premio de salida de bloqueo.
+
 ## Premios que puedo inferir por opiniones
 
 | Premio | Palabras o señales posibles |
@@ -82,8 +112,8 @@ Para detectar estos premios, se revisa la tabla de **registro diario** de cada e
 | Obra que me dio paz mental | tranquila, bonita, calma, comfort, paz, descanso |
 | Obra que me rompio la paz mental | ansiedad, caos, sufrimiento, trauma, obsesion |
 | Obra que se sintio como terapia | me ayudo, necesitaba esto, me acompaño, me hizo bien |
-| Obra que me saco de un bloqueo | desbloqueo, volvi a leer, volvi a ver cosas, me motivo |
-| Obra que me metio en un bloqueo | no pude ver nada despues, resaca, bloqueo lector |
+| Obra que me saco de un bloqueo | puede salir por opinion o por actividad despues de mucha inactividad |
+| Obra que me metio en un bloqueo | no pude ver nada despues, resaca, bloqueo lector, o mucha inactividad despues de terminarla |
 | Mayor obsesion del año | obsesion, no paro de pensar, busque teorias, fanarts, edits, fanfiction |
 | Obra que me hizo buscar teorias | opinion o señales mencionan teorias, explicaciones o analisis |
 | Obra que me hizo buscar fanarts / edits | opinion o señales mencionan fanarts, edits, imagenes o videos |
@@ -129,6 +159,34 @@ Ejemplo de registro util:
 |---|---:|---:|---|---|
 | 2026-01-05 | 6 | 0 | 3 horas | No podia parar |
 | 2026-01-06 | 5 | 0 | 2 horas | Me destruyo |
+
+## Como se calcula salida o entrada en bloqueo
+
+Se revisa el espacio entre registros de actividad.
+
+### Salida de bloqueo
+
+Una obra puede sacar de un bloqueo si:
+
+1. Pertenece a un tipo que tenia mucho tiempo sin registros.
+2. Es la primera actividad nueva despues de esa pausa.
+3. Despues de esa obra hubo continuidad, opinion positiva o avance real.
+
+### Entrada en bloqueo
+
+Una obra puede meter en bloqueo si:
+
+1. Despues de terminarla o abandonarla pasa mucho tiempo sin registros.
+2. La opinion menciona resaca, cansancio, saturacion o que costo seguir con otras cosas.
+3. El bloqueo puede ser general o por tipo.
+
+Ejemplo:
+
+| Tipo | Ultimo registro antes | Nuevo registro | Dias sin actividad | Resultado |
+|---|---|---|---:|---|
+| Series | 2026-02-01 | 2026-05-20 | 108 | Bloqueo fuerte de series |
+| Peliculas | 2026-01-10 | 2026-01-25 | 15 | Pausa normal |
+| Manhwa | 2025-12-01 | 2026-06-15 | 196 | Bloqueo largo de manhwa |
 
 ## Niveles de certeza
 
