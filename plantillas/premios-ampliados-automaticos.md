@@ -27,10 +27,16 @@ Estos premios complementan `premios-experiencia-automatica.md` y usan los nuevos
 | Obra que me dejo traumada |  | Trauma alto + resaca emocional o comentario fuerte |  |
 | Trauma narrativo del año |  | Trauma alto + momento fuerte destacado |  |
 
-## Premios por expectativas y finales
+## Premios por expectativas, esperanza y finales
 
 | Premio | Ganador | Como se calcula | Certeza |
 |---|---|---|---|
+| Obra a la que le tuve mas esperanza |  | Le tenia esperanza = Si + mayor nivel de esperanza inicial |  |
+| Obra a la que le tuve pocas esperanzas |  | Le tenia pocas esperanzas = Si o expectativa baja |  |
+| Obra que premio mi esperanza |  | Esperanza alta + resultado supero/cumplio + nota alta |  |
+| Obra que traiciono mi esperanza |  | Esperanza alta + resultado decepciono + decepcion alta |  |
+| Obra que me sorprendio con pocas esperanzas |  | Pocas esperanzas + resultado supero + nota alta |  |
+| Obra que confirmo mis pocas esperanzas |  | Pocas esperanzas + resultado decepciono o nota baja |  |
 | Obra que supero mis expectativas |  | Expectativa baja/media + resultado supero + nota alta |  |
 | Obra que cumplio el hype |  | Expectativa alta + resultado cumplio/supero |  |
 | Obra que no cumplio el hype |  | Expectativa alta + resultado decepciono |  |
