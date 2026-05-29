@@ -21,6 +21,22 @@ El objetivo es mirar el año completo como si fuera un resumen personal: favorit
 - Mes con mas actividad
 - Frases o escenas memorables
 - Pendientes que quiero retomar
+- Premios generales
+- Premios por tipo de obra
+- Premios de experiencia personal
+
+## Como se llenan los premios
+
+Los premios no tienen que llenarse todos manualmente. La idea es que se puedan determinar revisando:
+
+- Tus entradas completas
+- Tus listas de pendientes, viendo/leyendo, terminados y abandonados
+- Tus opiniones
+- Tus fechas de inicio y finalizacion
+- Tus notas
+- Tus señales personales, como si fue maraton, recomendacion, hype, estreno reciente o pendiente antiguo
+
+Guia de criterios: [`criterios-automaticos.md`](criterios-automaticos.md)
 
 ## Diferencia entre wrapped y reporte
 
@@ -39,3 +55,5 @@ El objetivo es mirar el año completo como si fuera un resumen personal: favorit
 ## Regla importante
 
 No borres las listas principales para hacer el wrapped. Usa este espacio como resumen final, no como reemplazo de `listas/`, `entradas/` o `ranking/`.
+
+Si falta informacion para un premio, es mejor marcarlo como **posible ganador** o **no determinado** antes que inventar.
