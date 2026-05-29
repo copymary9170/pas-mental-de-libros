@@ -2,7 +2,7 @@
 
 Estos premios estan pensados para que se puedan determinar con datos del repositorio, no para llenarlos todos manualmente.
 
-Se calculan revisando fechas, registros diarios, cambios de estado, cantidad de capitulos/episodios/paginas y opiniones.
+Se calculan revisando fechas, registros diarios, cambios de estado, cantidad de capitulos/episodios/paginas, opiniones y sensores opcionales.
 
 ## Premios por estreno y tiempo
 
@@ -74,6 +74,45 @@ Se calculan revisando fechas, registros diarios, cambios de estado, cantidad de 
 | Obra que me hizo buscar fanfiction |  | Opinion o señales mencionan fanfiction, AO3, Wattpad u otra busqueda similar |  |
 | Obra que recomende mas este año |  | Varias menciones de recomendacion o campo La recomende = Si |  |
 | Obra que mencione demasiado |  | Opinion indica que hable mucho de ella o aparece repetida en reportes |  |
+
+## Premios por sensores opcionales
+
+Estos premios solo se calculan si el sensor correspondiente esta activado en la entrada. Si el sensor esta apagado o vacio, la obra no compite en ese premio.
+
+| Premio | Ganador | Como se calcula | Certeza |
+|---|---|---|---|
+| Obra mas caliente |  | Sensor de lujuria activo + mayor nivel de lujuria |  |
+| Escena / momento mas caliente |  | Sensor de lujuria activo + comentario especifico de lujuria |  |
+| Obra con mas tension |  | Nivel de lujuria alto + opinion menciona tension/quimica/deseo |  |
+| Romance mas peligroso |  | Sensor de lujuria activo + opinion menciona caos, peligro o toxicidad |  |
+| Obra que mas me hizo llorar |  | Sensor de llanto activo + mayor nivel de llanto o mas veces que llore |  |
+| Llanto mas inesperado |  | Sensor de llanto activo + comentario indica que no esperaba llorar |  |
+| Llanto mas devastador |  | Nivel de llanto alto + opinion emocional fuerte |  |
+| Obra triste que valio cada lagrima |  | Sensor de llanto activo + nota alta/opinion positiva |  |
+| Tesoro oculto de humor negro |  | Sensor de humor negro activo + sensor de tesoro oculto activo |  |
+| Mejor humor negro |  | Sensor de humor negro activo + mayor nivel de humor negro |  |
+| Chiste mas oscuro que funciono |  | Sensor de humor negro activo + comentario especifico |  |
+| Comedia negra mas inesperada |  | Humor negro alto + opinion indica sorpresa |  |
+| Tesoro oculto del año |  | Sensor de tesoro oculto activo + nota alta/opinion positiva |  |
+| Tesoro oculto mas raro |  | Sensor de tesoro oculto activo + opinion menciona raro, extraño o dificil de recomendar |  |
+
+## Premios automaticos nuevos
+
+| Premio | Ganador | Como se calcula | Certeza |
+|---|---|---|---|
+| Tipo resucitado del año |  | Tipo que tuvo pausa larga y luego varios registros nuevos |  |
+| Tipo abandonado del año |  | Tipo con mas pausas largas, abandonos o inactividad |  |
+| Obra puente |  | Obra despues de la cual consumi varias del mismo tipo/genero |  |
+| Obra detonante de obsesion |  | Obra seguida de busquedas, fanfiction, fanarts, edits o menciones repetidas |  |
+| Mes de regreso |  | Mes donde retome mas tipos despues de pausas |  |
+| Mes de bloqueo |  | Mes con menos actividad o despues de una obra fuerte |  |
+| Racha mas larga viendo/leyendo |  | Dias consecutivos con registros |  |
+| Racha rota mas dolorosa |  | Racha larga que se corto despues de una obra o pausa fuerte |  |
+| Genero refugio |  | Genero al que vuelvo despues de pausas o bloqueos |  |
+| Genero de riesgo |  | Genero que suele terminar en abandono o pausa |  |
+| Obra efecto domino |  | Obra que llevo a ver/leer otras parecidas |  |
+| Obra rompe rutina |  | Obra de un tipo/genero que casi no consumo pero disfrute |  |
+| Retorno mas inesperado |  | Tipo u obra que llevaba mucho tiempo sin tocar y volvio fuerte |  |
 
 ## Niveles de certeza
 
