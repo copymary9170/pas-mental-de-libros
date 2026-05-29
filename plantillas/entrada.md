@@ -8,6 +8,7 @@
 - Estado personal:
 - Estado de publicacion:
 - Fecha de estreno / publicacion:
+- Fecha agregada a pendientes:
 - Capitulos / episodios:
 - Fecha de inicio:
 - Fecha de finalizacion:
@@ -18,13 +19,9 @@
 
 ## Señales para Wrapped automatico
 
-Estas señales ayudan a que despues pueda determinar premios sin que tengas que explicarlo todo otra vez.
+Estas señales ayudan a que despues pueda determinar premios sin que tengas que explicarlo todo otra vez. No tienes que llenar todo: muchas cosas se pueden calcular con fechas, registros diarios y opinion.
 
-- Como la empece: impulso / recomendacion / curiosidad / hype / pendiente antiguo / estreno reciente / relectura / rewatch
-- Ritmo: maraton / rapido / normal / lento / pausado
-- Cuanto tarde en terminarla:
-- La vi o lei cerca del estreno: Si / No / No aplica
-- La empece apenas salio: Si / No / No aplica
+- Como la empece: impulso / recomendacion / curiosidad / hype / pendiente antiguo / relectura / rewatch
 - La retome despues de pausarla: Si / No
 - La vi con alguien: Si / No
 - La disfrute mas: sola / acompañada / ambas
@@ -36,6 +33,14 @@ Estas señales ayudan a que despues pueda determinar premios sin que tengas que 
 - Me metio en un bloqueo: Si / No
 - Estado emocional al verla o leerla:
 - Momento personal: mal momento / buen momento / momento perfecto / etapa importante / no aplica
+
+## Registro diario de avance
+
+Este registro permite calcular maratones, ritmo, pausas, dias mas intensos y tiempo real de consumo.
+
+| Fecha | Capitulos / episodios vistos | Paginas leidas | Tiempo aproximado | Estado del dia | Comentario |
+|---|---:|---:|---|---|---|
+|  |  |  |  |  |  |
 
 ## Sinopsis
 
