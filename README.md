@@ -2,7 +2,9 @@
 
 Repositorio personal para llevar una lista de todo lo que leo o veo: libros, series, anime, peliculas, fanfiction, manga, comics, documentales o cualquier historia.
 
-Aqui puedes guardar:
+La idea es tener un espacio ordenado para registrar lo que quiero ver, lo que estoy leyendo, lo que termine, lo que abandone y lo que me marco emocionalmente.
+
+## Aqui puedes guardar
 
 - Lo que ya terminaste
 - Lo que estas viendo o leyendo
@@ -17,7 +19,7 @@ Aqui puedes guardar:
 ## Como usarlo
 
 1. Copia la plantilla de `plantillas/entrada.md`.
-2. Crea un archivo nuevo dentro de la carpeta que corresponda.
+2. Crea un archivo nuevo dentro de `entradas/` o en la carpeta que corresponda.
 3. Rellena tus datos, opiniones, capitulos y nota.
 4. Actualiza las listas y rankings cuando quieras.
 
@@ -61,3 +63,7 @@ Aqui puedes guardar:
 - [Abandonados](listas/abandonados.md)
 - [Favoritos](ranking/favoritos.md)
 - [Ranking general](ranking/ranking-general.md)
+
+## Nota sobre el nombre
+
+El nombre correcto del proyecto es **Paz mental de libros**. Si quieres que el enlace del repositorio tambien quede correcto, cambia el nombre del repo de `pas-mental-de-libros` a `paz-mental-de-libros` desde GitHub Settings.
