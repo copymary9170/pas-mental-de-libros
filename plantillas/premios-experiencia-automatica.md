@@ -95,6 +95,30 @@ Estos premios solo se calculan si el sensor correspondiente esta activado en la 
 | Comedia negra mas inesperada |  | Humor negro alto + opinion indica sorpresa |  |
 | Tesoro oculto del año |  | Sensor de tesoro oculto activo + nota alta/opinion positiva |  |
 | Tesoro oculto mas raro |  | Sensor de tesoro oculto activo + opinion menciona raro, extraño o dificil de recomendar |  |
+| Historia con mas cringe |  | Sensor de cringe activo + mayor nivel de cringe |  |
+| Cringe mas divertido |  | Tipo de cringe divertido/delicioso + opinion positiva |  |
+| Cringe mas incomodo |  | Tipo de cringe incomodo/verguenza ajena + nivel alto |  |
+| Cringe que casi me saca de la historia |  | Nivel de cringe alto + comentario negativo, pausa o abandono |  |
+| Cringe que funciono |  | Cringe activo + nota buena u opinion positiva |  |
+| Tesoro cringe del año |  | Cringe activo + sensor de tesoro oculto activo o comentario de rareza divertida |  |
+
+## Premios automaticos de personajes
+
+| Premio | Ganador | Como se calcula | Certeza |
+|---|---|---|---|
+| Mejor villano |  | Rol villano o villano destacado + impacto, nota alta o muchas menciones |  |
+| Villano mas odiado |  | Rol villano + nivel de odio alto o muchas ganas de matarlo simbolicamente |  |
+| Villano que amo odiar |  | Odio alto + comentario positivo sobre lo bien escrito |  |
+| Personaje que mas odio |  | Mayor nivel de odio acumulado por capitulos o momentos fuertes |  |
+| Personaje que mas quise matar simbolicamente |  | Mayor cantidad en `Veces que quise matarlo` o momentos tipo ganas de matarlo |  |
+| Personaje mas insoportable |  | Odio alto + comentarios de rabia, irritacion o desesperacion |  |
+| Personaje mas frustrante |  | Cambios de opinion negativos repetidos o comentarios de malas decisiones |  |
+| Personaje que llore con su muerte |  | Momento tipo muerte + llanto activo o comentario de llanto |  |
+| Personaje que me dio mas orgullo |  | Momentos tipo orgullo/victoria/redencion + intensidad alta |  |
+| Personaje que mas me hizo sonrojar |  | Campo `Me hizo sonrojar` repetido o momento tipo sonrojo con intensidad alta |  |
+| Mejor version de un personaje |  | Compendio del personaje + version con mas premios, nota u opinion positiva |  |
+| Version que mas odie |  | Compendio del personaje + version con mas odio acumulado |  |
+| Version con mejor villania |  | Compendio del personaje + version villana mas destacada |  |
 
 ## Premios automaticos nuevos
 
