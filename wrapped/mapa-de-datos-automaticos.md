@@ -27,6 +27,10 @@ Este archivo resume que cosas puedo medir automaticamente, de donde salen los da
 | Entrada en bloqueo | Probable | Obra terminada/abandonada antes de pausa larga | Fechas posteriores sin actividad |
 | Retomada despues de pausa | Si | Pausa larga entre registros de la misma obra | Registro diario |
 | Abandono rapido | Si | Estado abandonado + poco progreso | Estado y progreso |
+| Obra mas caliente | Si, si se activa | Sensor de lujuria | Sensor activo + nivel de lujuria |
+| Obra que mas me hizo llorar | Si, si se activa | Sensor de llanto | Sensor activo + nivel o veces que llore |
+| Mejor humor negro | Si, si se activa | Sensor de humor negro | Sensor activo + nivel de humor negro |
+| Tesoro oculto | Si, si se activa | Sensor de tesoro oculto | Sensor activo + nota/opinion positiva |
 
 ## Lo que se puede medir con opinion escrita
 
@@ -41,6 +45,9 @@ Este archivo resume que cosas puedo medir automaticamente, de donde salen los da
 | Obra que mencione demasiado | Parcial | Reportes, opiniones, repeticion en archivos | Varias menciones en distintos archivos |
 | Personaje que se robo el año | Probable | Personajes favoritos + opinion | Muchas menciones o puesto alto |
 | Ship que mas me obsesiono | Probable | Personajes, opinion, fanfiction | Menciones repetidas del ship |
+| Llanto inesperado | Probable | Sensor de llanto + comentario | Comentario indica que no esperaba llorar |
+| Comedia negra inesperada | Probable | Sensor humor negro + opinion | Opinion indica sorpresa o tesoro oculto |
+| Tension / lujuria destacada | Probable | Sensor de lujuria + opinion | tension, quimica, deseo, caliente |
 
 ## Lo que no puedo medir bien todavia sin nuevos datos
 
@@ -56,6 +63,10 @@ Este archivo resume que cosas puedo medir automaticamente, de donde salen los da
 | Mejor opening/ending/banda sonora | Falta campo especifico | Agregar opinion musical o ranking por obra |
 | Mejor portada/poster/panel | Falta campo visual especifico | Agregar campo de arte/visual favorito |
 | Mejor actor/actriz/seiyuu | Falta dato de elenco/voz | Agregar campo opcional si aplica |
+| Intensidad de lujuria | No se debe inferir si no lo activas | Activar sensor de lujuria y poner nivel |
+| Intensidad de llanto | Puede aparecer en opinion, pero se mide mejor con sensor | Activar sensor de llanto, nivel y veces |
+| Calidad de humor negro | No siempre sale del genero | Activar sensor de humor negro y comentario |
+| Tesoro oculto real | Necesita que lo marques o que haya baja expectativa + nota alta | Activar sensor de tesoro oculto o explicar por que |
 
 ## Datos nuevos que conviene agregar
 
@@ -73,6 +84,14 @@ Estos campos no son obligatorios, pero harian el sistema mas automatico.
 - La vi con alguien
 - Me hizo buscar: teorias, fanarts, edits, fanfiction, entrevistas
 - Momento personal: buen momento, mal momento, momento perfecto, etapa importante
+- Sensor de lujuria / caliente: activo o no activo
+- Nivel de lujuria: 0 a 5
+- Sensor de llanto: activo o no activo
+- Nivel de llanto: 0 a 5
+- Veces que llore
+- Sensor de humor negro: activo o no activo
+- Nivel de humor negro: 0 a 5
+- Sensor de tesoro oculto: activo o no activo
 
 ### En reportes mensuales
 
@@ -84,6 +103,9 @@ Estos campos no son obligatorios, pero harian el sistema mas automatico.
 - Salida de bloqueo del mes
 - Mayor maraton del mes
 - Dia mas intenso del mes
+- Obra mas caliente del mes, si aplica
+- Obra que mas me hizo llorar del mes, si aplica
+- Tesoro oculto de humor negro del mes, si aplica
 
 ## Nuevos premios automaticos que se pueden agregar
 
@@ -102,6 +124,16 @@ Estos campos no son obligatorios, pero harian el sistema mas automatico.
 | Obra efecto domino | Obra que me llevo a ver/leer otras parecidas |
 | Obra rompe rutina | Obra de un tipo/genero que casi no consumo pero disfrute |
 | Retorno mas inesperado | Tipo u obra que llevaba mucho tiempo sin tocar y volvio fuerte |
+| Obra mas caliente | Sensor de lujuria activo + mayor nivel |
+| Momento mas caliente | Sensor de lujuria activo + comentario especifico |
+| Obra con mas tension | Sensor de lujuria activo + opinion de tension o quimica |
+| Obra que mas me hizo llorar | Sensor de llanto activo + nivel o veces que llore |
+| Llanto mas inesperado | Sensor de llanto activo + comentario de sorpresa |
+| Llanto mas devastador | Sensor de llanto alto + opinion emocional fuerte |
+| Mejor humor negro | Sensor humor negro activo + mayor nivel |
+| Tesoro oculto de humor negro | Sensor humor negro activo + sensor tesoro oculto activo |
+| Comedia negra mas inesperada | Humor negro alto + opinion de sorpresa |
+| Tesoro oculto del año | Sensor tesoro oculto activo + nota alta/opinion positiva |
 
 ## Regla de oro
 
