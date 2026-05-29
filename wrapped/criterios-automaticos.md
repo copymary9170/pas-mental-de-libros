@@ -26,6 +26,9 @@ La idea es que no tengas que dar toda la informacion de nuevo. Si tus fichas tie
 | Opinion general | Detectar emociones, obsesiones, decepcion, sorpresa o apego |
 | Lo mejor / lo peor | Detectar premios especificos sin preguntarte otra vez |
 | Personajes favoritos | Detectar protagonistas, secundarios, ships o villanos destacados |
+| Personaje favorito por capitulo | Detectar personaje dominante, favorito recurrente y favorito por etapa |
+| Descripcion de personajes por capitulo | Detectar evolucion, cambio de opinion, personaje que crecio y personaje que decayo |
+| Evolucion de personajes | Comparar inicio, mitad y final de cada personaje |
 
 ## Premios que puedo inferir por fechas
 
@@ -76,6 +79,27 @@ Para detectar estos premios, se revisa la tabla de **registro diario** de cada e
 | Abandono mas justificado | Estado abandonado y opinion explica claramente por que no valia seguir |
 | Obra que casi abandono pero salvo el final | Opinion inicial o registros negativos, pero final positivo |
 | Obra que casi abandono pero despues ame | Registros iniciales negativos y opinion final muy positiva |
+
+## Premios que puedo inferir por personajes por capitulo
+
+Estos premios salen de las tablas `Capitulos / episodios`, `Personajes por capitulo` y `Evolucion de personajes`.
+
+| Premio | Como se determina |
+|---|---|
+| Personaje favorito mas constante | Personaje que aparece mas veces como favorito por capitulo |
+| Personaje que se robo mas capitulos | Personaje que aparece mas veces como destacado o favorito en capitulos distintos |
+| Personaje que empezo flojo y termino fuerte | Descripcion inicial regular/negativa y descripcion final positiva |
+| Personaje que se cayo al final | Descripcion inicial positiva y descripcion final negativa o decepcionante |
+| Personaje con mejor evolucion | Mayor cambio positivo entre inicio, mitad y final |
+| Personaje con peor evolucion | Mayor cambio negativo entre inicio, mitad y final |
+| Personaje revelacion | Personaje poco importante al inicio que luego aparece como favorito o destacado |
+| Personaje que mas cambio mi opinion | Campo `Cambio de opinion` repetido o fuerte en varios capitulos |
+| Villano que mas destaco | Personaje con rol villano mas mencionado como destacado o favorito |
+| Secundario que se robo la obra | Personaje secundario muy repetido como favorito/destacado |
+| Capitulo con mejor personaje favorito | Capitulo donde el comentario del personaje favorito sea mas positivo o tenga nota alta |
+| Capitulo con peor manejo de personaje | Capitulo con descripcion negativa fuerte sobre personaje o desarrollo |
+| Duo mas fuerte por capitulos | Dos personajes mencionados juntos repetidamente en descripcion o momentos clave |
+| Personaje mas mencionado | Personaje con mas apariciones en las tablas de personajes |
 
 ## Premios que puedo inferir por bloqueos de consumo
 
@@ -188,6 +212,21 @@ Ejemplo:
 | Peliculas | 2026-01-10 | 2026-01-25 | 15 | Pausa normal |
 | Manhwa | 2025-12-01 | 2026-06-15 | 196 | Bloqueo largo de manhwa |
 
+## Como se calculan personajes por capitulo
+
+Se revisa cada aparicion en `Personajes por capitulo` y tambien la columna `Personaje favorito` en la tabla de capitulos.
+
+| Señal | Interpretacion |
+|---|---|
+| Un personaje aparece muchas veces como favorito | Favorito mas constante |
+| Un personaje aparece muchas veces como destacado | Personaje que se robo mas capitulos |
+| Cambio de opinion positivo repetido | Personaje que crecio conmigo |
+| Cambio de opinion negativo repetido | Personaje que se cayo |
+| Rol villano + muchas menciones positivas | Villano destacado |
+| Rol secundario + muchas menciones positivas | Secundario que se robo la obra |
+| Descripcion mejora de inicio a final | Mejor evolucion |
+| Descripcion empeora de inicio a final | Peor evolucion |
+
 ## Niveles de certeza
 
 Si falta informacion, no se inventa. Se puede marcar como:
@@ -199,6 +238,6 @@ Si falta informacion, no se inventa. Se puede marcar como:
 
 ## Como quiero que se usen estos criterios
 
-Cuando pida mi Wrapped, quiero que se revise lo que ya escribi y se llenen los premios con base en mis entradas, listas, opiniones, fechas y registros diarios.
+Cuando pida mi Wrapped, quiero que se revise lo que ya escribi y se llenen los premios con base en mis entradas, listas, opiniones, fechas, registros diarios y datos de personajes por capitulo.
 
 Si hay dudas, se deja como probable en vez de inventar.
