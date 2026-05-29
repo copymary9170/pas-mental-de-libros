@@ -95,9 +95,23 @@ Este registro permite calcular maratones, ritmo, pausas, dias mas intensos y tie
 
 ## Capitulos / episodios
 
-| Nº | Nombre | Estado | Nota | Opinion |
-|---|---|---|---|---|
-| 1 |  |  |  |  |
+| Nº | Nombre | Estado | Nota | Opinion | Personaje favorito | Personajes destacados | Descripcion de personajes |
+|---|---|---|---|---|---|---|---|
+| 1 |  |  |  |  |  |  |  |
+
+## Personajes por capitulo
+
+Esta seccion sirve para registrar como viste a los personajes en cada capitulo. Despues puedo usar estos datos para detectar favoritos, evolucion, apariciones importantes y cambios de opinion.
+
+| Capitulo / episodio | Personaje | Rol en el capitulo | Como estuvo | Cambio de opinion | Frase / momento clave | Nota del personaje |
+|---|---|---|---|---|---|---|
+| 1 |  | protagonista / secundario / villano / cameo |  |  |  |  |
+
+## Evolucion de personajes
+
+| Personaje | Inicio | Mitad | Final | Cambio principal | Termino gustandome mas o menos? |
+|---|---|---|---|---|---|
+|  |  |  |  |  |  |
 
 ## Frases favoritas
 
