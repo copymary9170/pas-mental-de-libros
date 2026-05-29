@@ -284,6 +284,68 @@ Estos premios son para separar los ganadores por categoria. Asi no compiten todo
 | Documental que mas me sorprendio |  |  |
 | Documental que recomendaria |  |  |
 
+## Premios de mi experiencia
+
+Estos premios son sobre **como vivi yo** las obras durante el año: cuando las vi, como las termine, cuanto tarde, si hice maraton, si llegue tarde al hype o si las agarre apenas salieron.
+
+| Categoria | Obra / experiencia | Comentario |
+|---|---|---|
+| La vi apenas se estreno |  |  |
+| La vi con poco tiempo de estrenarse |  |  |
+| Llegue tarde pero valio la pena |  |  |
+| Llegue tarde y entendi el hype |  |  |
+| Llegue tarde y no entendi el hype |  |  |
+| La termine en tiempo record |  |  |
+| Maraton mas intenso |  |  |
+| Maraton mas espontaneo |  |  |
+| Maraton que no pude soltar |  |  |
+| Maraton que me dejo destruido |  |  |
+| Obra que empece por impulso |  |  |
+| Obra que empece por recomendacion |  |  |
+| Obra que empece por curiosidad |  |  |
+| Obra que empece sin expectativas |  |  |
+| Obra que vi solo por el chisme / hype |  |  |
+| Obra que pospuse demasiado |  |  |
+| Pendiente mas antiguo que por fin empece |  |  |
+| Pendiente mas antiguo que por fin termine |  |  |
+| Obra que retome despues de mucho tiempo |  |  |
+| Retomada mas satisfactoria |  |  |
+| Retomada mas dificil |  |  |
+| Obra que deje en pausa y me costo volver |  |  |
+| Obra que abandone rapido |  |  |
+| Obra que casi abandono pero salvo el final |  |  |
+| Obra que casi abandono pero despues ame |  |  |
+| Obra que vi lentamente y disfrute mas asi |  |  |
+| Obra que debi ver mas despacio |  |  |
+| Obra que debi terminar antes |  |  |
+| Obra que termine por compromiso |  |  |
+| Obra que termine por orgullo |  |  |
+| Obra que termine aunque me doliera |  |  |
+| Obra que vi en el peor momento posible |  |  |
+| Obra que vi en el momento perfecto |  |  |
+| Obra que me acompaño durante una etapa |  |  |
+| Obra que se sintio como terapia |  |  |
+| Obra que me saco de un bloqueo |  |  |
+| Obra que me metio en un bloqueo |  |  |
+| Obra que vi para descansar la mente |  |  |
+| Obra que vi para sufrir voluntariamente |  |  |
+| Obra que me obsesiono por dias |  |  |
+| Obra que me obsesiono por semanas |  |  |
+| Obra que me hizo buscar teorias |  |  |
+| Obra que me hizo buscar fanarts / edits |  |  |
+| Obra que me hizo buscar fanfiction |  |  |
+| Obra que me hizo hablar demasiado de ella |  |  |
+| Obra que recomende mas este año |  |  |
+| Obra que nadie me pidio escuchar pero igual mencione |  |  |
+| Obra que vi con alguien |  |  |
+| Obra que disfrute mas a solas |  |  |
+| Obra perfecta para una noche |  |  |
+| Obra perfecta para maratonear |  |  |
+| Obra perfecta para ver de a poco |  |  |
+| Mayor sorpresa por verla tarde |  |  |
+| Mayor arrepentimiento por verla tarde |  |  |
+| Mayor orgullo por haberla terminado |  |  |
+
 ## Estadisticas por tipo
 
 | Tipo | Cantidad terminada | Favorita |
