@@ -50,6 +50,10 @@ Estos campos solo se llenan si aplican. Si no los activo o los dejo vacios, no c
 - Comentario de humor negro:
 - Activar sensor de tesoro oculto: Si / No
 - Por que se siente como tesoro oculto:
+- Activar sensor de cringe: Si / No
+- Nivel de cringe de la historia: 0/5
+- Tipo de cringe: divertido / incomodo / vergüenza ajena / malo / delicioso / no aplica
+- Comentario de cringe:
 
 ## Registro diario de avance
 
@@ -101,19 +105,19 @@ Este registro permite calcular maratones, ritmo, pausas, dias mas intensos y tie
 
 ## Personajes por capitulo
 
-Esta seccion sirve para registrar como viste a los personajes en cada capitulo. Despues puedo usar estos datos para detectar favoritos, evolucion, apariciones importantes, cambios de opinion, muerte dolorosa, orgullo y sonrojo.
+Esta seccion sirve para registrar como viste a los personajes en cada capitulo. Despues puedo usar estos datos para detectar favoritos, evolucion, apariciones importantes, cambios de opinion, muerte dolorosa, orgullo, sonrojo, odio y villanos.
 
 Importante: para evitar confusiones con fanfiction u otras versiones, cada personaje debe quedar asociado a la obra donde aparece.
 
-| Capitulo / episodio | Obra / version | Personaje | Rol en el capitulo | Como estuvo | Cambio de opinion | Frase / momento clave | Nota del personaje | Llore por el personaje | Orgullo por el personaje | Me hizo sonrojar |
-|---|---|---|---|---|---|---|---|---|---|---|
-| 1 |  |  | protagonista / secundario / villano / cameo |  |  |  |  | Si / No | Si / No | Si / No |
+| Capitulo / episodio | Obra / version | Personaje | Rol en el capitulo | Como estuvo | Cambio de opinion | Frase / momento clave | Nota del personaje | Llore por el personaje | Orgullo por el personaje | Me hizo sonrojar | Nivel de odio 0/5 | Veces que quise matarlo | Villano destacado |
+|---|---|---|---|---|---|---|---|---|---|---|---:|---:|---|
+| 1 |  |  | protagonista / secundario / villano / cameo |  |  |  |  | Si / No | Si / No | Si / No | 0 | 0 | Si / No |
 
 ## Momentos fuertes de personajes
 
 | Capitulo / episodio | Obra / version | Personaje | Tipo de momento | Intensidad 0/5 | Comentario |
 |---|---|---|---|---:|---|
-|  |  |  | muerte / sacrificio / orgullo / sonrojo / traicion / redencion / trauma / victoria |  |  |
+|  |  |  | muerte / sacrificio / orgullo / sonrojo / odio / ganas de matarlo / villania / cringe / traicion / redencion / trauma / victoria |  |  |
 
 ## Evolucion de personajes
 
