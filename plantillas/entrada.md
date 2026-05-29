@@ -58,6 +58,8 @@ Estos campos ayudan a detectar patrones de lo que mas consumo o disfruto.
 - Satisfaccion del final: 0/5
 - El final salvo la obra: Si / No
 - El final arruino la obra: Si / No
+- El autor arruino la obra al final: Si / No
+- Como la arruino el autor al final:
 - Comentario del final:
 
 ## Sensores opcionales
