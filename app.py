@@ -1,38 +1,51 @@
 from datetime import date
+from pathlib import Path
+import sys
+import traceback
 
 import pandas as pd
 import streamlit as st
 
-APP_VERSION = "Paz Mental deploy 2026-05-28 v14 - biblioteca avanzada + ao3 inbox + calendario expandido"
+ROOT_DIR = Path(__file__).resolve().parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
-import src.database as db
-from src.styles import apply_styles
-from src.utils import (
-    ensure_dirs,
-    save_uploaded_file,
-    PORTADAS_DIR,
-    RESPALDOS_DIR,
-    buscar_libros_openlibrary,
-    buscar_series_tvmaze,
-    buscar_peliculas_itunes,
-    buscar_peliculas_tmdb,
-    buscar_series_tmdb,
-    buscar_manga_jikan,
-    buscar_webnovel_openlibrary,
-    buscar_kdramas_tmdb,
-    importar_desde_link,
-)
-from src.pages.cronometro import render_cronometro, fmt_time
-from src.pages.buscador import render_buscador_avanzado
-from src.pages.importar_link import render_importar_link
-from src.pages.calendario import render_calendario
-from src.pages.capitulos import render_capitulos
-from src.pages.fanfiction import render_fanfiction_fields, fanfiction_badges
-from src.pages.reportes import render_reportes
-from src.pages.canons import render_canons
-from src.pages.ao3_updates import render_ao3_updates
-from src.pages.diagnostico import render_diagnostico
-from src.pages.biblioteca import render_biblioteca
+APP_VERSION = "Paz Mental deploy 2026-05-28 v15 - diagnostico imports"
+
+try:
+    import src.database as db
+    from src.styles import apply_styles
+    from src.utils import (
+        ensure_dirs,
+        save_uploaded_file,
+        PORTADAS_DIR,
+        RESPALDOS_DIR,
+        buscar_libros_openlibrary,
+        buscar_series_tvmaze,
+        buscar_peliculas_itunes,
+        buscar_peliculas_tmdb,
+        buscar_series_tmdb,
+        buscar_manga_jikan,
+        buscar_webnovel_openlibrary,
+        buscar_kdramas_tmdb,
+        importar_desde_link,
+    )
+    from src.pages.cronometro import render_cronometro, fmt_time
+    from src.pages.buscador import render_buscador_avanzado
+    from src.pages.importar_link import render_importar_link
+    from src.pages.calendario import render_calendario
+    from src.pages.capitulos import render_capitulos
+    from src.pages.fanfiction import render_fanfiction_fields, fanfiction_badges
+    from src.pages.reportes import render_reportes
+    from src.pages.canons import render_canons
+    from src.pages.ao3_updates import render_ao3_updates
+    from src.pages.diagnostico import render_diagnostico
+    from src.pages.biblioteca import render_biblioteca
+except Exception:
+    st.set_page_config(page_title="Paz Mental - Error", page_icon="⚠️", layout="wide")
+    st.error("La app falló durante la importación inicial. Copia este diagnóstico completo y pégalo en el chat.")
+    st.code(traceback.format_exc(), language="python")
+    st.stop()
 
 st.set_page_config(page_title="Paz Mental", page_icon="📚", layout="wide")
 apply_styles()
