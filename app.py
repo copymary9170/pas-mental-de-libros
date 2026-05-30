@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-APP_VERSION = "Paz Mental deploy 2026-05-30 v19 - mas accesible"
+APP_VERSION = "Paz Mental deploy 2026-05-30 v20 - barra completa"
 
 try:
     import src.database as db
@@ -170,7 +170,7 @@ def guardar_importado(item, tipo, estado):
         "resultado_expectativa": item.get("resultado_expectativa", ""),
         "nivel_decepcion": _to_int(item.get("nivel_decepcion"), 0),
         "nivel_satisfaccion_general": _to_int(item.get("nivel_satisfaccion_general"), 0),
-        "satisfaccion_final": _to_int(item.get("satisfaccion_final", 0), 0),
+        "satisfaccion_final": _to_int(item.get("satisfaccion_final"), 0),
         "final_salvo_obra": _to_int(item.get("final_salvo_obra"), 0),
         "final_arruino_obra": _to_int(item.get("final_arruino_obra"), 0),
         "autor_arruino_final": _to_int(item.get("autor_arruino_final"), 0),
@@ -224,12 +224,20 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-tab_home, tab_search, tab_timer, tab_reports, tab_more = st.tabs([
+tab_home, tab_search, tab_timer, tab_reports, tab_books, tab_add, tab_link, tab_ao3, tab_chapters, tab_calendar, tab_canons, tab_diag, tab_export = st.tabs([
     "🏠 Inicio",
     "🔎 Buscar",
     "⏱️ Cronómetro",
     "🏆 Wrapped",
-    "👤 Más",
+    "📚 Biblioteca",
+    "➕ Agregar",
+    "🔗 Links",
+    "🔔 AO3",
+    "📝 Capítulos",
+    "📅 Calendario",
+    "🌌 Canons",
+    "🧰 Diagnóstico",
+    "⬇️ Exportar",
 ])
 
 with tab_home:
@@ -245,45 +253,35 @@ with tab_timer:
 with tab_reports:
     render_reportes(obras, db.list_actividad)
 
-with tab_more:
-    st.subheader("Más herramientas")
-    herramienta = st.selectbox(
-        "Abrir sección",
-        [
-            "📚 Biblioteca",
-            "➕ Agregar manual",
-            "🔗 Importar links",
-            "🔔 AO3",
-            "📝 Capítulos",
-            "📅 Calendario",
-            "🌌 Canons",
-            "🧰 Diagnóstico",
-            "⬇️ Exportar",
-        ],
-        key="menu_mas_herramienta",
-    )
+with tab_books:
+    render_biblioteca(obras)
 
-    if herramienta == "📚 Biblioteca":
-        render_biblioteca(obras)
-    elif herramienta == "➕ Agregar manual":
-        render_agregar_manual(obras, db.add_obra, save_uploaded_file, PORTADAS_DIR, RESPALDOS_DIR)
-    elif herramienta == "🔗 Importar links":
-        render_importar_link(obras, importar_desde_link, guardar_importado, save_uploaded_file, PORTADAS_DIR)
-    elif herramienta == "🔔 AO3":
-        render_ao3_updates(obras)
-    elif herramienta == "📝 Capítulos":
-        render_capitulos(obras, db.list_capitulos, db.get_obra, db.add_capitulo)
-    elif herramienta == "📅 Calendario":
-        render_calendario(db.list_actividad)
-    elif herramienta == "🌌 Canons":
-        render_canons(db.add_canon, db.list_canons)
-    elif herramienta == "🧰 Diagnóstico":
-        render_diagnostico()
-    elif herramienta == "⬇️ Exportar":
-        st.subheader("Exportar")
-        if df.empty:
-            st.info("No hay datos para exportar.")
-        else:
-            csv = df.to_csv(index=False).encode("utf-8")
-            st.download_button("Descargar CSV", csv, "paz_mental_export.csv", "text/csv")
-            st.download_button("Descargar JSON", df.to_json(orient="records", force_ascii=False, indent=2).encode("utf-8"), "paz_mental_export.json", "application/json")
+with tab_add:
+    render_agregar_manual(obras, db.add_obra, save_uploaded_file, PORTADAS_DIR, RESPALDOS_DIR)
+
+with tab_link:
+    render_importar_link(obras, importar_desde_link, guardar_importado, save_uploaded_file, PORTADAS_DIR)
+
+with tab_ao3:
+    render_ao3_updates(obras)
+
+with tab_chapters:
+    render_capitulos(obras, db.list_capitulos, db.get_obra, db.add_capitulo)
+
+with tab_calendar:
+    render_calendario(db.list_actividad)
+
+with tab_canons:
+    render_canons(db.add_canon, db.list_canons)
+
+with tab_diag:
+    render_diagnostico()
+
+with tab_export:
+    st.subheader("Exportar")
+    if df.empty:
+        st.info("No hay datos para exportar.")
+    else:
+        csv = df.to_csv(index=False).encode("utf-8")
+        st.download_button("Descargar CSV", csv, "paz_mental_export.csv", "text/csv")
+        st.download_button("Descargar JSON", df.to_json(orient="records", force_ascii=False, indent=2).encode("utf-8"), "paz_mental_export.json", "application/json")
