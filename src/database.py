@@ -265,6 +265,39 @@ def list_capitulos(obra_id):
         rows = conn.execute("SELECT * FROM capitulos WHERE obra_id=? ORDER BY temporada DESC, numero DESC", (obra_id,)).fetchall()
     return [dict(row) for row in rows]
 
+def add_personaje(data):
+    now = datetime.now().isoformat(timespec="seconds")
+    data = dict(data); data["created_at"] = now; data["updated_at"] = now
+    data.setdefault("favorito", 0)
+    data = _filter_columns("personajes", data)
+    _insert("personajes", data)
+
+def list_personajes(obra_id):
+    with get_conn() as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM personajes WHERE obra_id=? ORDER BY favorito DESC, nombre ASC", (obra_id,)).fetchall()
+    return [dict(row) for row in rows]
+
+def add_voto_personaje(data):
+    now = datetime.now().isoformat(timespec="seconds")
+    data = dict(data); data["created_at"] = now
+    allowed = ["obra_id", "capitulo_id", "personaje_id", "fecha", "puntos", "comentario", "created_at"]
+    clean = {k: data.get(k) for k in allowed}
+    _insert("votos_personaje", clean)
+
+def list_votos_personaje(obra_id):
+    with get_conn() as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("""
+            SELECT v.*, p.nombre, p.alias, p.rol, p.descripcion, p.imagen_path, c.temporada, c.numero, c.titulo AS capitulo_titulo
+            FROM votos_personaje v
+            LEFT JOIN personajes p ON p.id = v.personaje_id
+            LEFT JOIN capitulos c ON c.id = v.capitulo_id
+            WHERE v.obra_id=?
+            ORDER BY v.created_at DESC
+        """, (obra_id,)).fetchall()
+    return [dict(row) for row in rows]
+
 def add_actividad(data):
     now = datetime.now().isoformat(timespec="seconds")
     data = dict(data); data["created_at"] = now
