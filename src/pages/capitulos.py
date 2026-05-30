@@ -1,4 +1,5 @@
 from datetime import date
+import json
 from pathlib import Path
 
 import streamlit as st
@@ -9,6 +10,27 @@ from src.utils import save_uploaded_file, RESPALDOS_DIR
 
 TIPOS_PANTALLA = {"Anime", "Serie", "Kdrama", "Pelicula", "Documental", "Podcast", "Otro"}
 TIPOS_LECTURA = {"Libro", "Fanfiction", "Novela", "Novela ligera", "Manga", "Manhwa", "Manhua", "Webnovel", "Comic"}
+EMOCIONES = ["No aplica", "felicidad", "tristeza", "rabia", "ansiedad", "ternura", "hype", "miedo", "confusión", "comfort", "cringe", "shock", "resaca emocional", "obsesión"]
+RITMOS = ["No aplica", "lento", "medio", "rápido", "adictivo", "pesado", "relleno", "montaña rusa"]
+CATEGORIAS_WRAPPED = [
+    "No aplica",
+    "mejor capítulo/episodio",
+    "peor capítulo/episodio",
+    "más triste",
+    "más divertido",
+    "más intenso",
+    "más confuso",
+    "más romántico",
+    "más comfort",
+    "más cringe",
+    "más adictivo",
+    "plot twist del año",
+    "cliffhanger del año",
+    "escena favorita",
+    "momento traumático",
+    "momento de personaje",
+    "relleno",
+]
 
 
 def _leer_archivo_texto(uploaded_file):
@@ -55,6 +77,14 @@ def _safe_int(value, default=0):
         return default
 
 
+def _json(data):
+    return json.dumps(data, ensure_ascii=False)
+
+
+def _select_value(value):
+    return "" if value == "No aplica" else value
+
+
 def _progreso_texto(obra, capitulos):
     vistos = _safe_int(obra.get("capitulos_vistos") or obra.get("capitulo_actual"), len(capitulos))
     total = _safe_int(obra.get("capitulo_total") or obra.get("capitulos_publicados"), 0)
@@ -64,8 +94,9 @@ def _progreso_texto(obra, capitulos):
     return f"{len(capitulos)} guardados"
 
 
-def _guardar_capitulo(add_capitulo, obra_id, temporada, numero, titulo, resumen, texto, notas, mood, etiquetas, estrellas, fecha_lectura, archivo):
+def _guardar_capitulo(add_capitulo, obra_id, temporada, numero, titulo, resumen, texto, notas, mood, etiquetas, estrellas, fecha_lectura, archivo, wrapped=None):
     archivo_path = save_uploaded_file(archivo, RESPALDOS_DIR)
+    wrapped = wrapped or {}
     return add_capitulo({
         "obra_id": obra_id,
         "temporada": int(temporada),
@@ -76,15 +107,29 @@ def _guardar_capitulo(add_capitulo, obra_id, temporada, numero, titulo, resumen,
         "comentario": notas.strip(),
         "etiquetas": etiquetas.strip(),
         "mood": mood.strip(),
-        "frases_favoritas": "",
+        "frases_favoritas": wrapped.get("frase_favorita", ""),
         "estrellas": int(estrellas),
-        "favorito": 0,
+        "favorito": 1 if wrapped.get("favorito") else 0,
         "estado": "Leido",
         "texto_completo": texto.strip(),
         "archivo_path": archivo_path,
         "rating": float(estrellas),
         "visto_leido": 1,
         "fecha_lectura": str(fecha_lectura),
+        "duracion_minutos": int(wrapped.get("duracion_minutos") or 0),
+        "paginas": int(wrapped.get("paginas") or 0),
+        "emocion_principal": wrapped.get("emocion_principal", ""),
+        "intensidad_emocional": int(wrapped.get("intensidad_emocional") or 0),
+        "ritmo": wrapped.get("ritmo", ""),
+        "impacto_final": int(wrapped.get("impacto_final") or 0),
+        "cliffhanger": 1 if wrapped.get("cliffhanger") else 0,
+        "plot_twist": 1 if wrapped.get("plot_twist") else 0,
+        "escena_favorita": wrapped.get("escena_favorita", ""),
+        "momento_clave": wrapped.get("momento_clave", ""),
+        "frase_favorita": wrapped.get("frase_favorita", ""),
+        "categoria_wrapped": wrapped.get("categoria_wrapped", ""),
+        "sensores_capitulo_json": _json(wrapped.get("sensores", {})),
+        "wrapped_json": _json(wrapped),
     })
 
 
@@ -124,8 +169,10 @@ def _render_temporadas_resumen(capitulos, temporadas, unidad):
         ultimo = max([int(c.get("numero") or 0) for c in caps_temp], default=0)
         estrellas = [float(c.get("estrellas") or c.get("rating") or 0) for c in caps_temp if float(c.get("estrellas") or c.get("rating") or 0) > 0]
         promedio = round(sum(estrellas) / len(estrellas), 1) if estrellas else 0
+        intensidad = [int(c.get("intensidad_emocional") or 0) for c in caps_temp if int(c.get("intensidad_emocional") or 0) > 0]
+        intensidad_prom = round(sum(intensidad) / len(intensidad), 1) if intensidad else 0
         with cols[idx % len(cols)]:
-            st.metric(f"Temporada / arco {temp}", f"{vistos} {unidad}s", f"Último: {ultimo} · ★ {promedio}")
+            st.metric(f"Temporada / arco {temp}", f"{vistos} {unidad}s", f"Último: {ultimo} · ★ {promedio} · ❤ {intensidad_prom}")
 
 
 def _render_ultimos_capitulos(capitulos, unidad):
@@ -138,13 +185,13 @@ def _render_ultimos_capitulos(capitulos, unidad):
         temp = cap.get("temporada") or 1
         num = cap.get("numero") or 0
         fecha = cap.get("fecha_lectura") or "Sin fecha"
-        mood = cap.get("mood") or "Sin mood"
+        mood = cap.get("mood") or cap.get("emocion_principal") or "Sin mood"
         st.markdown(
             f"""
             <div class="pm-mini-card">
                 <div>
                     <div class="pm-mini-title">T{temp} · {unidad.capitalize()} {num}: {titulo}</div>
-                    <div class="pm-mini-subtitle">{fecha} · {mood}</div>
+                    <div class="pm-mini-subtitle">{fecha} · {mood} · impacto {cap.get('impacto_final') or 0}/5</div>
                 </div>
                 <div class="pm-mini-icon">★{cap.get('estrellas') or 0}</div>
             </div>
@@ -166,6 +213,8 @@ def _filtrar_capitulos(capitulos, temporada_filtro, busqueda, solo_con_texto, so
             or q in str(c.get("notas") or c.get("comentario") or "").lower()
             or q in str(c.get("etiquetas") or "").lower()
             or q in str(c.get("mood") or "").lower()
+            or q in str(c.get("emocion_principal") or "").lower()
+            or q in str(c.get("categoria_wrapped") or "").lower()
         ]
     if solo_con_texto:
         filtrados = [c for c in filtrados if bool(c.get("texto_completo"))]
@@ -174,14 +223,55 @@ def _filtrar_capitulos(capitulos, temporada_filtro, busqueda, solo_con_texto, so
     return filtrados
 
 
+def _render_wrapped_fields(obra_id):
+    st.markdown("#### 🏆 Datos para Wrapped")
+    st.caption("Esto permite después crear premios, rankings, estadísticas emocionales, rachas, top momentos y comparaciones por año.")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        duracion_minutos = st.number_input("Minutos de sesión", min_value=0, value=0, step=5, key=f"wrap_min_{obra_id}")
+        paginas = st.number_input("Páginas / avance físico", min_value=0, value=0, step=1, key=f"wrap_pag_{obra_id}")
+        emocion_principal = st.selectbox("Emoción principal", EMOCIONES, key=f"wrap_emocion_{obra_id}")
+        intensidad_emocional = st.slider("Intensidad emocional", 0, 5, 0, key=f"wrap_int_{obra_id}")
+    with c2:
+        ritmo = st.selectbox("Ritmo", RITMOS, key=f"wrap_ritmo_{obra_id}")
+        impacto_final = st.slider("Impacto del cierre", 0, 5, 0, key=f"wrap_impacto_{obra_id}")
+        cliffhanger = st.checkbox("Cliffhanger", key=f"wrap_cliff_{obra_id}")
+        plot_twist = st.checkbox("Plot twist", key=f"wrap_twist_{obra_id}")
+    with c3:
+        favorito = st.checkbox("Candidato a favorito", key=f"wrap_fav_{obra_id}")
+        categoria_wrapped = st.selectbox("Categoría / premio Wrapped", CATEGORIAS_WRAPPED, key=f"wrap_cat_{obra_id}")
+        sensores = st.multiselect(
+            "Sensores del capítulo",
+            ["llanto", "risa", "cringe", "hype", "shock", "ternura", "confusión", "estrés", "comfort", "trauma", "red flag", "redención", "traición", "morbo/chisme", "resaca emocional"],
+            key=f"wrap_sensores_{obra_id}",
+        )
+    escena_favorita = st.text_area("Escena favorita del capítulo/episodio", key=f"wrap_escena_{obra_id}")
+    momento_clave = st.text_area("Momento clave / momento que debería salir en Wrapped", key=f"wrap_momento_{obra_id}")
+    frase_favorita = st.text_area("Frase favorita", key=f"wrap_frase_{obra_id}")
+    return {
+        "duracion_minutos": int(duracion_minutos or 0),
+        "paginas": int(paginas or 0),
+        "emocion_principal": _select_value(emocion_principal),
+        "intensidad_emocional": int(intensidad_emocional or 0),
+        "ritmo": _select_value(ritmo),
+        "impacto_final": int(impacto_final or 0),
+        "cliffhanger": bool(cliffhanger),
+        "plot_twist": bool(plot_twist),
+        "favorito": bool(favorito),
+        "categoria_wrapped": _select_value(categoria_wrapped),
+        "sensores": {s: True for s in sensores},
+        "escena_favorita": escena_favorita.strip(),
+        "momento_clave": momento_clave.strip(),
+        "frase_favorita": frase_favorita.strip(),
+    }
+
+
 def _render_personajes(obra_id, capitulos, list_personajes, add_personaje, add_voto_personaje, list_votos_personaje, save_uploaded_file_fn, imagenes_dir):
     if not all([list_personajes, add_personaje, add_voto_personaje, list_votos_personaje]):
         st.info("Personajes todavía no están conectados en esta instalación.")
         return
 
     personajes = list_personajes(obra_id)
-    votos = list_votos_personaje(obra_id)
-
     st.markdown("### 🎭 Personajes para no perderme")
     st.caption("Guarda foto, rol, descripción y evolución. Estos datos quedan listos para Wrapped: personaje favorito, más importante, más mencionado, mejor evolución y momentos clave.")
 
@@ -285,7 +375,7 @@ def render_capitulos(
     imagenes_dir=None,
 ):
     st.subheader("📝 Capítulos, episodios, partes, personajes y compilado")
-    st.caption("Registra avances por temporada, arco o parte. Mantiene texto completo, notas, archivos, carga masiva, personajes con foto y compilado automático.")
+    st.caption("Registra avances por temporada, arco o parte. Mantiene texto completo, notas, archivos, carga masiva, personajes con foto, datos para Wrapped y compilado automático.")
 
     if not obras:
         st.info("Agrega una obra primero.")
@@ -299,7 +389,6 @@ def render_capitulos(
     obra = get_obra(obra_id)
     capitulos = list_capitulos(obra_id)
     temporadas = _temporadas_existentes(capitulos)
-    temporada_total = int(obra.get("temporada_total") or max(temporadas or [1]) or 1)
     temporada_actual = int(obra.get("temporada_actual") or 1)
     unidad = _tipo_unidad(obra)
 
@@ -353,13 +442,14 @@ def render_capitulos(
                         etiquetas = st.text_input("Etiquetas", placeholder="plot twist, romance, batalla...", key=f"tags_cap_{obra_id}")
 
                     notas = st.text_area("Comentarios / notas / teorías", key=f"notas_cap_{obra_id}")
+                    wrapped = _render_wrapped_fields(obra_id)
 
                     if st.form_submit_button(f"Guardar {unidad}"):
                         texto_final = (texto or "")
                         if texto_archivo:
                             texto_final = (texto_final + "\n\n" + texto_archivo).strip()
-                        _guardar_capitulo(add_capitulo, obra_id, temporada, numero, titulo, resumen, texto_final, notas, mood, etiquetas, estrellas, fecha_lectura, archivo)
-                        st.success(f"Registro guardado en Temporada {int(temporada)}. El compilado se actualizará automáticamente al recargar esta pestaña.")
+                        _guardar_capitulo(add_capitulo, obra_id, temporada, numero, titulo, resumen, texto_final, notas, mood, etiquetas, estrellas, fecha_lectura, archivo, wrapped)
+                        st.success(f"Registro guardado en Temporada {int(temporada)}. El compilado y Wrapped se actualizarán automáticamente al recargar esta pestaña.")
 
             else:
                 st.caption("Pega varios registros separados por una línea que empiece con ###. Ejemplo: ### Capítulo 1 / ### Episodio 1 / ### Parte 1")
@@ -379,6 +469,13 @@ def render_capitulos(
                     estrellas = st.slider("Estrellas por defecto", 0, 5, 0, key=f"estrellas_masivo_{obra_id}")
                     mood = st.text_input("Mood por defecto", key=f"mood_masivo_{obra_id}")
                     etiquetas = st.text_input("Etiquetas por defecto", key=f"tags_masivo_{obra_id}")
+                    wrapped_masivo = {
+                        "emocion_principal": "",
+                        "intensidad_emocional": 0,
+                        "ritmo": "",
+                        "categoria_wrapped": "",
+                        "sensores": {},
+                    }
 
                     if st.form_submit_button("Guardar varios registros"):
                         bloques = []
@@ -397,7 +494,7 @@ def render_capitulos(
                             lineas = bloque.splitlines()
                             titulo = lineas[0].replace("###", "").strip() if lineas else f"Registro {int(inicio_num) + idx}"
                             cuerpo = "\n".join(lineas[1:]).strip() if len(lineas) > 1 else bloque
-                            _guardar_capitulo(add_capitulo, obra_id, temporada, int(inicio_num) + idx, titulo, "", cuerpo, "", mood, etiquetas, estrellas, fecha_lectura, None)
+                            _guardar_capitulo(add_capitulo, obra_id, temporada, int(inicio_num) + idx, titulo, "", cuerpo, "", mood, etiquetas, estrellas, fecha_lectura, None, wrapped_masivo)
                             guardados += 1
                         st.success(f"Registros guardados en Temporada {int(temporada)}: {guardados}. El compilado se actualizará automáticamente.")
 
@@ -423,7 +520,7 @@ def render_capitulos(
     with colf1:
         temporada_filtro = st.selectbox("Filtrar temporada", ["Todas"] + temporadas, key=f"filtro_temp_{obra_id}")
     with colf2:
-        busqueda = st.text_input("Buscar por título, notas, mood o etiquetas", key=f"buscar_cap_{obra_id}")
+        busqueda = st.text_input("Buscar por título, notas, mood, etiquetas o Wrapped", key=f"buscar_cap_{obra_id}")
     with colf3:
         solo_con_texto = st.checkbox("Con texto", key=f"solo_texto_{obra_id}")
         solo_con_notas = st.checkbox("Con notas", key=f"solo_notas_{obra_id}")
@@ -442,12 +539,19 @@ def render_capitulos(
                 etiqueta = f"T{cap.get('temporada') or 1} · {unidad.capitalize()} {cap.get('numero') or 0}"
                 titulo_cap = cap.get("titulo") or "Sin título"
                 estrellas_cap = cap.get("estrellas") or cap.get("rating") or 0
-                mood_cap = cap.get("mood") or "Sin mood"
+                mood_cap = cap.get("mood") or cap.get("emocion_principal") or "Sin mood"
                 fecha_cap = cap.get("fecha_lectura") or "Sin fecha"
-                with st.expander(f"{etiqueta} — {titulo_cap} · ★{estrellas_cap} · {fecha_cap}"):
-                    st.caption(f"Mood: {mood_cap} · Etiquetas: {cap.get('etiquetas') or 'Sin etiquetas'}")
+                impacto = cap.get("impacto_final") or 0
+                with st.expander(f"{etiqueta} — {titulo_cap} · ★{estrellas_cap} · impacto {impacto}/5 · {fecha_cap}"):
+                    st.caption(f"Mood: {mood_cap} · Etiquetas: {cap.get('etiquetas') or 'Sin etiquetas'} · Categoría Wrapped: {cap.get('categoria_wrapped') or 'Sin categoría'}")
                     if cap.get("sinopsis"):
                         st.write(cap.get("sinopsis"))
+                    if cap.get("momento_clave"):
+                        st.success(f"Momento clave: {cap.get('momento_clave')}")
+                    if cap.get("escena_favorita"):
+                        st.info(f"Escena favorita: {cap.get('escena_favorita')}")
+                    if cap.get("frase_favorita"):
+                        st.write(f"Frase favorita: {cap.get('frase_favorita')}")
                     if cap.get("notas") or cap.get("comentario"):
                         st.info(cap.get("notas") or cap.get("comentario"))
                     if cap.get("archivo_path"):
