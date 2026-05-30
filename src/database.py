@@ -35,6 +35,7 @@ OBRAS_COLUMNS = {
     "estado_lectura": "TEXT",
     "estado_publicacion": "TEXT",
     "fecha_publicacion": "TEXT",
+    "fecha_agregada_pendientes": "TEXT",
     "capitulo_actual": "INTEGER DEFAULT 0",
     "capitulo_total": "INTEGER DEFAULT 0",
     "capitulos_publicados": "INTEGER DEFAULT 0",
@@ -59,8 +60,54 @@ OBRAS_COLUMNS = {
     "respaldo_path": "TEXT",
     "motivo_estado": "TEXT",
     "favorito": "INTEGER DEFAULT 0",
+    "prioridad": "INTEGER DEFAULT 0",
     "fecha_inicio": "TEXT",
     "fecha_fin": "TEXT",
+    "expectativa_inicial": "TEXT",
+    "nivel_esperanza_inicial": "INTEGER DEFAULT 0",
+    "le_tenia_esperanza": "INTEGER DEFAULT 0",
+    "le_tenia_pocas_esperanzas": "INTEGER DEFAULT 0",
+    "motivo_esperanza": "TEXT",
+    "resultado_expectativa": "TEXT",
+    "nivel_decepcion": "INTEGER DEFAULT 0",
+    "nivel_satisfaccion_general": "INTEGER DEFAULT 0",
+    "satisfaccion_final": "INTEGER DEFAULT 0",
+    "final_salvo_obra": "INTEGER DEFAULT 0",
+    "final_arruino_obra": "INTEGER DEFAULT 0",
+    "autor_arruino_final": "INTEGER DEFAULT 0",
+    "como_arruino_final": "TEXT",
+    "comentario_final": "TEXT",
+    "es_isekai": "INTEGER DEFAULT 0",
+    "tipo_isekai": "TEXT",
+    "epoca_ambientacion": "TEXT",
+    "mundo_principal": "TEXT",
+    "nivel_construccion_mundo": "INTEGER DEFAULT 0",
+    "nivel_politica_intriga": "INTEGER DEFAULT 0",
+    "nivel_magia_sistema": "INTEGER DEFAULT 0",
+    "nivel_romance": "INTEGER DEFAULT 0",
+    "nivel_accion": "INTEGER DEFAULT 0",
+    "nivel_drama": "INTEGER DEFAULT 0",
+    "sensor_lujuria": "INTEGER DEFAULT 0",
+    "nivel_lujuria": "INTEGER DEFAULT 0",
+    "sensor_llanto": "INTEGER DEFAULT 0",
+    "nivel_llanto": "INTEGER DEFAULT 0",
+    "veces_llore": "INTEGER DEFAULT 0",
+    "sensor_risa": "INTEGER DEFAULT 0",
+    "nivel_risa": "INTEGER DEFAULT 0",
+    "sensor_aburrimiento": "INTEGER DEFAULT 0",
+    "nivel_aburrimiento": "INTEGER DEFAULT 0",
+    "sensor_cringe": "INTEGER DEFAULT 0",
+    "nivel_cringe": "INTEGER DEFAULT 0",
+    "tipo_cringe": "TEXT",
+    "sensor_red_flag": "INTEGER DEFAULT 0",
+    "nivel_red_flag": "INTEGER DEFAULT 0",
+    "sensor_resaca_emocional": "INTEGER DEFAULT 0",
+    "nivel_resaca_emocional": "INTEGER DEFAULT 0",
+    "sensor_tema_oscuro": "INTEGER DEFAULT 0",
+    "nivel_oscuridad": "INTEGER DEFAULT 0",
+    "tipo_tema_oscuro": "TEXT",
+    "sensor_obra_larga": "INTEGER DEFAULT 0",
+    "nivel_cansancio_longitud": "INTEGER DEFAULT 0",
     "created_at": "TEXT",
     "updated_at": "TEXT",
 }
@@ -219,45 +266,19 @@ def list_actividad(fecha_inicio=None, fecha_fin=None):
     if fecha_inicio: cond.append("a.fecha >= ?"); params.append(fecha_inicio)
     if fecha_fin: cond.append("a.fecha <= ?"); params.append(fecha_fin)
     if cond: q += " WHERE " + " AND ".join(cond)
-    q += " ORDER BY a.fecha DESC, a.created_at DESC"
+    q += " ORDER BY a.fecha DESC, a.id DESC"
     with get_conn() as conn:
         conn.row_factory = sqlite3.Row
-        rows = conn.execute(q, params).fetchall()
-    return [dict(row) for row in rows]
+        return [dict(r) for r in conn.execute(q, params).fetchall()]
 
-def add_personaje(data):
-    now = datetime.now().isoformat(timespec="seconds")
-    data = dict(data); data["created_at"] = now; data["updated_at"] = now
-    allowed = ["obra_id", "nombre", "alias", "rol", "descripcion", "notas", "imagen_path", "favorito", "created_at", "updated_at"]
-    _insert("personajes", {k: data.get(k) for k in allowed})
-
-def list_personajes(obra_id):
+def list_canons():
     with get_conn() as conn:
         conn.row_factory = sqlite3.Row
-        rows = conn.execute("SELECT * FROM personajes WHERE obra_id=? ORDER BY favorito DESC, nombre ASC", (obra_id,)).fetchall()
-    return [dict(row) for row in rows]
-
-def add_voto_personaje(data):
-    now = datetime.now().isoformat(timespec="seconds")
-    data = dict(data); data["created_at"] = now
-    allowed = ["obra_id", "capitulo_id", "personaje_id", "fecha", "puntos", "comentario", "created_at"]
-    _insert("votos_personaje", {k: data.get(k) for k in allowed})
-
-def ranking_personajes(obra_id):
-    q = "SELECT p.id, p.nombre, p.alias, p.rol, p.descripcion, p.favorito, COALESCE(SUM(v.puntos),0) AS puntos, COUNT(v.id) AS veces_favorito FROM personajes p LEFT JOIN votos_personaje v ON p.id=v.personaje_id WHERE p.obra_id=? GROUP BY p.id ORDER BY puntos DESC, veces_favorito DESC, p.favorito DESC, p.nombre ASC"
-    with get_conn() as conn:
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(q, (obra_id,)).fetchall()
+        rows = conn.execute("SELECT * FROM canons ORDER BY updated_at DESC").fetchall()
     return [dict(row) for row in rows]
 
 def add_canon(data):
     now = datetime.now().isoformat(timespec="seconds")
     data = dict(data); data["created_at"] = now; data["updated_at"] = now
-    allowed = ["nombre", "autor_original", "tipo", "fandom", "universo", "sinopsis", "etiquetas", "portada_path", "created_at", "updated_at"]
-    _insert("canons", {k: data.get(k) for k in allowed})
-
-def list_canons():
-    with get_conn() as conn:
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute("SELECT * FROM canons ORDER BY nombre ASC").fetchall()
-    return [dict(row) for row in rows]
+    data = _filter_columns("canons", data)
+    _insert("canons", data)
