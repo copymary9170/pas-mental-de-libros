@@ -11,13 +11,42 @@ def _last_active(obras):
     return sorted(obras, key=lambda o: str(o.get("updated_at") or o.get("created_at") or ""), reverse=True)[0]
 
 
-def _card(icon, title, subtitle, accent=""):
+def _mini_card(title, subtitle, icon=""):
     st.markdown(
         f"""
-        <div class="pm-home-card {accent}">
-            <div class="pm-home-icon">{icon}</div>
-            <div class="pm-home-title">{title}</div>
-            <div class="pm-home-subtitle">{subtitle}</div>
+        <div class="pm-mini-card">
+            <div>
+                <div class="pm-mini-title">{title}</div>
+                <div class="pm-mini-subtitle">{subtitle}</div>
+            </div>
+            <div class="pm-mini-icon">{icon}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _wide_card(title, subtitle, icon=""):
+    st.markdown(
+        f"""
+        <div class="pm-wide-card">
+            <div>
+                <div class="pm-mini-title">{title}</div>
+                <div class="pm-mini-subtitle">{subtitle}</div>
+            </div>
+            <div class="pm-mini-icon">{icon}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _section(title, right=""):
+    st.markdown(
+        f"""
+        <div class="pm-section-row">
+            <div class="shelf-title">{title}</div>
+            <div class="pm-section-more">{right}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -30,66 +59,117 @@ def render_inicio(obras):
     leyendo = _count_by_estado(obras, "Leyendo") + _count_by_estado(obras, "Viendo") + _count_by_estado(obras, "Releyendo") + _count_by_estado(obras, "Rewatch")
     pendientes = _count_by_estado(obras, "Pendiente")
     terminadas = _count_by_estado(obras, "Terminado")
+    pausadas = _count_by_estado(obras, "Pausado")
+    abandonadas = _count_by_estado(obras, "Abandonado")
     favoritas = len([o for o in obras if int(o.get("favorito") or 0) == 1])
-
-    st.markdown(
-        """
-        <div class="pm-welcome">
-            <div class="pm-welcome-kicker">Paz Mental</div>
-            <h2>¿Qué historia acompañó tu día?</h2>
-            <p>Tu biblioteca, tus avances, tus personajes y tu Wrapped en un solo lugar.</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    total = len(obras)
 
     if actual:
         titulo = actual.get("titulo") or "Sin título"
         estado = actual.get("estado_lectura") or "Sin estado"
         cap = actual.get("capitulos_vistos") or actual.get("capitulo_actual") or 0
-        total = actual.get("capitulo_total") or actual.get("capitulos_publicados") or 0
-        progreso = f"Cap. {cap}" + (f" / {total}" if int(total or 0) else "")
-        st.markdown(
-            f"""
-            <div class="pm-current-card">
-                <div class="pm-current-label">Lectura actual</div>
-                <div class="pm-current-title">{titulo}</div>
-                <div class="pm-current-meta">{estado} · {progreso}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        cap_total = actual.get("capitulo_total") or actual.get("capitulos_publicados") or 0
+        progreso = f"Pág. / Cap. {cap}" + (f" / {cap_total}" if int(cap_total or 0) else "")
+        fecha = str(actual.get("fecha_inicio") or actual.get("updated_at") or "Sin fecha")[:10]
     else:
-        st.markdown(
-            """
-            <div class="pm-current-card">
-                <div class="pm-current-label">Tu estantería está lista</div>
-                <div class="pm-current-title">Agrega tu primera obra</div>
-                <div class="pm-current-meta">Puedes buscar, importar por link o agregar manualmente.</div>
+        titulo = "Agrega tu primera obra"
+        estado = "Sin lectura activa"
+        progreso = "Pág. / Cap. 0"
+        fecha = "Hoy"
+
+    st.markdown(
+        f"""
+        <div class="pm-phone-shell">
+            <div class="pm-top-space"></div>
+            <div class="pm-current-progress">
+                <span>Día {max(1, total)}</span>
+                <span>{progreso}</span>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
+            <div class="pm-reading-card">
+                <div class="pm-bookmark"></div>
+                <div class="pm-reading-title">{titulo}</div>
+                <div class="pm-reading-body">
+                    <div class="pm-cover-placeholder">▧</div>
+                    <div>
+                        <div class="pm-reading-date">{fecha}</div>
+                        <div class="pm-reading-status">{estado}</div>
+                        <div class="pm-reading-notes">▢ 0 notas</div>
+                    </div>
+                </div>
+                <div class="pm-floating-actions">⏱️ &nbsp; 📝</div>
+            </div>
+            <div class="pm-status-card">Estás leyendo un libro. <span>▧</span></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("En curso", leyendo)
-    m2.metric("Pendientes", pendientes)
-    m3.metric("Terminadas", terminadas)
-    m4.metric("Favoritas", favoritas)
+    _section("Libros para leer más tarde")
+    st.markdown(
+        """
+        <div class="pm-plus-row">
+            <div class="pm-plus">+</div><div class="pm-plus">+</div><div class="pm-plus">+</div><div class="pm-plus">+</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    st.markdown('<div class="shelf-title">Accesos rápidos</div>', unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        _card("⏱️", "Cronómetro", "Inicia una sesión y alimenta tu Wrapped.", "accent-blue")
-        _card("🔎", "Buscar e importar", "Busca libros, series, manga, kdramas y más.", "accent-green")
-        _card("🔗", "Importar link", "Guarda obras desde enlaces y fuentes externas.", "accent-turquoise")
-    with c2:
-        _card("➕", "Agregar manual", "Formulario completo con datos para Wrapped.", "accent-green")
-        _card("🔔", "AO3", "Actualizaciones, tracking y fanfics.", "accent-blue")
-        _card("📝", "Capítulos", "Registra episodios, progreso y notas.", "accent-turquoise")
-    with c3:
-        _card("🏆", "Wrapped", "Reportes, premios y estadísticas emocionales.", "accent-blue")
-        _card("📅", "Calendario", "Actividad, rachas y ritmo de consumo.", "accent-green")
-        _card("🌌", "Canons y personajes", "Canon, AU, versiones, ships y personajes.", "accent-turquoise")
+    col1, col2 = st.columns(2)
+    with col1:
+        _mini_card("Lista de deseos", f"{pendientes} pendientes", "♡")
+    with col2:
+        _mini_card("Libros comprados", "Registra tus compras", "▧")
 
-    st.info("Usa la barra de pestañas de abajo para abrir cada sección. No se eliminó nada: cronómetro, AO3, links, capítulos, calendario, canons, diagnóstico y exportar siguen disponibles.")
+    _wide_card("Calendario de libros", "¿Cuánto has leído este mes?", "▦")
+
+    st.markdown(
+        f"""
+        <div class="pm-streak-card">
+            <div class="pm-streak-title">🔥 Racha</div>
+            <div class="pm-streak-subtitle">1 día</div>
+            <div class="pm-week-row"><span>lun</span><span>mar</span><span>mié</span><span>jue</span><span class="active">vie</span><span>sáb</span><span>dom</span></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    _wide_card("Estadísticas diarias", f"{leyendo} en curso · {terminadas} terminadas", "0%")
+
+    st.markdown(
+        f"""
+        <div class="pm-chart-card">
+            <div class="pm-mini-title">Estadísticas anuales</div>
+            <div class="pm-mini-subtitle">Has leído {total} obras</div>
+            <div class="pm-bar-wrap"><div class="pm-bar" style="height:{min(78, max(10, total * 8))}px"></div></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    _section("Rebobinando")
+    st.markdown('<div class="pm-year-chip">2026</div>', unsafe_allow_html=True)
+    _wide_card("Estadísticas de etiquetas", f"{len(set(','.join([str(o.get('etiquetas') or '') for o in obras]).split(','))) if obras else 0} etiquetas", "#")
+
+    _section("Colecciones", "Más")
+    col3, col4 = st.columns(2)
+    with col3:
+        _mini_card("Favorito", f"{favoritas} obras", "★")
+    with col4:
+        _mini_card("Biblioteca", f"{total} obras", "▧")
+
+    _section("Series y sagas", "Más")
+    col5, col6 = st.columns(2)
+    with col5:
+        _mini_card("Libros pausados", f"{pausadas} obras", "Ⅱ")
+    with col6:
+        _mini_card("Los dejé de leer", f"{abandonadas} obras", "☁")
+    _wide_card("Mi biblioteca", f"{total} obras", "▱")
+
+    st.markdown(
+        """
+        <div class="pm-tool-strip">
+            <div>⏱️ Cronómetro</div><div>🔎 Buscar</div><div>🔗 Links</div><div>🔔 AO3</div><div>📝 Capítulos</div><div>🏆 Wrapped</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
