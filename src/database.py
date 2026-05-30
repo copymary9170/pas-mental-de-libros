@@ -126,6 +126,44 @@ OBRAS_COLUMNS = {
     "updated_at": "TEXT",
 }
 
+CAPITULOS_COLUMNS = {
+    "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "obra_id": "INTEGER NOT NULL",
+    "temporada": "INTEGER DEFAULT 1",
+    "numero": "INTEGER",
+    "titulo": "TEXT",
+    "sinopsis": "TEXT",
+    "notas": "TEXT",
+    "comentario": "TEXT",
+    "etiquetas": "TEXT",
+    "mood": "TEXT",
+    "frases_favoritas": "TEXT",
+    "estrellas": "INTEGER DEFAULT 0",
+    "personaje_favorito_id": "INTEGER",
+    "favorito": "INTEGER DEFAULT 0",
+    "estado": "TEXT DEFAULT 'Leido'",
+    "texto_completo": "TEXT",
+    "archivo_path": "TEXT",
+    "rating": "REAL DEFAULT 0",
+    "visto_leido": "INTEGER DEFAULT 1",
+    "fecha_lectura": "TEXT",
+    "duracion_minutos": "INTEGER DEFAULT 0",
+    "paginas": "INTEGER DEFAULT 0",
+    "emocion_principal": "TEXT",
+    "intensidad_emocional": "INTEGER DEFAULT 0",
+    "ritmo": "TEXT",
+    "impacto_final": "INTEGER DEFAULT 0",
+    "cliffhanger": "INTEGER DEFAULT 0",
+    "plot_twist": "INTEGER DEFAULT 0",
+    "escena_favorita": "TEXT",
+    "momento_clave": "TEXT",
+    "frase_favorita": "TEXT",
+    "categoria_wrapped": "TEXT",
+    "sensores_capitulo_json": "TEXT",
+    "wrapped_json": "TEXT",
+    "created_at": "TEXT",
+}
+
 CANONS_COLUMNS = {
     "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
     "nombre": "TEXT NOT NULL",
@@ -159,6 +197,7 @@ def init_db():
         conn.execute("""CREATE TABLE IF NOT EXISTS votos_personaje (id INTEGER PRIMARY KEY AUTOINCREMENT, obra_id INTEGER NOT NULL, capitulo_id INTEGER, personaje_id INTEGER NOT NULL, fecha TEXT, puntos INTEGER DEFAULT 1, comentario TEXT, created_at TEXT)""")
         conn.execute("""CREATE TABLE IF NOT EXISTS canons (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL, autor_original TEXT, tipo TEXT, fandom TEXT, universo TEXT, sinopsis TEXT, etiquetas TEXT, portada_path TEXT, created_at TEXT, updated_at TEXT)""")
         _ensure_columns(conn, "obras", OBRAS_COLUMNS)
+        _ensure_columns(conn, "capitulos", CAPITULOS_COLUMNS)
         _ensure_columns(conn, "canons", CANONS_COLUMNS)
         conn.commit()
 
@@ -246,14 +285,14 @@ def get_obra(obra_id):
 def add_capitulo(data):
     now = datetime.now().isoformat(timespec="seconds")
     data = dict(data); data["created_at"] = now
-    allowed = ["obra_id", "temporada", "numero", "titulo", "sinopsis", "notas", "comentario", "etiquetas", "mood", "frases_favoritas", "estrellas", "personaje_favorito_id", "favorito", "estado", "texto_completo", "archivo_path", "rating", "visto_leido", "fecha_lectura", "created_at"]
-    clean = {k: data.get(k) for k in allowed}
+    allowed = list(CAPITULOS_COLUMNS.keys())
+    clean = {k: data.get(k) for k in allowed if k != "id"}
     keys = ", ".join(clean.keys()); placeholders = ", ".join(["?"] * len(clean))
     with get_conn() as conn:
         cur = conn.execute(f"INSERT INTO capitulos ({keys}) VALUES ({placeholders})", list(clean.values()))
         cap_id = cur.lastrowid
         if clean.get("fecha_lectura"):
-            conn.execute("INSERT INTO actividad (obra_id, capitulo_id, fecha, tipo_actividad, cantidad, mood, comentario, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (clean.get("obra_id"), cap_id, clean.get("fecha_lectura"), "capitulo", 1, clean.get("mood"), clean.get("comentario") or clean.get("notas"), now))
+            conn.execute("INSERT INTO actividad (obra_id, capitulo_id, fecha, tipo_actividad, cantidad, minutos, mood, comentario, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (clean.get("obra_id"), cap_id, clean.get("fecha_lectura"), "capitulo", 1, int(clean.get("duracion_minutos") or 0), clean.get("mood"), clean.get("comentario") or clean.get("notas"), now))
         if clean.get("obra_id") and clean.get("numero"):
             conn.execute("UPDATE obras SET capitulo_actual=?, capitulos_vistos=?, ultimo_capitulo_visto=?, fecha_ultimo_capitulo_visto=?, updated_at=? WHERE id=?", (int(clean.get("numero")), int(clean.get("numero")), int(clean.get("numero")), clean.get("fecha_lectura"), now, clean.get("obra_id")))
         conn.commit()
