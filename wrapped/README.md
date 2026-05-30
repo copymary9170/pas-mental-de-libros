@@ -4,6 +4,17 @@ Esta carpeta sirve para hacer un resumen tipo **wrapped** de todo lo que lei, vi
 
 El objetivo es mirar el año completo como si fuera un resumen personal: favoritos, estadisticas, obsesiones, decepciones, mejores personajes y obras que mas me marcaron.
 
+## Escala de complejidad
+
+No todos los reportes tienen que ser pesados.
+
+- Semanal: simple, rapido y sin imagenes obligatorias.
+- Mensual: resumen medio con favoritos y mini premios.
+- Trimestral: revision opcional para detectar tendencias.
+- Anual / Wrapped: completo, visual, elaborado y con finalistas.
+
+Guia completa: [`escala-de-complejidad.md`](escala-de-complejidad.md)
+
 ## Que puede incluir un wrapped
 
 - Obras terminadas del año
@@ -74,15 +85,17 @@ Puede incluir:
 - Guia de criterios: [`criterios-automaticos.md`](criterios-automaticos.md)
 - Criterios de personajes: [`criterios-personajes.md`](criterios-personajes.md)
 - Mapa de datos automaticos: [`mapa-de-datos-automaticos.md`](mapa-de-datos-automaticos.md)
+- Escala de complejidad: [`escala-de-complejidad.md`](escala-de-complejidad.md)
 - Formato visual del Wrapped: [`formato-visual.md`](formato-visual.md)
 - Indice de imagenes del Wrapped: [`imagenes-wrapped.md`](imagenes-wrapped.md)
 - Guia de assets visuales: [`../assets/README.md`](../assets/README.md)
+- Plantilla de reporte semanal: [`../plantillas/reporte-semanal.md`](../plantillas/reporte-semanal.md)
+- Plantilla de reporte mensual: [`../plantillas/reporte-mensual.md`](../plantillas/reporte-mensual.md)
 - Plantilla de premios automaticos: [`../plantillas/premios-experiencia-automatica.md`](../plantillas/premios-experiencia-automatica.md)
 - Plantilla de premios ampliados automaticos: [`../plantillas/premios-ampliados-automaticos.md`](../plantillas/premios-ampliados-automaticos.md)
 - Plantilla de finalistas Wrapped: [`../plantillas/finalistas-wrapped.md`](../plantillas/finalistas-wrapped.md)
 - Plantilla de compendio de personaje: [`../plantillas/compendio-personaje.md`](../plantillas/compendio-personaje.md)
 - Plantilla de wrapped anual: [`../plantillas/wrapped-anual.md`](../plantillas/wrapped-anual.md)
-- Plantilla de reporte mensual: [`../plantillas/reporte-mensual.md`](../plantillas/reporte-mensual.md)
 
 ## Diferencia entre wrapped y reporte
 
@@ -93,6 +106,8 @@ Puede incluir:
 
 ## Archivos recomendados
 
+- `2026-reporte-semanal.md`
+- `2026-reporte-mensual.md`
 - `2026-wrapped.md`
 - `2026-reporte-anual.md`
 - `2026-resumen-emocional.md`
