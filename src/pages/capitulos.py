@@ -66,7 +66,7 @@ def _progreso_texto(obra, capitulos):
 
 def _guardar_capitulo(add_capitulo, obra_id, temporada, numero, titulo, resumen, texto, notas, mood, etiquetas, estrellas, fecha_lectura, archivo):
     archivo_path = save_uploaded_file(archivo, RESPALDOS_DIR)
-    add_capitulo({
+    return add_capitulo({
         "obra_id": obra_id,
         "temporada": int(temporada),
         "numero": int(numero),
@@ -110,7 +110,6 @@ def _render_obra_resumen(obra, capitulos, temporadas, unidad):
     c2.metric(f"{unidad.capitalize()}s", len(capitulos))
     c3.metric("Último", ultimo)
     c4.metric("Guardado", progreso)
-
 
 
 def _render_temporadas_resumen(capitulos, temporadas, unidad):
@@ -175,9 +174,118 @@ def _filtrar_capitulos(capitulos, temporada_filtro, busqueda, solo_con_texto, so
     return filtrados
 
 
-def render_capitulos(obras, list_capitulos, get_obra, add_capitulo=None):
-    st.subheader("📝 Capítulos, episodios, partes y compilado")
-    st.caption("Registra avances por temporada, arco o parte. Mantiene texto completo, notas, archivos, carga masiva y compilado automático.")
+def _render_personajes(obra_id, capitulos, list_personajes, add_personaje, add_voto_personaje, list_votos_personaje, save_uploaded_file_fn, imagenes_dir):
+    if not all([list_personajes, add_personaje, add_voto_personaje, list_votos_personaje]):
+        st.info("Personajes todavía no están conectados en esta instalación.")
+        return
+
+    personajes = list_personajes(obra_id)
+    votos = list_votos_personaje(obra_id)
+
+    st.markdown("### 🎭 Personajes para no perderme")
+    st.caption("Guarda foto, rol, descripción y evolución. Estos datos quedan listos para Wrapped: personaje favorito, más importante, más mencionado, mejor evolución y momentos clave.")
+
+    with st.expander("➕ Crear ficha de personaje", expanded=False):
+        with st.form(f"form_personaje_{obra_id}"):
+            c1, c2 = st.columns(2)
+            with c1:
+                nombre = st.text_input("Nombre del personaje", key=f"pj_nombre_{obra_id}")
+                alias = st.text_input("Alias / apodo / otro nombre", key=f"pj_alias_{obra_id}")
+                rol = st.text_input("Rol", placeholder="protagonista, villano, interés amoroso, mentor...", key=f"pj_rol_{obra_id}")
+                favorito = st.checkbox("Marcar como favorito", key=f"pj_fav_{obra_id}")
+            with c2:
+                imagen_url = st.text_input("URL de imagen / foto", key=f"pj_img_url_{obra_id}")
+                imagen_file = st.file_uploader("O subir imagen", type=["jpg", "jpeg", "png", "webp"], key=f"pj_img_file_{obra_id}")
+            descripcion = st.text_area("Descripción para reconocerlo", placeholder="Apariencia, personalidad, relación con otros, cómo identificarlo rápido...", key=f"pj_desc_{obra_id}")
+            notas = st.text_area("Notas para Wrapped / evolución", placeholder="Primera impresión, sospechas, arco, traumas, ships, red flags, comfort...", key=f"pj_notas_{obra_id}")
+            if st.form_submit_button("Guardar personaje"):
+                if not nombre.strip():
+                    st.error("El nombre del personaje es obligatorio.")
+                else:
+                    imagen_path = ""
+                    if imagen_file is not None and save_uploaded_file_fn and imagenes_dir:
+                        imagen_path = save_uploaded_file_fn(imagen_file, imagenes_dir)
+                    add_personaje({
+                        "obra_id": obra_id,
+                        "nombre": nombre.strip(),
+                        "alias": alias.strip(),
+                        "rol": rol.strip(),
+                        "descripcion": descripcion.strip(),
+                        "notas": notas.strip(),
+                        "imagen_path": imagen_path or imagen_url.strip(),
+                        "favorito": 1 if favorito else 0,
+                    })
+                    st.success(f"Personaje guardado: {nombre.strip()}")
+
+    personajes = list_personajes(obra_id)
+    if personajes:
+        cols = st.columns(2)
+        for idx, pj in enumerate(personajes[:8]):
+            with cols[idx % 2]:
+                st.markdown(f"**{'⭐ ' if int(pj.get('favorito') or 0) else ''}{pj.get('nombre')}**")
+                if pj.get("imagen_path"):
+                    st.image(pj.get("imagen_path"), width=110)
+                st.caption(f"{pj.get('rol') or 'Sin rol'} · {pj.get('alias') or 'Sin alias'}")
+                if pj.get("descripcion"):
+                    st.write(pj.get("descripcion"))
+                if pj.get("notas"):
+                    st.info(pj.get("notas"))
+    else:
+        st.warning("Aún no hay personajes guardados para esta obra.")
+
+    if capitulos and personajes:
+        with st.expander("📌 Registrar aparición / momento clave por capítulo", expanded=False):
+            with st.form(f"form_voto_personaje_{obra_id}"):
+                cap_opts = {f"T{c.get('temporada') or 1} · {c.get('numero') or 0} — {c.get('titulo') or 'Sin título'}": c.get("id") for c in capitulos}
+                pj_opts = {f"{p.get('nombre')} ({p.get('rol') or 'sin rol'})": p.get("id") for p in personajes}
+                cap_sel = st.selectbox("Capítulo / episodio / parte", list(cap_opts.keys()), key=f"voto_cap_{obra_id}")
+                pj_sel = st.selectbox("Personaje", list(pj_opts.keys()), key=f"voto_pj_{obra_id}")
+                puntos = st.slider("Importancia del momento", 1, 5, 3, key=f"voto_pts_{obra_id}")
+                comentario = st.text_area("Momento clave / evolución / confusión / teoría", placeholder="Qué hizo, por qué importa, cómo cambió, si me confundí con él/ella...", key=f"voto_com_{obra_id}")
+                fecha_voto = st.date_input("Fecha", value=date.today(), key=f"voto_fecha_{obra_id}")
+                if st.form_submit_button("Guardar momento del personaje"):
+                    add_voto_personaje({
+                        "obra_id": obra_id,
+                        "capitulo_id": cap_opts[cap_sel],
+                        "personaje_id": pj_opts[pj_sel],
+                        "fecha": str(fecha_voto),
+                        "puntos": int(puntos),
+                        "comentario": comentario.strip(),
+                    })
+                    st.success("Momento de personaje guardado para Wrapped.")
+
+    votos = list_votos_personaje(obra_id)
+    if votos:
+        st.markdown("### 🧠 Momentos de personajes registrados")
+        for voto in votos[:8]:
+            st.markdown(
+                f"""
+                <div class="pm-mini-card">
+                    <div>
+                        <div class="pm-mini-title">{voto.get('nombre') or 'Personaje'} · T{voto.get('temporada') or '?'} {voto.get('numero') or ''}</div>
+                        <div class="pm-mini-subtitle">Importancia {voto.get('puntos') or 1}/5 · {voto.get('comentario') or 'Sin comentario'}</div>
+                    </div>
+                    <div class="pm-mini-icon">🎭</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+def render_capitulos(
+    obras,
+    list_capitulos,
+    get_obra,
+    add_capitulo=None,
+    list_personajes=None,
+    add_personaje=None,
+    add_voto_personaje=None,
+    list_votos_personaje=None,
+    save_uploaded_file_fn=None,
+    imagenes_dir=None,
+):
+    st.subheader("📝 Capítulos, episodios, partes, personajes y compilado")
+    st.caption("Registra avances por temporada, arco o parte. Mantiene texto completo, notas, archivos, carga masiva, personajes con foto y compilado automático.")
 
     if not obras:
         st.info("Agrega una obra primero.")
@@ -198,6 +306,7 @@ def render_capitulos(obras, list_capitulos, get_obra, add_capitulo=None):
     _render_obra_resumen(obra, capitulos, temporadas, unidad)
     _render_temporadas_resumen(capitulos, temporadas, unidad)
     _render_ultimos_capitulos(capitulos, unidad)
+    _render_personajes(obra_id, capitulos, list_personajes, add_personaje, add_voto_personaje, list_votos_personaje, save_uploaded_file_fn, imagenes_dir)
 
     if add_capitulo is None:
         st.warning("La función para agregar capítulos no está conectada todavía.")
@@ -209,8 +318,6 @@ def render_capitulos(obras, list_capitulos, get_obra, add_capitulo=None):
                 horizontal=True,
                 key=f"modo_cap_{obra_id}"
             )
-
-            temporadas_opciones = temporadas + ([max(temporadas) + 1] if temporadas else [1])
 
             if modo == "Un capítulo":
                 with st.form(f"form_capitulo_{obra_id}"):
