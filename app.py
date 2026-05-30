@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-APP_VERSION = "Paz Mental deploy 2026-05-28 v17 - manual conectado"
+APP_VERSION = "Paz Mental deploy 2026-05-30 v18 - inicio visual"
 
 try:
     import src.database as db
@@ -41,6 +41,7 @@ try:
     from src.pages.diagnostico import render_diagnostico
     from src.pages.biblioteca import render_biblioteca
     from src.pages.agregar_manual import render_agregar_manual
+    from src.pages.inicio import render_inicio
 except Exception:
     st.set_page_config(page_title="Paz Mental - Error", page_icon="⚠️", layout="wide")
     st.error("La app falló durante la importación inicial. Copia este diagnóstico completo y pégalo en el chat.")
@@ -223,51 +224,70 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-tab_timer, tab_search, tab_link, tab_calendar, tab_ao3, tab_books, tab_reports, tab_canons, tab_add, tab_chapters, tab_diag, tab_export = st.tabs([
+tab_home, tab_search, tab_timer, tab_reports, tab_more, tab_books, tab_add, tab_link, tab_ao3, tab_chapters, tab_calendar, tab_canons, tab_diag, tab_export = st.tabs([
+    "🏠 Inicio",
+    "🔎 Buscar",
     "⏱️ Cronómetro",
-    "🔎 Buscar e importar",
-    "🔗 Importar link",
-    "📅 Calendario",
-    "🔔 AO3",
+    "🏆 Wrapped",
+    "👤 Más",
     "📚 Biblioteca",
-    "🏆 Wrapped / Reportes",
+    "➕ Agregar",
+    "🔗 Links",
+    "🔔 AO3",
+    "📝 Capítulos",
+    "📅 Calendario",
     "🌌 Canons",
-    "➕ Agregar manual",
-    "📝 Capitulos",
     "🧰 Diagnóstico",
     "⬇️ Exportar",
 ])
 
-with tab_timer:
-    render_cronometro(obras, db.add_actividad, db.update_obra, db.list_actividad)
+with tab_home:
+    render_inicio(obras)
 
 with tab_search:
     st.info("Versión del buscador: Fase 8 pro con cache, merge seguro, paginación, tags y preview.")
     render_buscador_avanzado(obras, buscar_global, guardar_importado)
 
-with tab_link:
-    render_importar_link(obras, importar_desde_link, guardar_importado, save_uploaded_file, PORTADAS_DIR)
-
-with tab_calendar:
-    render_calendario(db.list_actividad)
-
-with tab_ao3:
-    render_ao3_updates(obras)
-
-with tab_books:
-    render_biblioteca(obras)
+with tab_timer:
+    render_cronometro(obras, db.add_actividad, db.update_obra, db.list_actividad)
 
 with tab_reports:
     render_reportes(obras, db.list_actividad)
 
-with tab_canons:
-    render_canons(db.add_canon, db.list_canons)
+with tab_more:
+    st.subheader("Más herramientas")
+    st.markdown("""
+    <div class="pm-more-grid">
+      <div class="pm-home-card"><div class="pm-home-icon">🔗</div><div class="pm-home-title">Importar link</div><div class="pm-home-subtitle">Usa la pestaña Links.</div></div>
+      <div class="pm-home-card"><div class="pm-home-icon">🔔</div><div class="pm-home-title">AO3</div><div class="pm-home-subtitle">Actualizaciones y tracking.</div></div>
+      <div class="pm-home-card"><div class="pm-home-icon">📝</div><div class="pm-home-title">Capítulos</div><div class="pm-home-subtitle">Avances y episodios.</div></div>
+      <div class="pm-home-card"><div class="pm-home-icon">📅</div><div class="pm-home-title">Calendario</div><div class="pm-home-subtitle">Actividad y rachas.</div></div>
+      <div class="pm-home-card"><div class="pm-home-icon">🌌</div><div class="pm-home-title">Canons</div><div class="pm-home-subtitle">Canon, AU y versiones.</div></div>
+      <div class="pm-home-card"><div class="pm-home-icon">🧰</div><div class="pm-home-title">Diagnóstico</div><div class="pm-home-subtitle">Errores y depuración.</div></div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.info("Nada se eliminó. Las herramientas siguen en sus pestañas para evitar romper funciones mientras hacemos el diseño más bonito.")
+
+with tab_books:
+    render_biblioteca(obras)
 
 with tab_add:
     render_agregar_manual(obras, db.add_obra, save_uploaded_file, PORTADAS_DIR, RESPALDOS_DIR)
 
+with tab_link:
+    render_importar_link(obras, importar_desde_link, guardar_importado, save_uploaded_file, PORTADAS_DIR)
+
+with tab_ao3:
+    render_ao3_updates(obras)
+
 with tab_chapters:
     render_capitulos(obras, db.list_capitulos, db.get_obra, db.add_capitulo)
+
+with tab_calendar:
+    render_calendario(db.list_actividad)
+
+with tab_canons:
+    render_canons(db.add_canon, db.list_canons)
 
 with tab_diag:
     render_diagnostico()
