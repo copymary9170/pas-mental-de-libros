@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-APP_VERSION = "Paz Mental deploy 2026-05-30 v20 - barra completa"
+APP_VERSION = "Paz Mental deploy 2026-05-30 v21 - personajes wrapped"
 
 try:
     import src.database as db
@@ -266,7 +266,18 @@ with tab_ao3:
     render_ao3_updates(obras)
 
 with tab_chapters:
-    render_capitulos(obras, db.list_capitulos, db.get_obra, db.add_capitulo)
+    render_capitulos(
+        obras,
+        db.list_capitulos,
+        db.get_obra,
+        db.add_capitulo,
+        db.list_personajes,
+        db.add_personaje,
+        db.add_voto_personaje,
+        db.list_votos_personaje,
+        save_uploaded_file,
+        PORTADAS_DIR,
+    )
 
 with tab_calendar:
     render_calendario(db.list_actividad)
