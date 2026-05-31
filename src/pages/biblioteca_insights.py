@@ -186,35 +186,14 @@ def render_obra_insights(obra, list_capitulos):
 
 
 def render_biblioteca_insights(obras, list_capitulos):
-    st.markdown("---")
-    st.subheader("📈 Evolución por capítulos")
-    st.caption("Botones visibles para abrir solo una obra. No se calculan todas abiertas al mismo tiempo.")
-
-    if not obras:
-        return
-    if list_capitulos is None:
-        st.info("La lectura de capítulos no está conectada todavía.")
-        return
-
-    cols = st.columns(3)
-    for idx, obra in enumerate(obras):
-        titulo = obra.get("titulo") or "Sin título"
-        with cols[idx % 3]:
-            if st.button(f"📈 Ver evolución\n{titulo[:28]}", key=f"insight_btn_{obra.get('id')}", use_container_width=True):
-                st.session_state["biblioteca_insights_id"] = obra.get("id")
-
-    selected_id = st.session_state.get("biblioteca_insights_id")
+    selected_id = st.session_state.get("biblioteca_graph_id")
     if not selected_id:
-        st.info("Toca **📈 Ver evolución** en una obra para abrir sus promedios y gráfica.")
         return
-
-    obra = next((o for o in obras if str(o.get("id")) == str(selected_id)), None)
+    obra = next((o for o in obras or [] if str(o.get("id")) == str(selected_id)), None)
     if not obra:
-        st.warning("No encontré la obra seleccionada en el filtro actual.")
         return
-
-    with st.expander(f"📈 Evolución de {obra.get('titulo') or 'esta obra'}", expanded=True):
-        if st.button("Cerrar evolución", key="cerrar_evolucion_biblioteca"):
-            st.session_state.pop("biblioteca_insights_id", None)
+    with st.expander(f"📊 Gráfica de {obra.get('titulo') or 'esta obra'}", expanded=True):
+        if st.button("Cerrar gráfica", key="cerrar_grafica_biblioteca_global"):
+            st.session_state.pop("biblioteca_graph_id", None)
             st.rerun()
         render_obra_insights(obra, list_capitulos)
