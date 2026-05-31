@@ -214,6 +214,25 @@ def _detail(rows):
     label = st.selectbox("Selecciona obra", list(opts.keys()), key="lib_detail_select")
     row = opts[label]
     _card(row)
+
+    st.markdown("### 🖼️ Agregar portada faltante")
+    st.caption("Usa esto si creaste la obra sin portada. Puedes subir una imagen o pegar una URL y guardarla sin tocar nada más.")
+    with st.form(f"lib_cover_only_form_{row['id']}"):
+        cover_url_only = st.text_input("URL de portada", value=row.get("portada_path") or "", key=f"lib_cover_url_only_{row['id']}")
+        cover_file_only = st.file_uploader("Subir portada", type=["jpg", "jpeg", "png", "webp"], key=f"lib_cover_only_{row['id']}")
+        if st.form_submit_button("Guardar solo portada"):
+            new_cover = cover_url_only.strip()
+            if cover_file_only is not None:
+                new_cover = save_uploaded_file(cover_file_only, PORTADAS_DIR)
+            if not new_cover:
+                st.error("Sube una imagen o pega una URL de portada.")
+            else:
+                data = {"portada_path": new_cover}
+                data["calidad_datos"] = _recalc_quality(row, data)
+                db.update_obra(row["id"], data)
+                st.success("Portada guardada. Si era archivo subido, ya quedó asociada a esta obra.")
+                st.rerun()
+
     st.markdown("### Editar / completar obra sin borrar datos")
     st.markdown('<div class="edit-helper">Puedes guardar aunque falte portada, autor o total de capítulos. Si el autor dejó el total como ?, marca “total esperado desconocido” y se guardará como pendiente.</div>', unsafe_allow_html=True)
 
