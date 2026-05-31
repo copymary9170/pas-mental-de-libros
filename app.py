@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-APP_VERSION = "Paz Mental deploy 2026-05-30 v23 - navegacion con retorno"
+APP_VERSION = "Paz Mental deploy 2026-05-30 v24 - ruleta restaurada"
 
 try:
     import src.database as db
@@ -42,6 +42,7 @@ try:
     from src.pages.biblioteca import render_biblioteca
     from src.pages.agregar_manual import render_agregar_manual
     from src.pages.inicio import render_inicio
+    from src.pages.ruleta import render_ruleta
 except Exception:
     st.set_page_config(page_title="Paz Mental - Error", page_icon="⚠️", layout="wide")
     st.error("La app falló durante la importación inicial. Copia este diagnóstico completo y pégalo en el chat.")
@@ -62,6 +63,7 @@ NAV_OPTIONS = [
     "⏱️ Cronómetro",
     "🏆 Wrapped",
     "📚 Biblioteca",
+    "🎲 Ruleta",
     "➕ Agregar",
     "🔗 Links",
     "🔔 AO3",
@@ -270,6 +272,8 @@ elif nav == "🏆 Wrapped":
     render_reportes(obras, db.list_actividad)
 elif nav == "📚 Biblioteca":
     render_biblioteca(obras)
+elif nav == "🎲 Ruleta":
+    render_ruleta(obras)
 elif nav == "➕ Agregar":
     render_agregar_manual(obras, db.add_obra, save_uploaded_file, PORTADAS_DIR, RESPALDOS_DIR)
 elif nav == "🔗 Links":
