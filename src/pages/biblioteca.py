@@ -105,10 +105,13 @@ def _style():
     <style>
     .lib-card{border:1px solid rgba(147,197,253,.45);border-radius:18px 18px 10px 10px;background:linear-gradient(180deg,#eff6ff,#dbeafe);padding:14px;margin:10px 0 0 0;color:#0f172a;box-shadow:0 6px 20px rgba(15,23,42,.10)}
     .lib-title{font-weight:900;font-size:1.05rem;color:#0f172a}.lib-meta{font-size:.86rem;color:#1e3a8a;font-weight:750}.lib-small{font-size:.82rem;color:#334155;margin-top:4px}.lib-progress{height:10px;background:#bfdbfe;border-radius:999px;overflow:hidden;margin:8px 0}.lib-bar{height:10px;background:#1d4ed8;border-radius:999px}.lib-badges{margin-top:6px;font-size:.9rem}.lib-cover{width:70px;height:102px;object-fit:cover;border-radius:12px;box-shadow:0 6px 18px rgba(15,23,42,.2);float:left;margin-right:12px}.lib-empty{width:70px;height:102px;border-radius:12px;background:#1e3a8a;color:white;display:flex;align-items:center;justify-content:center;font-size:2rem;float:left;margin-right:12px}.edit-helper{background:#fff7ed;border-left:4px solid #f59e0b;border-radius:12px;padding:10px;margin:8px 0;color:#78350f;font-weight:800}
-    .lib-action-mini-box{background:linear-gradient(135deg,#0f2f73 0%,#1d4ed8 100%);border:1px solid rgba(219,234,254,.7);border-radius:0 0 12px 12px;color:#fff;padding:6px 9px 7px 9px;margin:0 0 12px 0;box-shadow:0 3px 10px rgba(15,23,42,.13)}
-    .lib-action-mini-title{font-size:.74rem;font-weight:900;line-height:1.05}.lib-action-mini-sub{font-size:.62rem;opacity:.9;margin-top:2px;line-height:1.12}.lib-action-current{display:inline-block;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:1px 7px;margin-left:4px;font-size:.62rem}.lib-action-note{font-size:.62rem;opacity:.85}
-    div[data-testid="stButton"] button{border-radius:9px!important;padding:.22rem .34rem!important;min-height:28px!important;font-size:.72rem!important;font-weight:850!important}
-    div[data-testid="stNumberInput"] input, div[data-testid="stSelectbox"] div[data-baseweb="select"]{min-height:28px!important;font-size:.74rem!important}
+    .lib-action-mini-title{font-size:.74rem;font-weight:900;line-height:1.05;color:#fff}.lib-action-mini-sub{font-size:.62rem;opacity:.9;margin-top:2px;line-height:1.12;color:#dbeafe}.lib-action-current{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:1px 7px;margin-left:4px;font-size:.62rem;color:#fff}
+    div[data-testid="stVerticalBlockBorderWrapper"]{background:linear-gradient(135deg,#0f2f73 0%,#1d4ed8 100%)!important;border:1px solid rgba(219,234,254,.70)!important;border-radius:0 0 12px 12px!important;padding:6px 8px 7px 8px!important;margin:0 0 12px 0!important;box-shadow:0 3px 10px rgba(15,23,42,.14)!important;color:#fff!important}
+    div[data-testid="stVerticalBlockBorderWrapper"] p, div[data-testid="stVerticalBlockBorderWrapper"] span, div[data-testid="stVerticalBlockBorderWrapper"] label{color:#fff!important}
+    div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stButton"] button{background:#f8fafc!important;color:#0f2f73!important;border:1px solid rgba(255,255,255,.95)!important;border-radius:9px!important;padding:.18rem .28rem!important;min-height:26px!important;font-size:.69rem!important;font-weight:900!important;box-shadow:none!important}
+    div[data-testid="stVerticalBlockBorderWrapper"] input{background:#eff6ff!important;color:#0f172a!important;border:1px solid #bfdbfe!important;border-radius:8px!important;min-height:26px!important;font-size:.72rem!important;font-weight:800!important}
+    div[data-testid="stVerticalBlockBorderWrapper"] div[data-baseweb="select"]>div{background:#eff6ff!important;color:#0f172a!important;border:1px solid #bfdbfe!important;border-radius:8px!important;min-height:26px!important;font-size:.72rem!important}
+    div[data-testid="stVerticalBlockBorderWrapper"] div[data-baseweb="select"] span{color:#0f172a!important;font-size:.72rem!important;font-weight:800!important}
     </style>
     """, unsafe_allow_html=True)
 
@@ -188,12 +191,7 @@ def _filter_rows(obras):
     if no_cover: rows = [r for r in rows if not str(r.get("portada_path") or "").strip()]
     if low_quality: rows = [r for r in rows if _safe_int(r.get("calidad_datos"), 0) < 50]
     reverse = orden not in ["Título", "Autor"]
-    keymap = {
-        "Título": lambda r: str(r.get("titulo") or "").lower(), "Autor": lambda r: str(r.get("autor") or "").lower(),
-        "Favoritos": lambda r: _safe_int(r.get("favorito"), 0), "Progreso": _progress, "Pendientes": _pending,
-        "Tiempo total": lambda r: _safe_int(r.get("tiempo_total_minutos"), 0), "Estrellas": lambda r: _safe_int(r.get("estrellas"), 0),
-        "Calidad": lambda r: _safe_int(r.get("calidad_datos"), 0), "Actualizado reciente": lambda r: str(r.get("updated_at") or ""),
-    }
+    keymap = {"Título": lambda r: str(r.get("titulo") or "").lower(), "Autor": lambda r: str(r.get("autor") or "").lower(), "Favoritos": lambda r: _safe_int(r.get("favorito"), 0), "Progreso": _progress, "Pendientes": _pending, "Tiempo total": lambda r: _safe_int(r.get("tiempo_total_minutos"), 0), "Estrellas": lambda r: _safe_int(r.get("estrellas"), 0), "Calidad": lambda r: _safe_int(r.get("calidad_datos"), 0), "Actualizado reciente": lambda r: str(r.get("updated_at") or "")}
     rows.sort(key=keymap.get(orden, keymap["Actualizado reciente"]), reverse=reverse)
     return rows
 
@@ -223,36 +221,35 @@ def _quick_actions(row):
     publicados = _safe_int(row.get("capitulos_publicados") or row.get("capitulo_total"), 0)
     total_txt = publicados if publicados > 0 else "?"
     titulo = row.get("titulo") or "esta obra"
-    st.markdown(f"""
-    <div class="lib-action-mini-box">
-      <div class="lib-action-mini-title">Acciones de esta obra <span class="lib-action-current">{actual}/{total_txt}</span></div>
-      <div class="lib-action-mini-sub">{titulo[:54]} · solo modifica esta obra</div>
-    </div>
-    """, unsafe_allow_html=True)
-    q1, q2, q3, q4, q5, q6 = st.columns([0.5, 0.75, 0.65, 0.75, 1.2, 0.72])
-    if q1.button("❤️", key=f"lib_fav_{row['id']}", help="Favorito", use_container_width=True):
-        db.update_obra(row["id"], {"favorito": 0 if _safe_int(row.get("favorito"), 0) else 1})
-        st.rerun()
-    cantidad = q2.number_input("Caps", min_value=0, value=1, step=1, key=f"lib_sum_qty_{row['id']}", label_visibility="collapsed")
-    if q3.button("+", key=f"lib_sum_btn_{row['id']}", help="Sumar capítulos vistos", use_container_width=True):
-        if int(cantidad or 0) <= 0:
-            st.warning("Coloca un número mayor a 0 para sumar avance.")
-        else:
-            _sumar_avance(row, cantidad)
+    with st.container(border=True):
+        st.markdown(f"""
+        <div class="lib-action-mini-title">Acciones <span class="lib-action-current">{actual}/{total_txt}</span></div>
+        <div class="lib-action-mini-sub">{titulo[:48]} · solo esta obra</div>
+        """, unsafe_allow_html=True)
+        q1, q2, q3, q4, q5, q6 = st.columns([0.45, 0.7, 0.5, 0.72, 1.15, 0.72])
+        if q1.button("❤️", key=f"lib_fav_{row['id']}", help="Favorito", use_container_width=True):
+            db.update_obra(row["id"], {"favorito": 0 if _safe_int(row.get("favorito"), 0) else 1})
             st.rerun()
-    if q4.button("Al día", key=f"lib_done_{row['id']}", help="Poner avance al último capítulo publicado", use_container_width=True):
-        db.update_obra(row["id"], {"capitulos_vistos": publicados, "capitulo_actual": publicados, "ultimo_capitulo_visto": publicados, "fecha_ultimo_capitulo_visto": str(date.today())})
-        st.rerun()
-    estado = q5.selectbox("Estado", ESTADOS, index=ESTADOS.index(row.get("estado_lectura")) if row.get("estado_lectura") in ESTADOS else 0, key=f"lib_estado_{row['id']}", label_visibility="collapsed")
-    if q5.button("Guardar", key=f"lib_save_estado_{row['id']}", help="Guardar estado", use_container_width=True):
-        db.update_obra(row["id"], {"estado_lectura": estado})
-        st.rerun()
-    if q6.button("Gráfica", key=f"lib_graph_{row['id']}", help="Ver evolución por capítulos", use_container_width=True):
-        if str(st.session_state.get("biblioteca_graph_id")) == str(row.get("id")):
-            st.session_state.pop("biblioteca_graph_id", None)
-        else:
-            st.session_state["biblioteca_graph_id"] = row.get("id")
-        st.rerun()
+        cantidad = q2.number_input("Caps", min_value=0, value=1, step=1, key=f"lib_sum_qty_{row['id']}", label_visibility="collapsed")
+        if q3.button("+", key=f"lib_sum_btn_{row['id']}", help="Sumar capítulos vistos", use_container_width=True):
+            if int(cantidad or 0) <= 0:
+                st.warning("Coloca un número mayor a 0 para sumar avance.")
+            else:
+                _sumar_avance(row, cantidad)
+                st.rerun()
+        if q4.button("Día", key=f"lib_done_{row['id']}", help="Poner avance al último capítulo publicado", use_container_width=True):
+            db.update_obra(row["id"], {"capitulos_vistos": publicados, "capitulo_actual": publicados, "ultimo_capitulo_visto": publicados, "fecha_ultimo_capitulo_visto": str(date.today())})
+            st.rerun()
+        estado = q5.selectbox("Estado", ESTADOS, index=ESTADOS.index(row.get("estado_lectura")) if row.get("estado_lectura") in ESTADOS else 0, key=f"lib_estado_{row['id']}", label_visibility="collapsed")
+        if q5.button("Guardar", key=f"lib_save_estado_{row['id']}", help="Guardar estado", use_container_width=True):
+            db.update_obra(row["id"], {"estado_lectura": estado})
+            st.rerun()
+        if q6.button("Gráfica", key=f"lib_graph_{row['id']}", help="Ver evolución por capítulos", use_container_width=True):
+            if str(st.session_state.get("biblioteca_graph_id")) == str(row.get("id")):
+                st.session_state.pop("biblioteca_graph_id", None)
+            else:
+                st.session_state["biblioteca_graph_id"] = row.get("id")
+            st.rerun()
 
 
 def _cards(rows):
@@ -308,7 +305,6 @@ def _detail(rows):
     src = _image_src(row.get("portada_path"))
     if src:
         st.image(src, caption="Portada actual", width=150)
-
     st.markdown("### Editar / completar obra")
     st.markdown('<div class="edit-helper">Puedes completar lo básico sin borrar datos. Para opiniones por capítulo usa 📝 Capítulos.</div>', unsafe_allow_html=True)
     with st.form(f"lib_edit_form_{row['id']}"):
@@ -338,16 +334,7 @@ def _detail(rows):
             portada_path = portada_url.strip()
             if portada_upload is not None:
                 portada_path = save_uploaded_file(portada_upload, PORTADAS_DIR)
-            data = {
-                "titulo": titulo.strip() or row.get("titulo"), "autor": autor.strip(), "tipo": tipo,
-                "estado_lectura": estado, "estado_publicacion": estado_pub, "estrellas": int(estrellas),
-                "capitulos_vistos": int(vistos), "capitulo_actual": int(vistos), "ultimo_capitulo_visto": int(vistos),
-                "fecha_ultimo_capitulo_visto": str(date.today()), "capitulos_publicados": int(publicados),
-                "capitulo_total": int(total_esperado), "ultimo_capitulo_publicado": int(publicados),
-                "portada_path": portada_path, "link_original": link_original.strip(), "link_respaldo": link_respaldo.strip(),
-                "etiquetas": etiquetas.strip(), "sinopsis": sinopsis.strip(), "comentario": comentario.strip(),
-                "resena": resena.strip(), "mood": mood.strip(), "favorito": 1 if fav else 0,
-            }
+            data = {"titulo": titulo.strip() or row.get("titulo"), "autor": autor.strip(), "tipo": tipo, "estado_lectura": estado, "estado_publicacion": estado_pub, "estrellas": int(estrellas), "capitulos_vistos": int(vistos), "capitulo_actual": int(vistos), "ultimo_capitulo_visto": int(vistos), "fecha_ultimo_capitulo_visto": str(date.today()), "capitulos_publicados": int(publicados), "capitulo_total": int(total_esperado), "ultimo_capitulo_publicado": int(publicados), "portada_path": portada_path, "link_original": link_original.strip(), "link_respaldo": link_respaldo.strip(), "etiquetas": etiquetas.strip(), "sinopsis": sinopsis.strip(), "comentario": comentario.strip(), "resena": resena.strip(), "mood": mood.strip(), "favorito": 1 if fav else 0}
             data["calidad_datos"] = _recalc_quality(row, data)
             db.update_obra(row["id"], data)
             st.success("Detalles actualizados.")
