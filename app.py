@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-APP_VERSION = "Paz Mental deploy 2026-05-30 v29 - acciones integradas en biblioteca"
+APP_VERSION = "Paz Mental deploy 2026-05-30 v30 - contraste acciones biblioteca"
 
 try:
     import src.database as db
@@ -39,7 +39,7 @@ try:
     from src.pages.canons import render_canons
     from src.pages.ao3_updates import render_ao3_updates
     from src.pages.diagnostico import render_diagnostico
-    from src.pages.biblioteca import render_biblioteca
+    import src.pages.biblioteca as biblioteca_page
     from src.pages.biblioteca_insights import render_biblioteca_insights
     from src.pages.agregar_manual import render_agregar_manual
     from src.pages.inicio import render_inicio
@@ -55,6 +55,19 @@ apply_styles()
 ensure_dirs()
 db.init_db()
 st.caption(APP_VERSION)
+
+st.markdown("""
+<style>
+.lib-action-contrast-title{font-size:.74rem;font-weight:900;line-height:1.05;color:#0f2f73!important}
+.lib-action-contrast-sub{font-size:.62rem;margin-top:1px;line-height:1.12;color:#1e3a8a!important;font-weight:750}
+.lib-action-contrast-pill{display:inline-block;background:#dbeafe;color:#0f2f73;border:1px solid #93c5fd;border-radius:999px;padding:1px 7px;margin-left:4px;font-size:.62rem;font-weight:900}
+.lib-action-contrast-note{font-size:.60rem;color:#334155!important}
+div[data-testid="stButton"] button{border-radius:9px!important;padding:.18rem .28rem!important;min-height:26px!important;font-size:.70rem!important;font-weight:900!important}
+div[data-testid="stNumberInput"] input{min-height:26px!important;font-size:.72rem!important;font-weight:800!important;color:#0f172a!important;background:#eff6ff!important}
+div[data-baseweb="select"]>div{min-height:26px!important;font-size:.72rem!important;background:#eff6ff!important;color:#0f172a!important}
+div[data-baseweb="select"] span{color:#0f172a!important;font-size:.72rem!important;font-weight:800!important}
+</style>
+""", unsafe_allow_html=True)
 
 TMDB_API_KEY = st.secrets.get("TMDB_API_KEY", "")
 
@@ -174,6 +187,58 @@ def guardar_importado(item, tipo, estado):
     })
     data["calidad_datos"] = _to_int(item.get("calidad_datos"), 0) or _quality_import(data)
     db.add_obra(data)
+
+
+def _biblioteca_quick_actions_compacta(row):
+    actual = biblioteca_page._safe_int(row.get("capitulos_vistos") or row.get("capitulo_actual"), 0)
+    publicados = biblioteca_page._safe_int(row.get("capitulos_publicados") or row.get("capitulo_total"), 0)
+    total_txt = publicados if publicados > 0 else "?"
+    titulo = row.get("titulo") or "esta obra"
+    with st.container(border=True):
+        st.markdown(
+            f"""
+            <div class="lib-action-contrast-title">Acciones <span class="lib-action-contrast-pill">{actual}/{total_txt}</span></div>
+            <div class="lib-action-contrast-sub">{titulo[:48]} · solo esta obra</div>
+            """,
+            unsafe_allow_html=True,
+        )
+        q1, q2, q3, q4, q5, q6 = st.columns([0.42, 0.65, 0.42, 0.62, 1.55, 0.70])
+        if q1.button("❤️", key=f"lib_fav_{row['id']}", help="Favorito", use_container_width=True):
+            db.update_obra(row["id"], {"favorito": 0 if biblioteca_page._safe_int(row.get("favorito"), 0) else 1})
+            st.rerun()
+        cantidad = q2.number_input("Caps", min_value=0, value=1, step=1, key=f"lib_sum_qty_{row['id']}", label_visibility="collapsed")
+        if q3.button("+", key=f"lib_sum_btn_{row['id']}", help="Sumar capítulos vistos", use_container_width=True):
+            if int(cantidad or 0) <= 0:
+                st.warning("Coloca un número mayor a 0 para sumar avance.")
+            else:
+                nuevo = actual + int(cantidad)
+                if publicados > 0:
+                    nuevo = min(nuevo, publicados)
+                db.update_obra(row["id"], {
+                    "capitulos_vistos": nuevo,
+                    "capitulo_actual": nuevo,
+                    "ultimo_capitulo_visto": nuevo,
+                    "fecha_ultimo_capitulo_visto": str(date.today()),
+                })
+                st.rerun()
+        if q4.button("Día", key=f"lib_done_{row['id']}", help="Poner avance al último capítulo publicado", use_container_width=True):
+            db.update_obra(row["id"], {"capitulos_vistos": publicados, "capitulo_actual": publicados, "ultimo_capitulo_visto": publicados, "fecha_ultimo_capitulo_visto": str(date.today())})
+            st.rerun()
+        estado_col, save_col = q5.columns([0.76, 0.24])
+        estado = estado_col.selectbox("Estado", biblioteca_page.ESTADOS, index=biblioteca_page.ESTADOS.index(row.get("estado_lectura")) if row.get("estado_lectura") in biblioteca_page.ESTADOS else 0, key=f"lib_estado_{row['id']}", label_visibility="collapsed")
+        if save_col.button("💾", key=f"lib_save_estado_{row['id']}", help="Guardar estado", use_container_width=True):
+            db.update_obra(row["id"], {"estado_lectura": estado})
+            st.rerun()
+        if q6.button("Gráfica", key=f"lib_graph_{row['id']}", help="Ver evolución por capítulos", use_container_width=True):
+            if str(st.session_state.get("biblioteca_graph_id")) == str(row.get("id")):
+                st.session_state.pop("biblioteca_graph_id", None)
+            else:
+                st.session_state["biblioteca_graph_id"] = row.get("id")
+            st.rerun()
+
+
+biblioteca_page._quick_actions = _biblioteca_quick_actions_compacta
+render_biblioteca = biblioteca_page.render_biblioteca
 
 
 obras = db.list_obras()
