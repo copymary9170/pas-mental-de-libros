@@ -88,9 +88,7 @@ def _resumen_capitulos(capitulos):
     sensores_top = sorted(sensores.items(), key=lambda x: (x[1]["veces"], x[1]["nivel_total"]), reverse=True)
 
     emociones = [str(c.get("emocion_principal") or "").strip() for c in caps if str(c.get("emocion_principal") or "").strip()]
-    emocion_top = ""
-    if emociones:
-        emocion_top = pd.Series(emociones).value_counts().index[0]
+    emocion_top = pd.Series(emociones).value_counts().index[0] if emociones else ""
 
     return {
         "cantidad": len(caps),
@@ -117,46 +115,19 @@ def _cap_label(cap):
     return f"T{cap.get('temporada') or 1} · Cap {cap.get('numero') or '?'} — {cap.get('titulo') or 'Sin título'}"
 
 
-def render_biblioteca_insights(obras, list_capitulos):
-    st.markdown("---")
-    st.subheader("📈 Cómo va según cada capítulo")
-    st.caption("Promedios y evolución calculados desde lo que guardas en Capítulos. Esto no reemplaza tu opinión general de la obra: la complementa con datos capítulo por capítulo.")
-
-    if not obras:
-        st.info("No hay obras para analizar.")
-        return
-    if list_capitulos is None:
-        st.info("La lectura de capítulos no está conectada todavía.")
-        return
-
-    opciones = {f"{o.get('id')} · {o.get('titulo') or 'Sin título'}": o for o in obras}
-    elegido = st.selectbox("Obra para analizar por capítulos", list(opciones.keys()), key="biblioteca_insights_obra")
-    obra = opciones[elegido]
-
-    try:
-        capitulos = list_capitulos(obra.get("id")) or []
-    except Exception as exc:
-        st.warning(f"No pude leer capítulos de esta obra: {exc}")
-        return
-
-    resumen = _resumen_capitulos(capitulos)
-    if not resumen:
-        st.info("Esta obra aún no tiene capítulos/episodios con datos guardados. Cuando registres capítulos aparecerán promedios, sensores y evolución.")
-        return
-
+def _render_resumen(resumen):
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Capítulos guardados", resumen["cantidad"])
-    c2.metric("Intensidad promedio", resumen["intensidad_prom"], resumen["tendencia_intensidad"])
-    c3.metric("Impacto promedio", resumen["impacto_prom"], resumen["tendencia_impacto"])
-    c4.metric("Estrellas promedio", resumen["estrellas_prom"])
+    c1.metric("Capítulos", resumen["cantidad"])
+    c2.metric("Intensidad", resumen["intensidad_prom"], resumen["tendencia_intensidad"])
+    c3.metric("Impacto", resumen["impacto_prom"], resumen["tendencia_impacto"])
+    c4.metric("Estrellas", resumen["estrellas_prom"])
 
     c5, c6, c7, c8 = st.columns(4)
-    c5.metric("Minutos registrados", resumen["minutos"])
+    c5.metric("Minutos", resumen["minutos"])
     c6.metric("Páginas/avance", resumen["paginas"])
     c7.metric("Plot twists", resumen["plot_twists"])
     c8.metric("Cliffhangers", resumen["cliffhangers"])
 
-    st.markdown("### Lectura rápida del progreso emocional")
     lectura = []
     if resumen["emocion_top"]:
         lectura.append(f"Emoción más repetida: **{resumen['emocion_top']}**.")
@@ -165,7 +136,6 @@ def render_biblioteca_insights(obras, list_capitulos):
     lectura.append(f"La intensidad va **{resumen['tendencia_intensidad']}** y el impacto va **{resumen['tendencia_impacto']}**.")
     st.write(" ".join(lectura))
 
-    st.markdown("### 🏅 Momentos fuertes")
     m1, m2 = st.columns(2)
     with m1:
         st.info(f"Más intenso: {_cap_label(resumen['top_intenso'])}\n\nIntensidad: {resumen['top_intenso'].get('intensidad_emocional') or 0}/5")
@@ -176,16 +146,15 @@ def render_biblioteca_insights(obras, list_capitulos):
         if resumen["top_impacto"].get("escena_favorita"):
             st.write(resumen["top_impacto"].get("escena_favorita"))
 
-    st.markdown("### 📊 Evolución")
     df = pd.DataFrame(resumen["caps"])
     for col in ["numero", "intensidad_emocional", "impacto_final", "estrellas", "rating"]:
         if col not in df.columns:
             df[col] = 0
         df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
-    chart_cols = ["intensidad_emocional", "impacto_final", "estrellas"]
-    st.line_chart(df[["numero"] + chart_cols].set_index("numero"))
+    st.markdown("#### 📊 Evolución")
+    st.line_chart(df[["numero", "intensidad_emocional", "impacto_final", "estrellas"]].set_index("numero"))
 
-    st.markdown("### 🚨 Sensores por capítulos")
+    st.markdown("#### 🚨 Sensores por capítulos")
     if resumen["sensores"]:
         sensor_df = pd.DataFrame([
             {"sensor": nombre, "veces": data["veces"], "nivel_total": data["nivel_total"]}
@@ -198,3 +167,36 @@ def render_biblioteca_insights(obras, list_capitulos):
     with st.expander("Ver capítulos usados para estos cálculos", expanded=False):
         cols = ["temporada", "numero", "titulo", "emocion_principal", "intensidad_emocional", "impacto_final", "ritmo", "categoria_wrapped", "momento_clave", "escena_favorita"]
         st.dataframe(df[[c for c in cols if c in df.columns]], use_container_width=True, hide_index=True)
+
+
+def render_biblioteca_insights(obras, list_capitulos):
+    st.markdown("---")
+    st.subheader("📈 Evolución por capítulos")
+    st.caption("Toca el nombre de una obra para abrir solo sus promedios y evolución. Así no ocupa espacio con todas las obras a la vez.")
+
+    if not obras:
+        return
+    if list_capitulos is None:
+        st.info("La lectura de capítulos no está conectada todavía.")
+        return
+
+    opciones = {f"{o.get('titulo') or 'Sin título'} · #{o.get('id')}": o for o in obras}
+    elegido = st.selectbox("Tocar obra para ver evolución", ["— Elegir obra —"] + list(opciones.keys()), key="biblioteca_insights_obra")
+    if elegido == "— Elegir obra —":
+        st.info("Elige una obra solo cuando quieras revisar cómo va según sus capítulos.")
+        return
+
+    obra = opciones[elegido]
+    try:
+        capitulos = list_capitulos(obra.get("id")) or []
+    except Exception as exc:
+        st.warning(f"No pude leer capítulos de esta obra: {exc}")
+        return
+
+    resumen = _resumen_capitulos(capitulos)
+    if not resumen:
+        st.info("Esta obra aún no tiene capítulos/episodios con datos guardados.")
+        return
+
+    with st.expander(f"📈 Ver evolución de {obra.get('titulo') or 'esta obra'}", expanded=True):
+        _render_resumen(resumen)
