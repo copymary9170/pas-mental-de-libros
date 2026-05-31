@@ -103,8 +103,12 @@ def _fmt_time(mins):
 def _style():
     st.markdown("""
     <style>
-    .lib-card{border:1px solid rgba(147,197,253,.45);border-radius:18px;background:linear-gradient(180deg,#eff6ff,#dbeafe);padding:14px;margin:10px 0;color:#0f172a;box-shadow:0 6px 20px rgba(15,23,42,.10)}
+    .lib-card{border:1px solid rgba(147,197,253,.45);border-radius:18px 18px 10px 10px;background:linear-gradient(180deg,#eff6ff,#dbeafe);padding:14px;margin:10px 0 0 0;color:#0f172a;box-shadow:0 6px 20px rgba(15,23,42,.10)}
     .lib-title{font-weight:900;font-size:1.05rem;color:#0f172a}.lib-meta{font-size:.86rem;color:#1e3a8a;font-weight:750}.lib-small{font-size:.82rem;color:#334155;margin-top:4px}.lib-progress{height:10px;background:#bfdbfe;border-radius:999px;overflow:hidden;margin:8px 0}.lib-bar{height:10px;background:#1d4ed8;border-radius:999px}.lib-badges{margin-top:6px;font-size:.9rem}.lib-cover{width:70px;height:102px;object-fit:cover;border-radius:12px;box-shadow:0 6px 18px rgba(15,23,42,.2);float:left;margin-right:12px}.lib-empty{width:70px;height:102px;border-radius:12px;background:#1e3a8a;color:white;display:flex;align-items:center;justify-content:center;font-size:2rem;float:left;margin-right:12px}.edit-helper{background:#fff7ed;border-left:4px solid #f59e0b;border-radius:12px;padding:10px;margin:8px 0;color:#78350f;font-weight:800}
+    .lib-action-mini-box{background:linear-gradient(135deg,#0f2f73 0%,#1d4ed8 100%);border:1px solid rgba(219,234,254,.7);border-radius:0 0 12px 12px;color:#fff;padding:6px 9px 7px 9px;margin:0 0 12px 0;box-shadow:0 3px 10px rgba(15,23,42,.13)}
+    .lib-action-mini-title{font-size:.74rem;font-weight:900;line-height:1.05}.lib-action-mini-sub{font-size:.62rem;opacity:.9;margin-top:2px;line-height:1.12}.lib-action-current{display:inline-block;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:1px 7px;margin-left:4px;font-size:.62rem}.lib-action-note{font-size:.62rem;opacity:.85}
+    div[data-testid="stButton"] button{border-radius:9px!important;padding:.22rem .34rem!important;min-height:28px!important;font-size:.72rem!important;font-weight:850!important}
+    div[data-testid="stNumberInput"] input, div[data-testid="stSelectbox"] div[data-baseweb="select"]{min-height:28px!important;font-size:.74rem!important}
     </style>
     """, unsafe_allow_html=True)
 
@@ -211,37 +215,43 @@ def _sumar_avance(row, cantidad):
     nuevo = actual + max(0, int(cantidad or 0))
     if publicados > 0:
         nuevo = min(nuevo, publicados)
-    db.update_obra(row["id"], {
-        "capitulos_vistos": nuevo,
-        "capitulo_actual": nuevo,
-        "ultimo_capitulo_visto": nuevo,
-        "fecha_ultimo_capitulo_visto": str(date.today()),
-    })
+    db.update_obra(row["id"], {"capitulos_vistos": nuevo, "capitulo_actual": nuevo, "ultimo_capitulo_visto": nuevo, "fecha_ultimo_capitulo_visto": str(date.today())})
 
 
 def _quick_actions(row):
     actual = _safe_int(row.get("capitulos_vistos") or row.get("capitulo_actual"), 0)
     publicados = _safe_int(row.get("capitulos_publicados") or row.get("capitulo_total"), 0)
-    q1, q2, q3, q4 = st.columns([1, 1.25, 1, 2])
-    if q1.button("❤️ Favorito", key=f"lib_fav_{row['id']}"):
+    total_txt = publicados if publicados > 0 else "?"
+    titulo = row.get("titulo") or "esta obra"
+    st.markdown(f"""
+    <div class="lib-action-mini-box">
+      <div class="lib-action-mini-title">Acciones de esta obra <span class="lib-action-current">{actual}/{total_txt}</span></div>
+      <div class="lib-action-mini-sub">{titulo[:54]} · solo modifica esta obra</div>
+    </div>
+    """, unsafe_allow_html=True)
+    q1, q2, q3, q4, q5, q6 = st.columns([0.5, 0.75, 0.65, 0.75, 1.2, 0.72])
+    if q1.button("❤️", key=f"lib_fav_{row['id']}", help="Favorito", use_container_width=True):
         db.update_obra(row["id"], {"favorito": 0 if _safe_int(row.get("favorito"), 0) else 1})
         st.rerun()
-    cantidad = q2.number_input("Sumar vistos", min_value=0, value=1, step=1, key=f"lib_sum_qty_{row['id']}")
-    if q2.button("➕ Sumar", key=f"lib_sum_btn_{row['id']}"):
+    cantidad = q2.number_input("Caps", min_value=0, value=1, step=1, key=f"lib_sum_qty_{row['id']}", label_visibility="collapsed")
+    if q3.button("+", key=f"lib_sum_btn_{row['id']}", help="Sumar capítulos vistos", use_container_width=True):
         if int(cantidad or 0) <= 0:
             st.warning("Coloca un número mayor a 0 para sumar avance.")
         else:
             _sumar_avance(row, cantidad)
-            limite = f" / {publicados}" if publicados > 0 else ""
-            st.success(f"Avance actualizado: {actual} + {int(cantidad)} = {min(actual + int(cantidad), publicados) if publicados > 0 else actual + int(cantidad)}{limite}")
             st.rerun()
-    if q3.button("Al día", key=f"lib_done_{row['id']}"):
-        pub = _safe_int(row.get("capitulos_publicados") or row.get("capitulo_total"), 0)
-        db.update_obra(row["id"], {"capitulos_vistos": pub, "capitulo_actual": pub, "ultimo_capitulo_visto": pub, "fecha_ultimo_capitulo_visto": str(date.today())})
+    if q4.button("Al día", key=f"lib_done_{row['id']}", help="Poner avance al último capítulo publicado", use_container_width=True):
+        db.update_obra(row["id"], {"capitulos_vistos": publicados, "capitulo_actual": publicados, "ultimo_capitulo_visto": publicados, "fecha_ultimo_capitulo_visto": str(date.today())})
         st.rerun()
-    estado = q4.selectbox("Estado rápido", ESTADOS, index=ESTADOS.index(row.get("estado_lectura")) if row.get("estado_lectura") in ESTADOS else 0, key=f"lib_estado_{row['id']}")
-    if st.button("Guardar estado", key=f"lib_save_estado_{row['id']}"):
+    estado = q5.selectbox("Estado", ESTADOS, index=ESTADOS.index(row.get("estado_lectura")) if row.get("estado_lectura") in ESTADOS else 0, key=f"lib_estado_{row['id']}", label_visibility="collapsed")
+    if q5.button("Guardar", key=f"lib_save_estado_{row['id']}", help="Guardar estado", use_container_width=True):
         db.update_obra(row["id"], {"estado_lectura": estado})
+        st.rerun()
+    if q6.button("Gráfica", key=f"lib_graph_{row['id']}", help="Ver evolución por capítulos", use_container_width=True):
+        if str(st.session_state.get("biblioteca_graph_id")) == str(row.get("id")):
+            st.session_state.pop("biblioteca_graph_id", None)
+        else:
+            st.session_state["biblioteca_graph_id"] = row.get("id")
         st.rerun()
 
 
@@ -284,7 +294,6 @@ def _recalc_quality(row, data):
     if _safe_int(merged.get("capitulo_total"), 0) > 0: score += 6
     if merged.get("etiquetas"): score += 5
     if merged.get("resena") or merged.get("mood") or merged.get("comentario"): score += 7
-    if any(_safe_int(merged.get(k), 0) > 0 or bool(merged.get(k)) for k in ["nivel_esperanza_inicial", "nivel_satisfaccion_general", "sensor_llanto", "sensor_cringe", "sensor_red_flag", "es_isekai", "senales_wrapped_json", "sensores_wrapped_json"]): score += 13
     return min(100, score)
 
 
@@ -300,195 +309,51 @@ def _detail(rows):
     if src:
         st.image(src, caption="Portada actual", width=150)
 
-    st.markdown("### 🖼️ Agregar portada faltante")
-    st.caption("Puedes subir una imagen o pegar una URL y guardarla sin tocar nada más.")
-    with st.form(f"lib_cover_only_form_{row['id']}"):
-        cover_url_only = st.text_input("URL de portada", value=row.get("portada_path") or "", key=f"lib_cover_url_only_{row['id']}")
-        cover_file_only = st.file_uploader("Subir portada", type=["jpg", "jpeg", "png", "webp"], key=f"lib_cover_only_{row['id']}")
-        if st.form_submit_button("Guardar solo portada"):
-            new_cover = cover_url_only.strip()
-            if cover_file_only is not None:
-                new_cover = save_uploaded_file(cover_file_only, PORTADAS_DIR)
-            if not new_cover:
-                st.error("Sube una imagen o pega una URL de portada.")
-            else:
-                data = {"portada_path": new_cover}
-                data["calidad_datos"] = _recalc_quality(row, data)
-                db.update_obra(row["id"], data)
-                st.success("Portada guardada.")
-                st.rerun()
-
     st.markdown("### Editar / completar obra")
-    st.markdown('<div class="edit-helper">Puedes completar datos básicos, progreso, portada, opinión, Wrapped, expectativas, sensores, ambientación y links.</div>', unsafe_allow_html=True)
-
+    st.markdown('<div class="edit-helper">Puedes completar lo básico sin borrar datos. Para opiniones por capítulo usa 📝 Capítulos.</div>', unsafe_allow_html=True)
     with st.form(f"lib_edit_form_{row['id']}"):
-        st.markdown("#### Datos principales")
         c0, c1, c2 = st.columns(3)
         titulo = c0.text_input("Título", value=row.get("titulo") or "")
-        autor = c1.text_input("Autor / creador / estudio", value=row.get("autor") or "", placeholder="Puedes dejar ? si no se sabe")
+        autor = c1.text_input("Autor / creador / estudio", value=row.get("autor") or "")
         tipo = c2.selectbox("Tipo", TIPOS, index=_idx(TIPOS, row.get("tipo"), 0))
         c3, c4, c5 = st.columns(3)
         estado = c3.selectbox("Estado personal", ESTADOS, index=_idx(ESTADOS, row.get("estado_lectura"), 0))
         estado_pub = c4.selectbox("Estado publicación", ESTADOS_PUBLICACION, index=_idx(ESTADOS_PUBLICACION, row.get("estado_publicacion"), 6))
-        division_obra = c5.selectbox("Tipo de división", DIVISIONES_OBRA, index=_idx(DIVISIONES_OBRA, row.get("division_obra"), 0))
-        c6, c7, c8 = st.columns(3)
-        estrellas = c6.slider("Estrellas personales", 0, 5, _safe_int(row.get("estrellas"), 0))
-        clasificacion = c7.slider("Nota / clasificación", 0.0, 10.0, _safe_float(row.get("clasificacion"), 0.0), 0.5)
-        prioridad = c8.slider("Prioridad", 0, 5, _safe_int(row.get("prioridad"), 0))
-
-        st.markdown("#### Progreso y capítulos")
+        estrellas = c5.slider("Estrellas personales", 0, 5, _safe_int(row.get("estrellas"), 0))
         p1, p2, p3 = st.columns(3)
         vistos = p1.number_input("Capítulos vistos/leídos", min_value=0, value=_safe_int(row.get("capitulos_vistos") or row.get("capitulo_actual"), 0))
-        publicados_desconocidos = p2.checkbox("Publicados desconocidos (?)", value=_safe_int(row.get("capitulos_publicados"), 0) <= 0)
-        publicados = p2.number_input("Capítulos publicados", min_value=0, value=_safe_int(row.get("capitulos_publicados"), 0), disabled=publicados_desconocidos)
-        total_desconocido = p3.checkbox("Total esperado desconocido (?)", value=_safe_int(row.get("capitulo_total"), 0) <= 0)
-        total_esperado = p3.number_input("Capítulos esperados", min_value=0, value=_safe_int(row.get("capitulo_total"), 0), disabled=total_desconocido)
-        t1, t2 = st.columns(2)
-        temporada_actual = t1.number_input("Temporada/arco actual", min_value=1, value=max(1, _safe_int(row.get("temporada_actual"), 1)))
-        temporada_total = t2.number_input("Temporadas/arcos totales", min_value=1, value=max(1, _safe_int(row.get("temporada_total"), 1)))
-
-        st.markdown("#### Fechas, portada y links")
-        f1, f2, f3, f4 = st.columns(4)
-        fecha_publicacion = f1.text_input("Fecha publicación / estreno", value=row.get("fecha_publicacion") or "")
-        fecha_agregada_pendientes = f2.text_input("Fecha agregada pendientes", value=row.get("fecha_agregada_pendientes") or "")
-        fecha_inicio = f3.text_input("Fecha inicio", value=row.get("fecha_inicio") or "")
-        fecha_fin = f4.text_input("Fecha finalización", value=row.get("fecha_fin") or "")
+        publicados = p2.number_input("Capítulos publicados", min_value=0, value=_safe_int(row.get("capitulos_publicados"), 0))
+        total_esperado = p3.number_input("Capítulos esperados", min_value=0, value=_safe_int(row.get("capitulo_total"), 0))
         portada_url = st.text_input("URL portada o ruta guardada", value=row.get("portada_path") or "")
         portada_upload = st.file_uploader("Subir portada nueva", type=["jpg", "jpeg", "png", "webp"], key=f"lib_cover_upload_{row['id']}")
         link_original = st.text_input("Link original / fuente", value=row.get("link_original") or "")
         link_respaldo = st.text_input("Link respaldo / copia", value=row.get("link_respaldo") or "")
-
-        st.markdown("#### Descripción, opinión y organización")
         etiquetas = st.text_input("Etiquetas / géneros", value=row.get("etiquetas") or "")
         sinopsis = st.text_area("Sinopsis / descripción", value=row.get("sinopsis") or "", height=140)
-        comentario = st.text_area("Comentario corto / primera impresión", value=row.get("comentario") or row.get("motivo_estado") or "", height=90)
-        motivo_estado = st.text_area("Motivo del estado", value=row.get("motivo_estado") or "", height=80)
-        resena = st.text_area("Reseña / opinión personal", value=row.get("resena") or "", height=110)
+        comentario = st.text_area("Comentario general", value=row.get("comentario") or "", height=90)
+        resena = st.text_area("Reseña / opinión general", value=row.get("resena") or "", height=110)
         mood = st.text_input("Mood", value=row.get("mood") or "")
-        frases_favoritas = st.text_area("Frases favoritas", value=row.get("frases_favoritas") or "", height=70)
-        escenas_favoritas = st.text_area("Escenas favoritas", value=row.get("escenas_favoritas") or "", height=70)
-        momentos_marcantes = st.text_area("Momentos que me marcaron", value=row.get("momentos_marcantes") or "", height=70)
-        spoilers = st.text_area("Spoilers / notas con spoiler", value=row.get("spoilers") or "", height=70)
-        lo_recomendaria = st.selectbox("¿Lo recomendaría?", RECOMENDARIA, index=_idx(RECOMENDARIA, row.get("lo_recomendaria") or "No aplica", 0))
-
-        st.markdown("#### Ambientación y Wrapped")
-        a1, a2, a3 = st.columns(3)
-        es_isekai = a1.checkbox("Es isekai", value=bool(_safe_int(row.get("es_isekai"), 0)))
-        tipo_isekai = a1.selectbox("Tipo de isekai", TIPOS_ISEKAI, index=_idx(TIPOS_ISEKAI, row.get("tipo_isekai") or "No aplica", 0))
-        epoca_ambientacion = a1.selectbox("Época / ambientación", AMBIENTACIONES, index=_idx(AMBIENTACIONES, row.get("epoca_ambientacion") or "No aplica", 0))
-        mundo_principal = a1.text_input("País / cultura / reino / mundo principal", value=row.get("mundo_principal") or "")
-        nivel_construccion_mundo = a2.slider("Construcción de mundo", 0, 5, _safe_int(row.get("nivel_construccion_mundo"), 0))
-        nivel_politica_intriga = a2.slider("Política / intriga", 0, 5, _safe_int(row.get("nivel_politica_intriga"), 0))
-        nivel_magia_sistema = a2.slider("Magia / sistema de poder", 0, 5, _safe_int(row.get("nivel_magia_sistema"), 0))
-        nivel_romance = a3.slider("Romance", 0, 5, _safe_int(row.get("nivel_romance"), 0))
-        nivel_accion = a3.slider("Acción", 0, 5, _safe_int(row.get("nivel_accion"), 0))
-        nivel_drama = a3.slider("Drama", 0, 5, _safe_int(row.get("nivel_drama"), 0))
-
-        e1, e2, e3 = st.columns(3)
-        expectativa_inicial = e1.selectbox("Expectativa inicial", EXPECTATIVAS, index=_idx(EXPECTATIVAS, row.get("expectativa_inicial") or "No aplica", 0))
-        nivel_esperanza_inicial = e1.slider("Nivel de esperanza inicial", 0, 5, _safe_int(row.get("nivel_esperanza_inicial"), 0))
-        resultado_expectativa = e2.selectbox("Resultado contra expectativa", RESULTADOS_EXPECTATIVA, index=_idx(RESULTADOS_EXPECTATIVA, row.get("resultado_expectativa") or "No aplica", 0))
-        nivel_decepcion = e2.slider("Nivel de decepción", 0, 5, _safe_int(row.get("nivel_decepcion"), 0))
-        nivel_satisfaccion_general = e2.slider("Satisfacción general", 0, 5, _safe_int(row.get("nivel_satisfaccion_general"), 0))
-        satisfaccion_final = e3.slider("Satisfacción del final", 0, 5, _safe_int(row.get("satisfaccion_final"), 0))
-        le_tenia_esperanza = e1.checkbox("Le tenía esperanza", value=bool(_safe_int(row.get("le_tenia_esperanza"), 0)))
-        le_tenia_pocas_esperanzas = e1.checkbox("Le tenía pocas esperanzas", value=bool(_safe_int(row.get("le_tenia_pocas_esperanzas"), 0)))
-        final_salvo_obra = e3.checkbox("El final salvó la obra", value=bool(_safe_int(row.get("final_salvo_obra"), 0)))
-        final_arruino_obra = e3.checkbox("El final arruinó la obra", value=bool(_safe_int(row.get("final_arruino_obra"), 0)))
-        autor_arruino_final = e3.checkbox("El autor arruinó la obra al final", value=bool(_safe_int(row.get("autor_arruino_final"), 0)))
-        motivo_esperanza = st.text_area("Por qué tenía esperanza o pocas esperanzas", value=row.get("motivo_esperanza") or "", height=70)
-        como_arruino_final = st.text_area("Cómo la arruinó el autor al final", value=row.get("como_arruino_final") or "", height=70)
-        comentario_final = st.text_area("Comentario del final", value=row.get("comentario_final") or "", height=70)
-
-        st.markdown("#### Sensores para Wrapped")
-        s1, s2, s3 = st.columns(3)
-        sensor_lujuria = s1.checkbox("Sensor lujuria / caliente", value=bool(_safe_int(row.get("sensor_lujuria"), 0)))
-        nivel_lujuria = s1.slider("Nivel de lujuria", 0, 5, _safe_int(row.get("nivel_lujuria"), 0))
-        sensor_llanto = s1.checkbox("Sensor llanto", value=bool(_safe_int(row.get("sensor_llanto"), 0)))
-        nivel_llanto = s1.slider("Nivel de llanto", 0, 5, _safe_int(row.get("nivel_llanto"), 0))
-        veces_llore = s1.number_input("Veces que lloré", min_value=0, value=_safe_int(row.get("veces_llore"), 0), step=1)
-        sensor_risa = s1.checkbox("Sensor risa", value=bool(_safe_int(row.get("sensor_risa"), 0)))
-        nivel_risa = s1.slider("Nivel de risa", 0, 5, _safe_int(row.get("nivel_risa"), 0))
-        sensor_aburrimiento = s2.checkbox("Sensor aburrimiento", value=bool(_safe_int(row.get("sensor_aburrimiento"), 0)))
-        nivel_aburrimiento = s2.slider("Nivel de aburrimiento", 0, 5, _safe_int(row.get("nivel_aburrimiento"), 0))
-        sensor_cringe = s2.checkbox("Sensor cringe", value=bool(_safe_int(row.get("sensor_cringe"), 0)))
-        nivel_cringe = s2.slider("Nivel de cringe", 0, 5, _safe_int(row.get("nivel_cringe"), 0))
-        sensor_red_flag = s3.checkbox("Sensor red flag", value=bool(_safe_int(row.get("sensor_red_flag"), 0)))
-        nivel_red_flag = s3.slider("Nivel de red flag", 0, 5, _safe_int(row.get("nivel_red_flag"), 0))
-        sensor_resaca_emocional = s3.checkbox("Sensor resaca emocional", value=bool(_safe_int(row.get("sensor_resaca_emocional"), 0)))
-        nivel_resaca_emocional = s3.slider("Nivel de resaca emocional", 0, 5, _safe_int(row.get("nivel_resaca_emocional"), 0))
-        sensor_tema_oscuro = s3.checkbox("Sensor tema oscuro", value=bool(_safe_int(row.get("sensor_tema_oscuro"), 0)))
-        nivel_oscuridad = s3.slider("Nivel de oscuridad", 0, 5, _safe_int(row.get("nivel_oscuridad"), 0))
-        sensor_obra_larga = st.checkbox("Sensor obra larga / me cansó la longitud", value=bool(_safe_int(row.get("sensor_obra_larga"), 0)))
-        nivel_cansancio_longitud = st.slider("Nivel cansancio por longitud", 0, 5, _safe_int(row.get("nivel_cansancio_longitud"), 0))
         fav = st.checkbox("Favorito", value=bool(_safe_int(row.get("favorito"), 0)))
-
-        if st.form_submit_button("Guardar todos los detalles"):
+        if st.form_submit_button("Guardar detalles"):
             portada_path = portada_url.strip()
             if portada_upload is not None:
                 portada_path = save_uploaded_file(portada_upload, PORTADAS_DIR)
-            caps_publicados_final = 0 if publicados_desconocidos else int(publicados)
-            cap_total_final = 0 if total_desconocido else int(total_esperado)
-            vistos_final = int(vistos)
-            if caps_publicados_final > 0 and vistos_final > caps_publicados_final:
-                st.error("Los capítulos vistos/leídos no pueden superar los publicados. Si publicados es ?, marca publicados desconocidos.")
-            else:
-                sensores_wrapped = {
-                    "lujuria": {"activo": sensor_lujuria, "nivel": int(nivel_lujuria)},
-                    "llanto": {"activo": sensor_llanto, "nivel": int(nivel_llanto), "veces": int(veces_llore)},
-                    "risa": {"activo": sensor_risa, "nivel": int(nivel_risa)},
-                    "aburrimiento": {"activo": sensor_aburrimiento, "nivel": int(nivel_aburrimiento)},
-                    "cringe": {"activo": sensor_cringe, "nivel": int(nivel_cringe)},
-                    "red_flag": {"activo": sensor_red_flag, "nivel": int(nivel_red_flag)},
-                    "resaca_emocional": {"activo": sensor_resaca_emocional, "nivel": int(nivel_resaca_emocional)},
-                    "tema_oscuro": {"activo": sensor_tema_oscuro, "nivel": int(nivel_oscuridad)},
-                    "obra_larga": {"activo": sensor_obra_larga, "nivel": int(nivel_cansancio_longitud)},
-                }
-                data = {
-                    "titulo": titulo.strip() or row.get("titulo"), "autor": autor.strip(), "tipo": tipo,
-                    "estado_lectura": estado, "estado_publicacion": estado_pub, "division_obra": division_obra,
-                    "estrellas": int(estrellas), "clasificacion": float(clasificacion), "prioridad": int(prioridad),
-                    "fecha_publicacion": fecha_publicacion.strip(), "fecha_agregada_pendientes": fecha_agregada_pendientes.strip(),
-                    "fecha_inicio": fecha_inicio.strip(), "fecha_fin": fecha_fin.strip(),
-                    "capitulos_vistos": vistos_final, "capitulo_actual": vistos_final, "ultimo_capitulo_visto": vistos_final,
-                    "fecha_ultimo_capitulo_visto": str(date.today()), "capitulos_publicados": caps_publicados_final,
-                    "capitulo_total": cap_total_final, "ultimo_capitulo_publicado": caps_publicados_final,
-                    "temporada_actual": int(temporada_actual), "temporada_total": int(max(temporada_total, temporada_actual)),
-                    "portada_path": portada_path, "link_original": link_original.strip(), "link_respaldo": link_respaldo.strip(),
-                    "etiquetas": etiquetas.strip(), "sinopsis": sinopsis.strip(), "comentario": comentario.strip(),
-                    "motivo_estado": motivo_estado.strip(), "resena": resena.strip(), "mood": mood.strip(),
-                    "frases_favoritas": frases_favoritas.strip(), "escenas_favoritas": escenas_favoritas.strip(),
-                    "momentos_marcantes": momentos_marcantes.strip(), "spoilers": spoilers.strip(),
-                    "lo_recomendaria": _select_value(lo_recomendaria), "favorito": 1 if fav else 0,
-                    "es_isekai": 1 if es_isekai else 0, "tipo_isekai": _select_value(tipo_isekai),
-                    "epoca_ambientacion": _select_value(epoca_ambientacion), "mundo_principal": mundo_principal.strip(),
-                    "nivel_construccion_mundo": int(nivel_construccion_mundo), "nivel_politica_intriga": int(nivel_politica_intriga),
-                    "nivel_magia_sistema": int(nivel_magia_sistema), "nivel_romance": int(nivel_romance),
-                    "nivel_accion": int(nivel_accion), "nivel_drama": int(nivel_drama),
-                    "expectativa_inicial": _select_value(expectativa_inicial), "nivel_esperanza_inicial": int(nivel_esperanza_inicial),
-                    "le_tenia_esperanza": 1 if le_tenia_esperanza else 0, "le_tenia_pocas_esperanzas": 1 if le_tenia_pocas_esperanzas else 0,
-                    "motivo_esperanza": motivo_esperanza.strip(), "resultado_expectativa": _select_value(resultado_expectativa),
-                    "nivel_decepcion": int(nivel_decepcion), "nivel_satisfaccion_general": int(nivel_satisfaccion_general),
-                    "satisfaccion_final": int(satisfaccion_final), "final_salvo_obra": 1 if final_salvo_obra else 0,
-                    "final_arruino_obra": 1 if final_arruino_obra else 0, "autor_arruino_final": 1 if autor_arruino_final else 0,
-                    "como_arruino_final": como_arruino_final.strip(), "comentario_final": comentario_final.strip(),
-                    "sensor_lujuria": 1 if sensor_lujuria else 0, "nivel_lujuria": int(nivel_lujuria),
-                    "sensor_llanto": 1 if sensor_llanto else 0, "nivel_llanto": int(nivel_llanto), "veces_llore": int(veces_llore),
-                    "sensor_risa": 1 if sensor_risa else 0, "nivel_risa": int(nivel_risa),
-                    "sensor_aburrimiento": 1 if sensor_aburrimiento else 0, "nivel_aburrimiento": int(nivel_aburrimiento),
-                    "sensor_cringe": 1 if sensor_cringe else 0, "nivel_cringe": int(nivel_cringe),
-                    "sensor_red_flag": 1 if sensor_red_flag else 0, "nivel_red_flag": int(nivel_red_flag),
-                    "sensor_resaca_emocional": 1 if sensor_resaca_emocional else 0, "nivel_resaca_emocional": int(nivel_resaca_emocional),
-                    "sensor_tema_oscuro": 1 if sensor_tema_oscuro else 0, "nivel_oscuridad": int(nivel_oscuridad),
-                    "sensor_obra_larga": 1 if sensor_obra_larga else 0, "nivel_cansancio_longitud": int(nivel_cansancio_longitud),
-                    "sensores_wrapped_json": json.dumps(sensores_wrapped, ensure_ascii=False),
-                }
-                data["calidad_datos"] = _recalc_quality(row, data)
-                db.update_obra(row["id"], data)
-                st.success("Detalles actualizados.")
-                st.rerun()
-    st.markdown("### Datos completos")
-    st.json(row)
+            data = {
+                "titulo": titulo.strip() or row.get("titulo"), "autor": autor.strip(), "tipo": tipo,
+                "estado_lectura": estado, "estado_publicacion": estado_pub, "estrellas": int(estrellas),
+                "capitulos_vistos": int(vistos), "capitulo_actual": int(vistos), "ultimo_capitulo_visto": int(vistos),
+                "fecha_ultimo_capitulo_visto": str(date.today()), "capitulos_publicados": int(publicados),
+                "capitulo_total": int(total_esperado), "ultimo_capitulo_publicado": int(publicados),
+                "portada_path": portada_path, "link_original": link_original.strip(), "link_respaldo": link_respaldo.strip(),
+                "etiquetas": etiquetas.strip(), "sinopsis": sinopsis.strip(), "comentario": comentario.strip(),
+                "resena": resena.strip(), "mood": mood.strip(), "favorito": 1 if fav else 0,
+            }
+            data["calidad_datos"] = _recalc_quality(row, data)
+            db.update_obra(row["id"], data)
+            st.success("Detalles actualizados.")
+            st.rerun()
+    with st.expander("Datos completos", expanded=False):
+        st.json(row)
 
 
 def _quality(rows):
