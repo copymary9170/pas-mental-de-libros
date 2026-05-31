@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-APP_VERSION = "Paz Mental deploy 2026-05-30 v22 - fallback personajes"
+APP_VERSION = "Paz Mental deploy 2026-05-30 v23 - navegacion con retorno"
 
 try:
     import src.database as db
@@ -55,6 +55,27 @@ db.init_db()
 st.caption(APP_VERSION)
 
 TMDB_API_KEY = st.secrets.get("TMDB_API_KEY", "")
+
+NAV_OPTIONS = [
+    "🏠 Inicio",
+    "🔎 Buscar",
+    "⏱️ Cronómetro",
+    "🏆 Wrapped",
+    "📚 Biblioteca",
+    "➕ Agregar",
+    "🔗 Links",
+    "🔔 AO3",
+    "📝 Capítulos",
+    "📅 Calendario",
+    "🌌 Canons",
+    "🧰 Diagnóstico",
+    "⬇️ Exportar",
+]
+
+
+def ir_a(seccion):
+    st.session_state["main_nav"] = seccion
+    st.rerun()
 
 
 def buscar_global(query, fuente):
@@ -224,48 +245,38 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-tab_home, tab_search, tab_timer, tab_reports, tab_books, tab_add, tab_link, tab_ao3, tab_chapters, tab_calendar, tab_canons, tab_diag, tab_export = st.tabs([
-    "🏠 Inicio",
-    "🔎 Buscar",
-    "⏱️ Cronómetro",
-    "🏆 Wrapped",
-    "📚 Biblioteca",
-    "➕ Agregar",
-    "🔗 Links",
-    "🔔 AO3",
-    "📝 Capítulos",
-    "📅 Calendario",
-    "🌌 Canons",
-    "🧰 Diagnóstico",
-    "⬇️ Exportar",
-])
+if "main_nav" not in st.session_state or st.session_state["main_nav"] not in NAV_OPTIONS:
+    st.session_state["main_nav"] = "🏠 Inicio"
 
-with tab_home:
+nav = st.radio("Navegación", NAV_OPTIONS, horizontal=True, key="main_nav", label_visibility="collapsed")
+
+if nav != "🏠 Inicio":
+    c_nav1, c_nav2 = st.columns(2)
+    with c_nav1:
+        if st.button("🏠 Volver al inicio", key=f"volver_inicio_{nav}"):
+            ir_a("🏠 Inicio")
+    with c_nav2:
+        if st.button("🔙 Ir a biblioteca", key=f"volver_biblioteca_{nav}"):
+            ir_a("📚 Biblioteca")
+
+if nav == "🏠 Inicio":
     render_inicio(obras)
-
-with tab_search:
+elif nav == "🔎 Buscar":
     st.info("Versión del buscador: Fase 8 pro con cache, merge seguro, paginación, tags y preview.")
     render_buscador_avanzado(obras, buscar_global, guardar_importado)
-
-with tab_timer:
+elif nav == "⏱️ Cronómetro":
     render_cronometro(obras, db.add_actividad, db.update_obra, db.list_actividad)
-
-with tab_reports:
+elif nav == "🏆 Wrapped":
     render_reportes(obras, db.list_actividad)
-
-with tab_books:
+elif nav == "📚 Biblioteca":
     render_biblioteca(obras)
-
-with tab_add:
+elif nav == "➕ Agregar":
     render_agregar_manual(obras, db.add_obra, save_uploaded_file, PORTADAS_DIR, RESPALDOS_DIR)
-
-with tab_link:
+elif nav == "🔗 Links":
     render_importar_link(obras, importar_desde_link, guardar_importado, save_uploaded_file, PORTADAS_DIR)
-
-with tab_ao3:
+elif nav == "🔔 AO3":
     render_ao3_updates(obras)
-
-with tab_chapters:
+elif nav == "📝 Capítulos":
     render_capitulos(
         obras,
         db.list_capitulos,
@@ -278,17 +289,13 @@ with tab_chapters:
         save_uploaded_file,
         PORTADAS_DIR,
     )
-
-with tab_calendar:
+elif nav == "📅 Calendario":
     render_calendario(db.list_actividad)
-
-with tab_canons:
+elif nav == "🌌 Canons":
     render_canons(db.add_canon, db.list_canons)
-
-with tab_diag:
+elif nav == "🧰 Diagnóstico":
     render_diagnostico()
-
-with tab_export:
+elif nav == "⬇️ Exportar":
     st.subheader("Exportar")
     if df.empty:
         st.info("No hay datos para exportar.")
