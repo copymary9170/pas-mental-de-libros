@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-APP_VERSION = "Paz Mental deploy 2026-05-30 v28 - acciones compactas azul rey"
+APP_VERSION = "Paz Mental deploy 2026-05-30 v29 - acciones integradas en biblioteca"
 
 try:
     import src.database as db
@@ -39,7 +39,7 @@ try:
     from src.pages.canons import render_canons
     from src.pages.ao3_updates import render_ao3_updates
     from src.pages.diagnostico import render_diagnostico
-    import src.pages.biblioteca as biblioteca_page
+    from src.pages.biblioteca import render_biblioteca
     from src.pages.biblioteca_insights import render_biblioteca_insights
     from src.pages.agregar_manual import render_agregar_manual
     from src.pages.inicio import render_inicio
@@ -55,53 +55,6 @@ apply_styles()
 ensure_dirs()
 db.init_db()
 st.caption(APP_VERSION)
-
-st.markdown("""
-<style>
-.lib-action-mini-box{
-    background: linear-gradient(135deg, #123a8c 0%, #1d4ed8 100%);
-    border: 1px solid rgba(219,234,254,.55);
-    border-radius: 12px;
-    color: #ffffff;
-    padding: 7px 10px;
-    margin: -4px 0 5px 0;
-    box-shadow: 0 3px 10px rgba(15,23,42,.12);
-}
-.lib-action-mini-title{
-    font-size: .78rem;
-    font-weight: 900;
-    letter-spacing: .01em;
-    line-height: 1.1;
-}
-.lib-action-mini-sub{
-    font-size: .66rem;
-    opacity: .88;
-    margin-top: 2px;
-    line-height: 1.15;
-}
-.lib-action-current{
-    display:inline-block;
-    background: rgba(255,255,255,.14);
-    border: 1px solid rgba(255,255,255,.22);
-    border-radius: 999px;
-    padding: 1px 7px;
-    margin-left: 4px;
-    font-size: .64rem;
-}
-div[data-testid="stButton"] button{
-    border-radius: 10px !important;
-    padding: .28rem .38rem !important;
-    min-height: 30px !important;
-    font-size: .75rem !important;
-    font-weight: 800 !important;
-}
-div[data-testid="stNumberInput"] input,
-div[data-testid="stSelectbox"] div[data-baseweb="select"]{
-    min-height: 30px !important;
-    font-size: .78rem !important;
-}
-</style>
-""", unsafe_allow_html=True)
 
 TMDB_API_KEY = st.secrets.get("TMDB_API_KEY", "")
 
@@ -223,58 +176,6 @@ def guardar_importado(item, tipo, estado):
     db.add_obra(data)
 
 
-def _biblioteca_quick_actions_con_grafica(row):
-    actual = biblioteca_page._safe_int(row.get("capitulos_vistos") or row.get("capitulo_actual"), 0)
-    publicados = biblioteca_page._safe_int(row.get("capitulos_publicados") or row.get("capitulo_total"), 0)
-    total_txt = publicados if publicados > 0 else "?"
-    titulo = row.get("titulo") or "esta obra"
-
-    st.markdown(
-        f"""
-        <div class="lib-action-mini-box">
-            <div class="lib-action-mini-title">Acciones de esta obra <span class="lib-action-current">{actual}/{total_txt}</span></div>
-            <div class="lib-action-mini-sub">{titulo[:54]} · solo modifica esta obra</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    q1, q2, q3, q4, q5, q6 = st.columns([0.5, 0.75, 0.65, 0.75, 1.2, 0.72])
-    if q1.button("❤️", key=f"lib_fav_{row['id']}", help="Favorito", use_container_width=True):
-        db.update_obra(row["id"], {"favorito": 0 if biblioteca_page._safe_int(row.get("favorito"), 0) else 1})
-        st.rerun()
-    cantidad = q2.number_input("Caps", min_value=0, value=1, step=1, key=f"lib_sum_qty_{row['id']}", label_visibility="collapsed")
-    if q3.button("+", key=f"lib_sum_btn_{row['id']}", help="Sumar capítulos vistos", use_container_width=True):
-        if int(cantidad or 0) <= 0:
-            st.warning("Coloca un número mayor a 0 para sumar avance.")
-        else:
-            nuevo = actual + int(cantidad)
-            if publicados > 0:
-                nuevo = min(nuevo, publicados)
-            db.update_obra(row["id"], {
-                "capitulos_vistos": nuevo,
-                "capitulo_actual": nuevo,
-                "ultimo_capitulo_visto": nuevo,
-                "fecha_ultimo_capitulo_visto": str(date.today()),
-            })
-            st.rerun()
-    if q4.button("Al día", key=f"lib_done_{row['id']}", help="Poner avance al último capítulo publicado", use_container_width=True):
-        db.update_obra(row["id"], {"capitulos_vistos": publicados, "capitulo_actual": publicados, "ultimo_capitulo_visto": publicados, "fecha_ultimo_capitulo_visto": str(date.today())})
-        st.rerun()
-    estado = q5.selectbox("Estado", biblioteca_page.ESTADOS, index=biblioteca_page.ESTADOS.index(row.get("estado_lectura")) if row.get("estado_lectura") in biblioteca_page.ESTADOS else 0, key=f"lib_estado_{row['id']}", label_visibility="collapsed")
-    if q5.button("Guardar", key=f"lib_save_estado_{row['id']}", help="Guardar estado", use_container_width=True):
-        db.update_obra(row["id"], {"estado_lectura": estado})
-        st.rerun()
-    if q6.button("Gráfica", key=f"lib_graph_{row['id']}", help="Ver evolución por capítulos", use_container_width=True):
-        if str(st.session_state.get("biblioteca_graph_id")) == str(row.get("id")):
-            st.session_state.pop("biblioteca_graph_id", None)
-        else:
-            st.session_state["biblioteca_graph_id"] = row.get("id")
-        st.rerun()
-
-
-biblioteca_page._quick_actions = _biblioteca_quick_actions_con_grafica
-
 obras = db.list_obras()
 df = pd.DataFrame(obras)
 
@@ -312,7 +213,7 @@ elif nav == "⏱️ Cronómetro":
 elif nav == "🏆 Wrapped":
     render_reportes(obras, db.list_actividad, getattr(db, "list_capitulos", None), getattr(db, "list_votos_personaje", None))
 elif nav == "📚 Biblioteca":
-    biblioteca_page.render_biblioteca(obras)
+    render_biblioteca(obras)
     render_biblioteca_insights(obras, getattr(db, "list_capitulos", None))
 elif nav == "🎲 Ruleta":
     render_ruleta(obras)
