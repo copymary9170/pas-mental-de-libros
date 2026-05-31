@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-APP_VERSION = "Paz Mental deploy 2026-05-30 v24 - ruleta restaurada"
+APP_VERSION = "Paz Mental deploy 2026-05-30 v25 - biblioteca con evolución por capítulos"
 
 try:
     import src.database as db
@@ -40,6 +40,7 @@ try:
     from src.pages.ao3_updates import render_ao3_updates
     from src.pages.diagnostico import render_diagnostico
     from src.pages.biblioteca import render_biblioteca
+    from src.pages.biblioteca_insights import render_biblioteca_insights
     from src.pages.agregar_manual import render_agregar_manual
     from src.pages.inicio import render_inicio
     from src.pages.ruleta import render_ruleta
@@ -107,6 +108,15 @@ def _to_int(value, default=0):
         return default
 
 
+def _to_float(value, default=0.0):
+    try:
+        if value is None or value == "":
+            return default
+        return float(value)
+    except Exception:
+        return default
+
+
 def _quality_import(item):
     checks = [
         bool(item.get("titulo")),
@@ -117,9 +127,10 @@ def _quality_import(item):
         bool(item.get("link_original") or item.get("url_fuente")),
         _to_int(item.get("capitulo_total") or item.get("capitulos_publicados"), 0) > 0,
         bool(item.get("fecha_publicacion") or item.get("anio")),
+        bool(item.get("mood") or item.get("resena") or item.get("comentario")),
     ]
-    weights = [15, 10, 10, 15, 15, 15, 10, 10]
-    return sum(w for ok, w in zip(checks, weights) if ok)
+    weights = [12, 8, 8, 12, 12, 12, 8, 8, 8]
+    return min(100, sum(w for ok, w in zip(checks, weights) if ok))
 
 
 def guardar_importado(item, tipo, estado):
@@ -129,108 +140,39 @@ def guardar_importado(item, tipo, estado):
     temporada_actual = max(1, _to_int(item.get("temporada_actual"), 1))
     temporada_total = max(1, _to_int(item.get("temporada_total"), temporada_actual))
     fuente = item.get("fuente_importacion", item.get("ultima_importacion_fuente", "fuente externa"))
-    motivo_extra = []
-    if item.get("division_obra"):
-        motivo_extra.append(f"División: {item.get('division_obra')}")
-    if item.get("ao3_work_id"):
-        motivo_extra.append(f"AO3 work ID: {item.get('ao3_work_id')}")
-    if item.get("ao3_tracking"):
-        motivo_extra.append("Seguimiento AO3 activado")
 
-    data = {
+    data = dict(item)
+    data.update({
         "titulo": item.get("titulo", "Sin titulo"),
         "autor": item.get("autor", ""),
-        "tipo": tipo,
-        "obra_original_tipo": item.get("obra_original_tipo", ""),
-        "obra_original_nombre": item.get("obra_original_nombre", ""),
-        "fandom": item.get("fandom", ""),
-        "ship": item.get("ship", ""),
-        "universo_au": item.get("universo_au", ""),
-        "fuente_fanfic": item.get("fuente_fanfic", ""),
-        "es_crossover": _to_int(item.get("es_crossover"), 0),
-        "crossover_obras": item.get("crossover_obras", ""),
-        "crossover_fandoms": item.get("crossover_fandoms", ""),
-        "crossover_tipo": item.get("crossover_tipo", ""),
-        "crossover_notas": item.get("crossover_notas", ""),
-        "division_obra": item.get("division_obra", ""),
-        "ao3_work_id": item.get("ao3_work_id", ""),
-        "ao3_tracking": _to_int(item.get("ao3_tracking"), 0),
-        "fuente_confiabilidad": _to_int(item.get("fuente_confiabilidad"), 0),
-        "calidad_datos": _to_int(item.get("calidad_datos"), 0) or _quality_import({**item, "tipo": tipo}),
-        "ultima_importacion_fuente": fuente,
-        "clasificacion": float(item.get("clasificacion") or 0),
-        "estrellas": _to_int(item.get("estrellas"), 0),
-        "comentario": item.get("comentario", ""),
-        "resena": item.get("resena", ""),
-        "mood": item.get("mood", ""),
-        "frases_favoritas": item.get("frases_favoritas", ""),
-        "estado_lectura": estado,
+        "tipo": tipo or item.get("tipo", "Otro"),
+        "estado_lectura": estado or item.get("estado_lectura", "Pendiente"),
         "estado_publicacion": item.get("estado_publicacion", "No aplica"),
-        "fecha_publicacion": item.get("fecha_publicacion", item.get("anio", "")),
-        "fecha_agregada_pendientes": item.get("fecha_agregada_pendientes", ""),
         "temporada_actual": temporada_actual,
         "temporada_total": temporada_total,
         "capitulo_actual": cap_vistos,
         "capitulo_total": cap_total,
         "capitulos_publicados": cap_publicados,
         "capitulos_vistos": cap_vistos,
-        "sinopsis": item.get("sinopsis", ""),
-        "etiquetas": item.get("etiquetas", "importado"),
+        "ultimo_capitulo_visto": cap_vistos,
+        "ultimo_capitulo_publicado": cap_publicados,
+        "clasificacion": _to_float(item.get("clasificacion"), 0),
+        "estrellas": _to_int(item.get("estrellas"), 0),
+        "favorito": _to_int(item.get("favorito"), 0),
+        "prioridad": _to_int(item.get("prioridad"), 0),
+        "es_crossover": _to_int(item.get("es_crossover"), 0),
+        "ao3_tracking": _to_int(item.get("ao3_tracking"), 0),
+        "fuente_confiabilidad": _to_int(item.get("fuente_confiabilidad"), 0),
+        "ultima_importacion_fuente": fuente,
+        "fecha_inicio": item.get("fecha_inicio") or str(date.today()),
         "link_original": item.get("link_original") or item.get("url_fuente", ""),
         "link_respaldo": item.get("link_respaldo", ""),
         "portada_path": item.get("portada_path", ""),
-        "respaldo_path": item.get("respaldo_path", ""),
-        "motivo_estado": item.get("motivo_estado") or f"Importado desde {fuente}. Año: {item.get('anio') or 'N/D'}. URL: {item.get('url_fuente') or item.get('link_original') or 'N/D'}. {' | '.join(motivo_extra)}",
-        "favorito": _to_int(item.get("favorito"), 0),
-        "prioridad": _to_int(item.get("prioridad"), 0),
-        "fecha_inicio": item.get("fecha_inicio") or str(date.today()),
-        "fecha_fin": item.get("fecha_fin"),
-        "expectativa_inicial": item.get("expectativa_inicial", ""),
-        "nivel_esperanza_inicial": _to_int(item.get("nivel_esperanza_inicial"), 0),
-        "le_tenia_esperanza": _to_int(item.get("le_tenia_esperanza"), 0),
-        "le_tenia_pocas_esperanzas": _to_int(item.get("le_tenia_pocas_esperanzas"), 0),
-        "motivo_esperanza": item.get("motivo_esperanza", ""),
-        "resultado_expectativa": item.get("resultado_expectativa", ""),
-        "nivel_decepcion": _to_int(item.get("nivel_decepcion"), 0),
-        "nivel_satisfaccion_general": _to_int(item.get("nivel_satisfaccion_general"), 0),
-        "satisfaccion_final": _to_int(item.get("satisfaccion_final"), 0),
-        "final_salvo_obra": _to_int(item.get("final_salvo_obra"), 0),
-        "final_arruino_obra": _to_int(item.get("final_arruino_obra"), 0),
-        "autor_arruino_final": _to_int(item.get("autor_arruino_final"), 0),
-        "como_arruino_final": item.get("como_arruino_final", ""),
-        "comentario_final": item.get("comentario_final", ""),
-        "es_isekai": _to_int(item.get("es_isekai"), 0),
-        "tipo_isekai": item.get("tipo_isekai", ""),
-        "epoca_ambientacion": item.get("epoca_ambientacion", ""),
-        "mundo_principal": item.get("mundo_principal", ""),
-        "nivel_construccion_mundo": _to_int(item.get("nivel_construccion_mundo"), 0),
-        "nivel_politica_intriga": _to_int(item.get("nivel_politica_intriga"), 0),
-        "nivel_magia_sistema": _to_int(item.get("nivel_magia_sistema"), 0),
-        "nivel_romance": _to_int(item.get("nivel_romance"), 0),
-        "nivel_accion": _to_int(item.get("nivel_accion"), 0),
-        "nivel_drama": _to_int(item.get("nivel_drama"), 0),
-        "sensor_lujuria": _to_int(item.get("sensor_lujuria"), 0),
-        "nivel_lujuria": _to_int(item.get("nivel_lujuria"), 0),
-        "sensor_llanto": _to_int(item.get("sensor_llanto"), 0),
-        "nivel_llanto": _to_int(item.get("nivel_llanto"), 0),
-        "veces_llore": _to_int(item.get("veces_llore"), 0),
-        "sensor_risa": _to_int(item.get("sensor_risa"), 0),
-        "nivel_risa": _to_int(item.get("nivel_risa"), 0),
-        "sensor_aburrimiento": _to_int(item.get("sensor_aburrimiento"), 0),
-        "nivel_aburrimiento": _to_int(item.get("nivel_aburrimiento"), 0),
-        "sensor_cringe": _to_int(item.get("sensor_cringe"), 0),
-        "nivel_cringe": _to_int(item.get("nivel_cringe"), 0),
-        "tipo_cringe": item.get("tipo_cringe", ""),
-        "sensor_red_flag": _to_int(item.get("sensor_red_flag"), 0),
-        "nivel_red_flag": _to_int(item.get("nivel_red_flag"), 0),
-        "sensor_resaca_emocional": _to_int(item.get("sensor_resaca_emocional"), 0),
-        "nivel_resaca_emocional": _to_int(item.get("nivel_resaca_emocional"), 0),
-        "sensor_tema_oscuro": _to_int(item.get("sensor_tema_oscuro"), 0),
-        "nivel_oscuridad": _to_int(item.get("nivel_oscuridad"), 0),
-        "tipo_tema_oscuro": item.get("tipo_tema_oscuro", ""),
-        "sensor_obra_larga": _to_int(item.get("sensor_obra_larga"), 0),
-        "nivel_cansancio_longitud": _to_int(item.get("nivel_cansancio_longitud"), 0),
-    }
+        "etiquetas": item.get("etiquetas", "importado"),
+        "sinopsis": item.get("sinopsis", ""),
+        "motivo_estado": item.get("motivo_estado") or f"Importado desde {fuente}.",
+    })
+    data["calidad_datos"] = _to_int(item.get("calidad_datos"), 0) or _quality_import(data)
     db.add_obra(data)
 
 
@@ -269,9 +211,10 @@ elif nav == "🔎 Buscar":
 elif nav == "⏱️ Cronómetro":
     render_cronometro(obras, db.add_actividad, db.update_obra, db.list_actividad)
 elif nav == "🏆 Wrapped":
-    render_reportes(obras, db.list_actividad)
+    render_reportes(obras, db.list_actividad, getattr(db, "list_capitulos", None), getattr(db, "list_votos_personaje", None))
 elif nav == "📚 Biblioteca":
     render_biblioteca(obras)
+    render_biblioteca_insights(obras, getattr(db, "list_capitulos", None))
 elif nav == "🎲 Ruleta":
     render_ruleta(obras)
 elif nav == "➕ Agregar":
