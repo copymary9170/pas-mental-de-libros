@@ -5,9 +5,11 @@ import pandas as pd
 import streamlit as st
 
 import src.database as db
+from src.utils import PORTADAS_DIR, save_uploaded_file
 
 ESTADOS = ["Pendiente", "Leyendo", "Viendo", "Terminado", "Pausado", "Abandonado", "Releyendo", "Rewatch"]
 ESTADOS_PUBLICACION = ["En emision", "Terminada", "Hiatus con aviso", "Hiatus sin aviso", "Cancelada", "Abandonada por autor", "No aplica"]
+TIPOS = ["Libro", "Fanfiction", "Novela", "Novela ligera", "Manga", "Manhwa", "Manhua", "Webnovel", "Comic", "Anime", "Serie", "Kdrama", "Pelicula", "Documental", "Podcast", "Otro"]
 
 
 def _safe_int(value, default=0):
@@ -23,6 +25,11 @@ def _norm(text):
     text = "" if text is None else str(text)
     text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
     return text.lower().strip()
+
+
+def _fmt_unknown(value):
+    value = _safe_int(value, 0)
+    return "?" if value <= 0 else str(value)
 
 
 def _progress(row):
@@ -49,7 +56,7 @@ def _style():
     st.markdown("""
     <style>
     .lib-card{border:1px solid rgba(147,197,253,.45);border-radius:18px;background:linear-gradient(180deg,#eff6ff,#dbeafe);padding:14px;margin:10px 0;color:#0f172a;box-shadow:0 6px 20px rgba(15,23,42,.10)}
-    .lib-title{font-weight:900;font-size:1.05rem;color:#0f172a}.lib-meta{font-size:.86rem;color:#1e3a8a;font-weight:750}.lib-small{font-size:.82rem;color:#334155;margin-top:4px}.lib-progress{height:10px;background:#bfdbfe;border-radius:999px;overflow:hidden;margin:8px 0}.lib-bar{height:10px;background:#1d4ed8;border-radius:999px}.lib-badges{margin-top:6px;font-size:.9rem}.lib-cover{width:70px;height:102px;object-fit:cover;border-radius:12px;box-shadow:0 6px 18px rgba(15,23,42,.2);float:left;margin-right:12px}.lib-empty{width:70px;height:102px;border-radius:12px;background:#1e3a8a;color:white;display:flex;align-items:center;justify-content:center;font-size:2rem;float:left;margin-right:12px}.kanban-col{background:#eff6ff;border-radius:16px;padding:10px;min-height:200px}.quality-box{background:#f8fafc;border-left:4px solid #2563eb;border-radius:12px;padding:10px;margin:8px 0;color:#0f172a}
+    .lib-title{font-weight:900;font-size:1.05rem;color:#0f172a}.lib-meta{font-size:.86rem;color:#1e3a8a;font-weight:750}.lib-small{font-size:.82rem;color:#334155;margin-top:4px}.lib-progress{height:10px;background:#bfdbfe;border-radius:999px;overflow:hidden;margin:8px 0}.lib-bar{height:10px;background:#1d4ed8;border-radius:999px}.lib-badges{margin-top:6px;font-size:.9rem}.lib-cover{width:70px;height:102px;object-fit:cover;border-radius:12px;box-shadow:0 6px 18px rgba(15,23,42,.2);float:left;margin-right:12px}.lib-empty{width:70px;height:102px;border-radius:12px;background:#1e3a8a;color:white;display:flex;align-items:center;justify-content:center;font-size:2rem;float:left;margin-right:12px}.kanban-col{background:#eff6ff;border-radius:16px;padding:10px;min-height:200px}.quality-box{background:#f8fafc;border-left:4px solid #2563eb;border-radius:12px;padding:10px;margin:8px 0;color:#0f172a}.edit-helper{background:#fff7ed;border-left:4px solid #f59e0b;border-radius:12px;padding:10px;margin:8px 0;color:#78350f;font-weight:800}
     </style>
     """, unsafe_allow_html=True)
 
@@ -65,6 +72,9 @@ def _badges(row):
     if row.get("fandom"): badges.append("🌌")
     stars = _safe_int(row.get("estrellas"), 0)
     if stars: badges.append("⭐" * min(stars, 5))
+    if not str(row.get("portada_path") or "").strip(): badges.append("🖼️ falta portada")
+    if not str(row.get("autor") or "").strip() or str(row.get("autor") or "").strip() == "?": badges.append("✍️ autor ?")
+    if _safe_int(row.get("capitulo_total"), 0) <= 0: badges.append("🔢 total ?")
     return " ".join(badges)
 
 
@@ -72,7 +82,8 @@ def _card(row):
     portada = row.get("portada_path") or ""
     img = f'<img class="lib-cover" src="{portada}" />' if str(portada).startswith("http") else '<div class="lib-empty">📚</div>'
     vistos = _safe_int(row.get("capitulos_vistos") or row.get("capitulo_actual"), 0)
-    publicados = _safe_int(row.get("capitulos_publicados") or row.get("capitulo_total"), 0)
+    publicados = _safe_int(row.get("capitulos_publicados"), 0)
+    total = _safe_int(row.get("capitulo_total"), 0)
     pct = _progress(row)
     link = row.get("link_original") or ""
     open_link = f' · <a href="{link}" target="_blank">Abrir link</a>' if str(link).startswith("http") else ""
@@ -82,7 +93,7 @@ def _card(row):
       <div class="lib-title">{row.get('titulo') or 'Sin título'}</div>
       <div class="lib-meta">{row.get('autor') or 'Autor no indicado'} · {row.get('tipo') or 'Tipo N/D'} · {row.get('estado_lectura') or 'Estado N/D'}{open_link}</div>
       <div class="lib-progress"><div class="lib-bar" style="width:{pct}%"></div></div>
-      <div class="lib-small">T{row.get('temporada_actual') or 1}/{row.get('temporada_total') or 1} · {vistos}/{publicados} caps · {pct}% · ⏱️ {_fmt_time(row.get('tiempo_total_minutos'))}</div>
+      <div class="lib-small">T{row.get('temporada_actual') or 1}/{row.get('temporada_total') or 1} · vistos {vistos} · publicados {_fmt_unknown(publicados)} · total esperado {_fmt_unknown(total)} · {pct}% · ⏱️ {_fmt_time(row.get('tiempo_total_minutos'))}</div>
       <div class="lib-small">Calidad {row.get('calidad_datos') or 0}/100 · Fuente {row.get('ultima_importacion_fuente') or 'manual'} · Publicación: {row.get('estado_publicacion') or 'N/D'}</div>
       <div class="lib-badges">{_badges(row)}</div>
       <div class="lib-small">{(row.get('sinopsis') or 'Sin sinopsis todavía.')[:220]}</div>
@@ -166,7 +177,7 @@ def _cards(rows):
 
 def _table(rows):
     if not rows: st.info("No hay resultados."); return
-    cols = ["id", "titulo", "autor", "tipo", "estado_lectura", "estado_publicacion", "capitulos_vistos", "capitulos_publicados", "temporada_actual", "temporada_total", "favorito", "estrellas", "calidad_datos", "fandom", "ship", "etiquetas", "link_original"]
+    cols = ["id", "titulo", "autor", "tipo", "estado_lectura", "estado_publicacion", "capitulos_vistos", "capitulos_publicados", "capitulo_total", "temporada_actual", "temporada_total", "favorito", "estrellas", "calidad_datos", "fandom", "ship", "etiquetas", "portada_path", "link_original"]
     df = pd.DataFrame(rows)
     st.dataframe(df[[c for c in cols if c in df.columns]], use_container_width=True)
 
@@ -181,26 +192,94 @@ def _kanban(rows):
                 st.markdown(f"**{r.get('titulo')}**  \n{r.get('tipo')} · {_pending(r)} pend · {_progress(r)}%")
 
 
+def _recalc_quality(row, data):
+    merged = dict(row); merged.update(data)
+    score = 0
+    if merged.get("titulo"): score += 15
+    if merged.get("autor") and str(merged.get("autor")).strip() != "?": score += 12
+    if merged.get("tipo"): score += 8
+    if merged.get("sinopsis"): score += 15
+    if merged.get("portada_path"): score += 15
+    if merged.get("link_original"): score += 10
+    if _safe_int(merged.get("capitulos_publicados"), 0) > 0: score += 8
+    if _safe_int(merged.get("capitulo_total"), 0) > 0: score += 7
+    if merged.get("etiquetas"): score += 5
+    if merged.get("estado_lectura"): score += 5
+    return min(100, score)
+
+
 def _detail(rows):
     if not rows: st.info("No hay obras para mostrar."); return
-    opts = {f"{r.get('titulo')} · {r.get('autor') or 'N/D'}": r for r in rows}
+    opts = {f"#{r.get('id')} · {r.get('titulo')} · {r.get('autor') or 'N/D'}": r for r in rows}
     label = st.selectbox("Selecciona obra", list(opts.keys()), key="lib_detail_select")
     row = opts[label]
     _card(row)
-    st.markdown("### Editar sin borrar datos")
-    c1, c2, c3 = st.columns(3)
-    estado = c1.selectbox("Estado personal", ESTADOS, index=ESTADOS.index(row.get("estado_lectura")) if row.get("estado_lectura") in ESTADOS else 0, key="lib_det_estado")
-    estado_pub = c2.selectbox("Estado publicación", ESTADOS_PUBLICACION, index=ESTADOS_PUBLICACION.index(row.get("estado_publicacion")) if row.get("estado_publicacion") in ESTADOS_PUBLICACION else 6, key="lib_det_pub")
-    estrellas = c3.slider("Estrellas personales", 0, 5, _safe_int(row.get("estrellas"), 0), key="lib_det_stars")
-    c4, c5, c6 = st.columns(3)
-    vistos = c4.number_input("Capítulos vistos/leídos", min_value=0, value=_safe_int(row.get("capitulos_vistos") or row.get("capitulo_actual"), 0), key="lib_det_vistos")
-    publicados = c5.number_input("Capítulos publicados", min_value=0, value=_safe_int(row.get("capitulos_publicados") or row.get("capitulo_total"), 0), key="lib_det_pubcaps")
-    fav = c6.checkbox("Favorito", value=bool(_safe_int(row.get("favorito"), 0)), key="lib_det_fav")
-    etiquetas = st.text_input("Etiquetas", value=row.get("etiquetas") or "", key="lib_det_tags")
-    comentario = st.text_area("Comentario / motivo estado", value=row.get("motivo_estado") or "", key="lib_det_comment")
-    if st.button("Guardar cambios de obra", key="lib_det_save"):
-        db.update_obra(row["id"], {"estado_lectura": estado, "estado_publicacion": estado_pub, "estrellas": int(estrellas), "capitulos_vistos": int(vistos), "capitulo_actual": int(vistos), "capitulos_publicados": int(publicados), "favorito": 1 if fav else 0, "etiquetas": etiquetas, "motivo_estado": comentario})
-        st.success("Obra actualizada."); st.rerun()
+    st.markdown("### Editar / completar obra sin borrar datos")
+    st.markdown('<div class="edit-helper">Puedes guardar aunque falte portada, autor o total de capítulos. Si el autor dejó el total como ?, marca “total esperado desconocido” y se guardará como pendiente.</div>', unsafe_allow_html=True)
+
+    with st.form(f"lib_edit_form_{row['id']}"):
+        st.markdown("#### Datos principales")
+        c0, c1, c2 = st.columns(3)
+        titulo = c0.text_input("Título", value=row.get("titulo") or "")
+        autor = c1.text_input("Autor / creador", value=row.get("autor") or "", placeholder="Puedes dejar ? si no se sabe")
+        tipo = c2.selectbox("Tipo", TIPOS, index=TIPOS.index(row.get("tipo")) if row.get("tipo") in TIPOS else 0)
+
+        c3, c4, c5 = st.columns(3)
+        estado = c3.selectbox("Estado personal", ESTADOS, index=ESTADOS.index(row.get("estado_lectura")) if row.get("estado_lectura") in ESTADOS else 0)
+        estado_pub = c4.selectbox("Estado publicación", ESTADOS_PUBLICACION, index=ESTADOS_PUBLICACION.index(row.get("estado_publicacion")) if row.get("estado_publicacion") in ESTADOS_PUBLICACION else 6)
+        estrellas = c5.slider("Estrellas personales", 0, 5, _safe_int(row.get("estrellas"), 0))
+
+        st.markdown("#### Progreso y capítulos")
+        p1, p2, p3 = st.columns(3)
+        vistos = p1.number_input("Capítulos vistos/leídos", min_value=0, value=_safe_int(row.get("capitulos_vistos") or row.get("capitulo_actual"), 0))
+        publicados_desconocidos = p2.checkbox("Publicados desconocidos (?)", value=_safe_int(row.get("capitulos_publicados"), 0) <= 0)
+        publicados = p2.number_input("Capítulos publicados", min_value=0, value=_safe_int(row.get("capitulos_publicados"), 0), disabled=publicados_desconocidos)
+        total_desconocido = p3.checkbox("Total esperado desconocido (?)", value=_safe_int(row.get("capitulo_total"), 0) <= 0)
+        total_esperado = p3.number_input("Capítulos esperados", min_value=0, value=_safe_int(row.get("capitulo_total"), 0), disabled=total_desconocido)
+
+        t1, t2 = st.columns(2)
+        temporada_actual = t1.number_input("Temporada/arco actual", min_value=1, value=max(1, _safe_int(row.get("temporada_actual"), 1)))
+        temporada_total = t2.number_input("Temporadas/arcos totales", min_value=1, value=max(1, _safe_int(row.get("temporada_total"), 1)))
+
+        st.markdown("#### Portada y enlaces")
+        portada_url = st.text_input("URL portada", value=row.get("portada_path") or "")
+        portada_upload = st.file_uploader("Subir portada nueva", type=["jpg", "jpeg", "png", "webp"], key=f"lib_cover_upload_{row['id']}")
+        link_original = st.text_input("Link original", value=row.get("link_original") or "")
+        link_respaldo = st.text_input("Link respaldo", value=row.get("link_respaldo") or "")
+
+        st.markdown("#### Descripción y organización")
+        etiquetas = st.text_input("Etiquetas", value=row.get("etiquetas") or "")
+        sinopsis = st.text_area("Sinopsis / descripción", value=row.get("sinopsis") or "", height=140)
+        comentario = st.text_area("Comentario / motivo estado", value=row.get("motivo_estado") or "", height=90)
+        resena = st.text_area("Reseña / opinión", value=row.get("resena") or "", height=90)
+        fav = st.checkbox("Favorito", value=bool(_safe_int(row.get("favorito"), 0)))
+
+        if st.form_submit_button("Guardar cambios / completar obra"):
+            portada_path = portada_url.strip()
+            if portada_upload is not None:
+                portada_path = save_uploaded_file(portada_upload, PORTADAS_DIR)
+            caps_publicados_final = 0 if publicados_desconocidos else int(publicados)
+            cap_total_final = 0 if total_desconocido else int(total_esperado)
+            vistos_final = int(vistos)
+            if caps_publicados_final > 0 and vistos_final > caps_publicados_final:
+                st.error("Los capítulos vistos/leídos no pueden superar los publicados. Si publicados es ?, marca publicados desconocidos.")
+            else:
+                data = {
+                    "titulo": titulo.strip() or row.get("titulo"), "autor": autor.strip(), "tipo": tipo,
+                    "estado_lectura": estado, "estado_publicacion": estado_pub, "estrellas": int(estrellas),
+                    "capitulos_vistos": vistos_final, "capitulo_actual": vistos_final, "ultimo_capitulo_visto": vistos_final,
+                    "fecha_ultimo_capitulo_visto": str(date.today()), "capitulos_publicados": caps_publicados_final,
+                    "capitulo_total": cap_total_final, "ultimo_capitulo_publicado": caps_publicados_final,
+                    "temporada_actual": int(temporada_actual), "temporada_total": int(max(temporada_total, temporada_actual)),
+                    "portada_path": portada_path, "link_original": link_original.strip(), "link_respaldo": link_respaldo.strip(),
+                    "etiquetas": etiquetas.strip(), "sinopsis": sinopsis.strip(), "motivo_estado": comentario.strip(),
+                    "resena": resena.strip(), "favorito": 1 if fav else 0,
+                }
+                data["calidad_datos"] = _recalc_quality(row, data)
+                db.update_obra(row["id"], data)
+                st.success("Obra actualizada. Ya puedes completar lo que faltó sin recrearla.")
+                st.rerun()
+
     st.markdown("### Datos completos")
     st.json(row)
 
@@ -209,13 +288,14 @@ def _quality(rows):
     st.markdown("### Calidad de biblioteca")
     no_cover = [r for r in rows if not str(r.get("portada_path") or "").strip()]
     no_syn = [r for r in rows if not str(r.get("sinopsis") or "").strip()]
-    no_author = [r for r in rows if not str(r.get("autor") or "").strip()]
+    no_author = [r for r in rows if not str(r.get("autor") or "").strip() or str(r.get("autor") or "").strip() == "?"]
+    no_total = [r for r in rows if _safe_int(r.get("capitulo_total"), 0) <= 0]
     low = [r for r in rows if _safe_int(r.get("calidad_datos"), 0) < 50]
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Sin portada", len(no_cover)); c2.metric("Sin sinopsis", len(no_syn)); c3.metric("Sin autor", len(no_author)); c4.metric("Calidad < 50", len(low))
-    for title, data in [("Sin portada", no_cover), ("Sin sinopsis", no_syn), ("Sin autor", no_author), ("Baja calidad", low)]:
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("Sin portada", len(no_cover)); c2.metric("Sin sinopsis", len(no_syn)); c3.metric("Sin autor/autor ?", len(no_author)); c4.metric("Total ?", len(no_total)); c5.metric("Calidad < 50", len(low))
+    for title, data in [("Sin portada", no_cover), ("Sin sinopsis", no_syn), ("Sin autor o autor ?", no_author), ("Total esperado desconocido", no_total), ("Baja calidad", low)]:
         with st.expander(title):
-            st.dataframe(pd.DataFrame(data)[[c for c in ["id", "titulo", "autor", "tipo", "calidad_datos"] if data and c in data[0]]], use_container_width=True) if data else st.info("Nada pendiente aquí.")
+            st.dataframe(pd.DataFrame(data)[[c for c in ["id", "titulo", "autor", "tipo", "capitulo_total", "portada_path", "calidad_datos"] if data and c in data[0]]], use_container_width=True) if data else st.info("Nada pendiente aquí.")
 
 
 def _export(rows):
@@ -228,7 +308,7 @@ def _export(rows):
 
 def render_biblioteca(obras):
     st.subheader("📚 Biblioteca")
-    st.caption("Centro de control: búsqueda, filtros, cards, tabla, kanban, pendientes, detalle, calidad y exportes.")
+    st.caption("Centro de control: búsqueda, filtros, edición, cards, tabla, kanban, pendientes, detalle, calidad y exportes.")
     _style()
     if not obras:
         st.info("Aún no tienes obras registradas.")
