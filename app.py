@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-APP_VERSION = "Paz Mental deploy 2026-05-30 v21 - personajes wrapped"
+APP_VERSION = "Paz Mental deploy 2026-05-30 v22 - fallback personajes"
 
 try:
     import src.database as db
@@ -271,10 +271,10 @@ with tab_chapters:
         db.list_capitulos,
         db.get_obra,
         db.add_capitulo,
-        db.list_personajes,
-        db.add_personaje,
-        db.add_voto_personaje,
-        db.list_votos_personaje,
+        getattr(db, "list_personajes", None),
+        getattr(db, "add_personaje", None),
+        getattr(db, "add_voto_personaje", None),
+        getattr(db, "list_votos_personaje", None),
         save_uploaded_file,
         PORTADAS_DIR,
     )
