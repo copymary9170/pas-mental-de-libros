@@ -169,10 +169,26 @@ def _render_resumen(resumen):
         st.dataframe(df[[c for c in cols if c in df.columns]], use_container_width=True, hide_index=True)
 
 
+def render_obra_insights(obra, list_capitulos):
+    if list_capitulos is None:
+        st.info("La lectura de capítulos no está conectada todavía.")
+        return
+    try:
+        capitulos = list_capitulos(obra.get("id")) or []
+    except Exception as exc:
+        st.warning(f"No pude leer capítulos de esta obra: {exc}")
+        return
+    resumen = _resumen_capitulos(capitulos)
+    if not resumen:
+        st.info("Esta obra aún no tiene capítulos/episodios con datos guardados.")
+        return
+    _render_resumen(resumen)
+
+
 def render_biblioteca_insights(obras, list_capitulos):
     st.markdown("---")
     st.subheader("📈 Evolución por capítulos")
-    st.caption("Toca el nombre de una obra para abrir solo sus promedios y evolución. Así no ocupa espacio con todas las obras a la vez.")
+    st.caption("Botones visibles para abrir solo una obra. No se calculan todas abiertas al mismo tiempo.")
 
     if not obras:
         return
@@ -180,23 +196,25 @@ def render_biblioteca_insights(obras, list_capitulos):
         st.info("La lectura de capítulos no está conectada todavía.")
         return
 
-    opciones = {f"{o.get('titulo') or 'Sin título'} · #{o.get('id')}": o for o in obras}
-    elegido = st.selectbox("Tocar obra para ver evolución", ["— Elegir obra —"] + list(opciones.keys()), key="biblioteca_insights_obra")
-    if elegido == "— Elegir obra —":
-        st.info("Elige una obra solo cuando quieras revisar cómo va según sus capítulos.")
+    cols = st.columns(3)
+    for idx, obra in enumerate(obras):
+        titulo = obra.get("titulo") or "Sin título"
+        with cols[idx % 3]:
+            if st.button(f"📈 Ver evolución\n{titulo[:28]}", key=f"insight_btn_{obra.get('id')}", use_container_width=True):
+                st.session_state["biblioteca_insights_id"] = obra.get("id")
+
+    selected_id = st.session_state.get("biblioteca_insights_id")
+    if not selected_id:
+        st.info("Toca **📈 Ver evolución** en una obra para abrir sus promedios y gráfica.")
         return
 
-    obra = opciones[elegido]
-    try:
-        capitulos = list_capitulos(obra.get("id")) or []
-    except Exception as exc:
-        st.warning(f"No pude leer capítulos de esta obra: {exc}")
+    obra = next((o for o in obras if str(o.get("id")) == str(selected_id)), None)
+    if not obra:
+        st.warning("No encontré la obra seleccionada en el filtro actual.")
         return
 
-    resumen = _resumen_capitulos(capitulos)
-    if not resumen:
-        st.info("Esta obra aún no tiene capítulos/episodios con datos guardados.")
-        return
-
-    with st.expander(f"📈 Ver evolución de {obra.get('titulo') or 'esta obra'}", expanded=True):
-        _render_resumen(resumen)
+    with st.expander(f"📈 Evolución de {obra.get('titulo') or 'esta obra'}", expanded=True):
+        if st.button("Cerrar evolución", key="cerrar_evolucion_biblioteca"):
+            st.session_state.pop("biblioteca_insights_id", None)
+            st.rerun()
+        render_obra_insights(obra, list_capitulos)
