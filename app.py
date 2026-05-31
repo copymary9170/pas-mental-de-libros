@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-APP_VERSION = "Paz Mental deploy 2026-05-30 v25 - biblioteca con evolución por capítulos"
+APP_VERSION = "Paz Mental deploy 2026-05-30 v26 - gráfica compacta en card"
 
 try:
     import src.database as db
@@ -39,7 +39,7 @@ try:
     from src.pages.canons import render_canons
     from src.pages.ao3_updates import render_ao3_updates
     from src.pages.diagnostico import render_diagnostico
-    from src.pages.biblioteca import render_biblioteca
+    import src.pages.biblioteca as biblioteca_page
     from src.pages.biblioteca_insights import render_biblioteca_insights
     from src.pages.agregar_manual import render_agregar_manual
     from src.pages.inicio import render_inicio
@@ -176,6 +176,45 @@ def guardar_importado(item, tipo, estado):
     db.add_obra(data)
 
 
+def _biblioteca_quick_actions_con_grafica(row):
+    actual = biblioteca_page._safe_int(row.get("capitulos_vistos") or row.get("capitulo_actual"), 0)
+    publicados = biblioteca_page._safe_int(row.get("capitulos_publicados") or row.get("capitulo_total"), 0)
+    q1, q2, q3, q4, q5 = st.columns([0.9, 1.15, 0.9, 1.75, 0.7])
+    if q1.button("❤️", key=f"lib_fav_{row['id']}", help="Favorito"):
+        db.update_obra(row["id"], {"favorito": 0 if biblioteca_page._safe_int(row.get("favorito"), 0) else 1})
+        st.rerun()
+    cantidad = q2.number_input("Sumar vistos", min_value=0, value=1, step=1, key=f"lib_sum_qty_{row['id']}")
+    if q2.button("➕ Sumar", key=f"lib_sum_btn_{row['id']}"):
+        if int(cantidad or 0) <= 0:
+            st.warning("Coloca un número mayor a 0 para sumar avance.")
+        else:
+            nuevo = actual + int(cantidad)
+            if publicados > 0:
+                nuevo = min(nuevo, publicados)
+            db.update_obra(row["id"], {
+                "capitulos_vistos": nuevo,
+                "capitulo_actual": nuevo,
+                "ultimo_capitulo_visto": nuevo,
+                "fecha_ultimo_capitulo_visto": str(date.today()),
+            })
+            st.rerun()
+    if q3.button("Al día", key=f"lib_done_{row['id']}"):
+        db.update_obra(row["id"], {"capitulos_vistos": publicados, "capitulo_actual": publicados, "ultimo_capitulo_visto": publicados, "fecha_ultimo_capitulo_visto": str(date.today())})
+        st.rerun()
+    estado = q4.selectbox("Estado", biblioteca_page.ESTADOS, index=biblioteca_page.ESTADOS.index(row.get("estado_lectura")) if row.get("estado_lectura") in biblioteca_page.ESTADOS else 0, key=f"lib_estado_{row['id']}")
+    if q4.button("Guardar estado", key=f"lib_save_estado_{row['id']}"):
+        db.update_obra(row["id"], {"estado_lectura": estado})
+        st.rerun()
+    if q5.button("Gráfica", key=f"lib_graph_{row['id']}", help="Ver evolución por capítulos"):
+        if str(st.session_state.get("biblioteca_graph_id")) == str(row.get("id")):
+            st.session_state.pop("biblioteca_graph_id", None)
+        else:
+            st.session_state["biblioteca_graph_id"] = row.get("id")
+        st.rerun()
+
+
+biblioteca_page._quick_actions = _biblioteca_quick_actions_con_grafica
+
 obras = db.list_obras()
 df = pd.DataFrame(obras)
 
@@ -213,7 +252,7 @@ elif nav == "⏱️ Cronómetro":
 elif nav == "🏆 Wrapped":
     render_reportes(obras, db.list_actividad, getattr(db, "list_capitulos", None), getattr(db, "list_votos_personaje", None))
 elif nav == "📚 Biblioteca":
-    render_biblioteca(obras)
+    biblioteca_page.render_biblioteca(obras)
     render_biblioteca_insights(obras, getattr(db, "list_capitulos", None))
 elif nav == "🎲 Ruleta":
     render_ruleta(obras)
