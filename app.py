@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-APP_VERSION = "Paz Mental deploy 2026-05-30 v31 - sumar avance unido"
+APP_VERSION = "Paz Mental deploy 2026-05-30 v32 - avance en un solo boton"
 
 try:
     import src.database as db
@@ -63,7 +63,6 @@ st.markdown("""
 .lib-action-contrast-pill{display:inline-block;background:#dbeafe;color:#0f2f73;border:1px solid #93c5fd;border-radius:999px;padding:1px 7px;margin-left:4px;font-size:.62rem;font-weight:900}
 .lib-action-contrast-note{font-size:.60rem;color:#334155!important}
 div[data-testid="stButton"] button{border-radius:9px!important;padding:.18rem .28rem!important;min-height:26px!important;font-size:.70rem!important;font-weight:900!important}
-div[data-testid="stNumberInput"] input{min-height:26px!important;font-size:.72rem!important;font-weight:800!important;color:#0f172a!important;background:#eff6ff!important}
 div[data-baseweb="select"]>div{min-height:26px!important;font-size:.72rem!important;background:#eff6ff!important;color:#0f172a!important}
 div[data-baseweb="select"] span{color:#0f172a!important;font-size:.72rem!important;font-weight:800!important}
 </style>
@@ -207,22 +206,25 @@ def _biblioteca_quick_actions_compacta(row):
             db.update_obra(row["id"], {"favorito": 0 if biblioteca_page._safe_int(row.get("favorito"), 0) else 1})
             st.rerun()
 
-        num_col, plus_col = q2.columns([0.64, 0.36])
-        cantidad = num_col.number_input("Caps", min_value=0, value=1, step=1, key=f"lib_sum_qty_{row['id']}", label_visibility="collapsed")
-        if plus_col.button("+", key=f"lib_sum_btn_{row['id']}", help="Sumar capítulos vistos", use_container_width=True):
-            if int(cantidad or 0) <= 0:
-                st.warning("Coloca un número mayor a 0 para sumar avance.")
-            else:
-                nuevo = actual + int(cantidad)
-                if publicados > 0:
-                    nuevo = min(nuevo, publicados)
-                db.update_obra(row["id"], {
-                    "capitulos_vistos": nuevo,
-                    "capitulo_actual": nuevo,
-                    "ultimo_capitulo_visto": nuevo,
-                    "fecha_ultimo_capitulo_visto": str(date.today()),
-                })
-                st.rerun()
+        cantidad_label = q2.selectbox(
+            "Sumar",
+            ["+1", "+2", "+3", "+5", "+10", "+20"],
+            index=0,
+            key=f"lib_sum_choice_{row['id']}",
+            label_visibility="collapsed",
+        )
+        cantidad = int(cantidad_label.replace("+", ""))
+        if q2.button(cantidad_label, key=f"lib_sum_btn_{row['id']}", help="Sumar avance", use_container_width=True):
+            nuevo = actual + cantidad
+            if publicados > 0:
+                nuevo = min(nuevo, publicados)
+            db.update_obra(row["id"], {
+                "capitulos_vistos": nuevo,
+                "capitulo_actual": nuevo,
+                "ultimo_capitulo_visto": nuevo,
+                "fecha_ultimo_capitulo_visto": str(date.today()),
+            })
+            st.rerun()
 
         if q3.button("Día", key=f"lib_done_{row['id']}", help="Poner avance al último capítulo publicado", use_container_width=True):
             db.update_obra(row["id"], {"capitulos_vistos": publicados, "capitulo_actual": publicados, "ultimo_capitulo_visto": publicados, "fecha_ultimo_capitulo_visto": str(date.today())})
