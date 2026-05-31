@@ -1,3 +1,7 @@
+import base64
+import mimetypes
+from pathlib import Path
+
 import streamlit as st
 
 
@@ -17,6 +21,27 @@ def _tipo_counts(obras):
         tipo = obra.get("tipo") or "Sin tipo"
         counts[tipo] = counts.get(tipo, 0) + 1
     return counts
+
+
+def _image_src(path_or_url):
+    raw = str(path_or_url or "").strip()
+    if not raw:
+        return ""
+    if raw.startswith(("http://", "https://", "data:")):
+        return raw
+    path = Path(raw)
+    if not path.exists():
+        return ""
+    mime = mimetypes.guess_type(path.name)[0] or "image/png"
+    data = base64.b64encode(path.read_bytes()).decode("utf-8")
+    return f"data:{mime};base64,{data}"
+
+
+def _cover_html(path_or_url):
+    src = _image_src(path_or_url)
+    if src:
+        return f'<img class="pm-cover-placeholder" src="{src}" style="object-fit:cover;" />'
+    return '<div class="pm-cover-placeholder">▧</div>'
 
 
 def _mini_card(title, subtitle, icon=""):
@@ -85,12 +110,14 @@ def render_inicio(obras):
         cap_total = actual.get("capitulo_total") or actual.get("capitulos_publicados") or 0
         progreso = f"Avance {cap}" + (f" / {cap_total}" if int(cap_total or 0) else "")
         fecha = str(actual.get("fecha_inicio") or actual.get("updated_at") or "Sin fecha")[:10]
+        portada_html = _cover_html(actual.get("portada_path"))
     else:
         titulo = "Agrega tu primera obra"
         estado = "Sin obra activa"
         tipo_actual = "Historia"
         progreso = "Avance 0"
         fecha = "Hoy"
+        portada_html = _cover_html("")
 
     st.markdown(
         f"""
@@ -104,7 +131,7 @@ def render_inicio(obras):
                 <div class="pm-bookmark"></div>
                 <div class="pm-reading-title">{titulo}</div>
                 <div class="pm-reading-body">
-                    <div class="pm-cover-placeholder">▧</div>
+                    {portada_html}
                     <div>
                         <div class="pm-reading-date">{fecha}</div>
                         <div class="pm-reading-status">{tipo_actual} · {estado}</div>
