@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-APP_VERSION = "Paz Mental deploy 2026-05-30 v26 - gráfica compacta en card"
+APP_VERSION = "Paz Mental deploy 2026-05-30 v27 - acciones decoradas por obra"
 
 try:
     import src.database as db
@@ -55,6 +55,36 @@ apply_styles()
 ensure_dirs()
 db.init_db()
 st.caption(APP_VERSION)
+
+st.markdown("""
+<style>
+.lib-action-head{
+    padding: 4px 2px 8px 2px;
+}
+.lib-action-title{
+    font-weight: 900;
+    font-size: .95rem;
+    color: #1e3a8a;
+    letter-spacing: .01em;
+}
+.lib-action-sub{
+    font-size: .78rem;
+    color: #64748b;
+    margin-top: 1px;
+}
+.lib-action-pill{
+    display:inline-block;
+    padding:3px 9px;
+    border-radius:999px;
+    background:#eff6ff;
+    color:#1d4ed8;
+    border:1px solid rgba(37,99,235,.20);
+    font-weight:800;
+    font-size:.74rem;
+    margin-bottom:6px;
+}
+</style>
+""", unsafe_allow_html=True)
 
 TMDB_API_KEY = st.secrets.get("TMDB_API_KEY", "")
 
@@ -179,38 +209,51 @@ def guardar_importado(item, tipo, estado):
 def _biblioteca_quick_actions_con_grafica(row):
     actual = biblioteca_page._safe_int(row.get("capitulos_vistos") or row.get("capitulo_actual"), 0)
     publicados = biblioteca_page._safe_int(row.get("capitulos_publicados") or row.get("capitulo_total"), 0)
-    q1, q2, q3, q4, q5 = st.columns([0.9, 1.15, 0.9, 1.75, 0.7])
-    if q1.button("❤️", key=f"lib_fav_{row['id']}", help="Favorito"):
-        db.update_obra(row["id"], {"favorito": 0 if biblioteca_page._safe_int(row.get("favorito"), 0) else 1})
-        st.rerun()
-    cantidad = q2.number_input("Sumar vistos", min_value=0, value=1, step=1, key=f"lib_sum_qty_{row['id']}")
-    if q2.button("➕ Sumar", key=f"lib_sum_btn_{row['id']}"):
-        if int(cantidad or 0) <= 0:
-            st.warning("Coloca un número mayor a 0 para sumar avance.")
-        else:
-            nuevo = actual + int(cantidad)
-            if publicados > 0:
-                nuevo = min(nuevo, publicados)
-            db.update_obra(row["id"], {
-                "capitulos_vistos": nuevo,
-                "capitulo_actual": nuevo,
-                "ultimo_capitulo_visto": nuevo,
-                "fecha_ultimo_capitulo_visto": str(date.today()),
-            })
+    titulo = row.get("titulo") or "esta obra"
+
+    with st.container(border=True):
+        st.markdown(
+            f"""
+            <div class="lib-action-head">
+                <span class="lib-action-pill">acciones de esta obra</span>
+                <div class="lib-action-title">🎛️ {titulo}</div>
+                <div class="lib-action-sub">Favorito, avance, estado y gráfica afectan solo a esta obra.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        q1, q2, q3, q4, q5 = st.columns([0.85, 1.25, 0.85, 1.75, 0.8])
+        if q1.button("❤️", key=f"lib_fav_{row['id']}", help="Marcar o quitar favorito", use_container_width=True):
+            db.update_obra(row["id"], {"favorito": 0 if biblioteca_page._safe_int(row.get("favorito"), 0) else 1})
             st.rerun()
-    if q3.button("Al día", key=f"lib_done_{row['id']}"):
-        db.update_obra(row["id"], {"capitulos_vistos": publicados, "capitulo_actual": publicados, "ultimo_capitulo_visto": publicados, "fecha_ultimo_capitulo_visto": str(date.today())})
-        st.rerun()
-    estado = q4.selectbox("Estado", biblioteca_page.ESTADOS, index=biblioteca_page.ESTADOS.index(row.get("estado_lectura")) if row.get("estado_lectura") in biblioteca_page.ESTADOS else 0, key=f"lib_estado_{row['id']}")
-    if q4.button("Guardar estado", key=f"lib_save_estado_{row['id']}"):
-        db.update_obra(row["id"], {"estado_lectura": estado})
-        st.rerun()
-    if q5.button("Gráfica", key=f"lib_graph_{row['id']}", help="Ver evolución por capítulos"):
-        if str(st.session_state.get("biblioteca_graph_id")) == str(row.get("id")):
-            st.session_state.pop("biblioteca_graph_id", None)
-        else:
-            st.session_state["biblioteca_graph_id"] = row.get("id")
-        st.rerun()
+        cantidad = q2.number_input("Sumar vistos", min_value=0, value=1, step=1, key=f"lib_sum_qty_{row['id']}")
+        if q2.button("➕ Sumar", key=f"lib_sum_btn_{row['id']}", use_container_width=True):
+            if int(cantidad or 0) <= 0:
+                st.warning("Coloca un número mayor a 0 para sumar avance.")
+            else:
+                nuevo = actual + int(cantidad)
+                if publicados > 0:
+                    nuevo = min(nuevo, publicados)
+                db.update_obra(row["id"], {
+                    "capitulos_vistos": nuevo,
+                    "capitulo_actual": nuevo,
+                    "ultimo_capitulo_visto": nuevo,
+                    "fecha_ultimo_capitulo_visto": str(date.today()),
+                })
+                st.rerun()
+        if q3.button("📚 Al día", key=f"lib_done_{row['id']}", help="Poner avance al último capítulo publicado", use_container_width=True):
+            db.update_obra(row["id"], {"capitulos_vistos": publicados, "capitulo_actual": publicados, "ultimo_capitulo_visto": publicados, "fecha_ultimo_capitulo_visto": str(date.today())})
+            st.rerun()
+        estado = q4.selectbox("Estado", biblioteca_page.ESTADOS, index=biblioteca_page.ESTADOS.index(row.get("estado_lectura")) if row.get("estado_lectura") in biblioteca_page.ESTADOS else 0, key=f"lib_estado_{row['id']}")
+        if q4.button("💾 Guardar estado", key=f"lib_save_estado_{row['id']}", use_container_width=True):
+            db.update_obra(row["id"], {"estado_lectura": estado})
+            st.rerun()
+        if q5.button("📊 Gráfica", key=f"lib_graph_{row['id']}", help="Ver evolución por capítulos", use_container_width=True):
+            if str(st.session_state.get("biblioteca_graph_id")) == str(row.get("id")):
+                st.session_state.pop("biblioteca_graph_id", None)
+            else:
+                st.session_state["biblioteca_graph_id"] = row.get("id")
+            st.rerun()
 
 
 biblioteca_page._quick_actions = _biblioteca_quick_actions_con_grafica
