@@ -10,10 +10,11 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-APP_VERSION = "Paz Mental deploy 2026-05-30 v34 - respaldo urgente"
+APP_VERSION = "Paz Mental deploy 2026-05-30 v35 - persistencia GitHub"
 
 try:
     import src.database as db
+    import src.persistent_storage as persistent_storage
     from src.styles import apply_styles
     from src.utils import (
         ensure_dirs,
@@ -54,8 +55,49 @@ except Exception:
 st.set_page_config(page_title="Paz Mental", page_icon="📚", layout="wide")
 apply_styles()
 ensure_dirs()
+
+try:
+    persistent_storage.restore_db_if_needed(db.DB_PATH)
+except Exception:
+    pass
+
 db.init_db()
 st.caption(APP_VERSION)
+
+
+def _sync_persistent_db(label="Actualizar respaldo persistente"):
+    try:
+        ok, msg = persistent_storage.upload_db(db.DB_PATH, message=label)
+        return ok, msg
+    except Exception as exc:
+        return False, f"No pude sincronizar persistencia: {exc}"
+
+
+def _wrap_db_writer(name, label):
+    original = getattr(db, name, None)
+    if original is None or getattr(original, "_paz_wrapped", False):
+        return
+    def wrapped(*args, **kwargs):
+        result = original(*args, **kwargs)
+        _sync_persistent_db(label)
+        return result
+    wrapped._paz_wrapped = True
+    setattr(db, name, wrapped)
+
+
+for _name, _label in [
+    ("add_obra", "Guardar obra y sincronizar biblioteca"),
+    ("update_obra", "Actualizar obra y sincronizar biblioteca"),
+    ("delete_obra", "Eliminar obra y sincronizar biblioteca"),
+    ("add_capitulo", "Guardar capítulo y sincronizar biblioteca"),
+    ("add_personaje", "Guardar personaje y sincronizar biblioteca"),
+    ("add_voto_personaje", "Guardar voto de personaje y sincronizar biblioteca"),
+    ("add_actividad", "Guardar actividad y sincronizar biblioteca"),
+    ("add_canon", "Guardar canon y sincronizar biblioteca"),
+    ("merge_obra_metadata", "Fusionar metadatos y sincronizar biblioteca"),
+    ("add_tiempo_obra", "Guardar tiempo y sincronizar biblioteca"),
+]:
+    _wrap_db_writer(_name, _label)
 
 st.markdown("""
 <style>
