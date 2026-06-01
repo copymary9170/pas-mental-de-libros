@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-APP_VERSION = "Paz Mental deploy 2026-05-30 v33 - avance restaurado"
+APP_VERSION = "Paz Mental deploy 2026-05-30 v34 - respaldo urgente"
 
 try:
     import src.database as db
@@ -44,6 +44,7 @@ try:
     from src.pages.agregar_manual import render_agregar_manual
     from src.pages.inicio import render_inicio
     from src.pages.ruleta import render_ruleta
+    from src.pages.respaldo import render_respaldo
 except Exception:
     st.set_page_config(page_title="Paz Mental - Error", page_icon="⚠️", layout="wide")
     st.error("La app falló durante la importación inicial. Copia este diagnóstico completo y pégalo en el chat.")
@@ -84,6 +85,7 @@ NAV_OPTIONS = [
     "📝 Capítulos",
     "📅 Calendario",
     "🌌 Canons",
+    "🛟 Respaldo",
     "🧰 Diagnóstico",
     "⬇️ Exportar",
 ]
@@ -305,6 +307,8 @@ elif nav == "📅 Calendario":
     render_calendario(db.list_actividad)
 elif nav == "🌌 Canons":
     render_canons(db.add_canon, db.list_canons)
+elif nav == "🛟 Respaldo":
+    render_respaldo()
 elif nav == "🧰 Diagnóstico":
     render_diagnostico()
 elif nav == "⬇️ Exportar":
