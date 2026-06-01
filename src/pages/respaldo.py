@@ -5,6 +5,7 @@ import pandas as pd
 import streamlit as st
 
 import src.database as db
+import src.persistent_storage as persistent_storage
 
 TABLES = ["obras", "capitulos", "personajes", "votos_personaje", "actividad", "canons"]
 
@@ -62,9 +63,34 @@ def restaurar_todo(payload, modo="reemplazar"):
         conn.commit()
 
 
+def _render_persistencia():
+    st.markdown("### 🔒 Persistencia automática en GitHub")
+    st.caption("Esto es lo que hace que tus obras se queden aunque Streamlit reinicie la app.")
+    if persistent_storage.is_enabled():
+        st.success(persistent_storage.status_message())
+        if st.button("🧪 Probar sincronización ahora", use_container_width=True):
+            try:
+                ok, msg = persistent_storage.upload_db(db.DB_PATH, message="Probar persistencia desde módulo respaldo")
+                if ok:
+                    st.success(msg)
+                else:
+                    st.warning(msg)
+            except Exception as exc:
+                st.error(f"La prueba falló: {exc}")
+    else:
+        st.error("La persistencia automática todavía NO está activa. Falta configurar el secret privado en Streamlit.")
+        st.code('''GITHUB_BACKUP_TOKEN = "PEGA_AQUI_TU_TOKEN"
+GITHUB_BACKUP_REPO = "copymary9170/pas-mental-de-libros"
+GITHUB_BACKUP_BRANCH = "main"
+GITHUB_BACKUP_DB_PATH = "persist/biblioteca.db"''', language="toml")
+        st.info("No puedo crear ni pegar ese token por ti porque es una contraseña privada de tu cuenta. Cuando lo pegues en Streamlit Secrets y reinicies, esta sección debe ponerse en verde.")
+
+
 def render_respaldo():
     st.subheader("🛟 Respaldo / Restaurar")
-    st.error("Streamlit puede borrar la base local cuando se reinicia o se redeploya. Usa este respaldo para no perder tus obras.")
+    st.error("Streamlit puede borrar la base local cuando se reinicia o se redeploya. La persistencia GitHub evita eso cuando el token está configurado.")
+
+    _render_persistencia()
 
     data = exportar_todo()
     resumen = data.get("resumen", {})
@@ -106,6 +132,10 @@ def render_respaldo():
             st.json(resumen_archivo)
             if st.button("♻️ Restaurar respaldo", disabled=not confirmar, use_container_width=True):
                 restaurar_todo(payload, modo=modo)
+                try:
+                    persistent_storage.upload_db(db.DB_PATH, message="Restaurar respaldo y sincronizar DB")
+                except Exception:
+                    pass
                 st.success("Respaldo restaurado. Vuelve a Biblioteca o recarga la app.")
                 st.rerun()
         except Exception as exc:
@@ -113,4 +143,4 @@ def render_respaldo():
 
     st.markdown("---")
     st.markdown("### Qué pasó con la obra perdida")
-    st.info("Si no existe un respaldo JSON/CSV anterior, no puedo recuperar una obra que desapareció tras un reinicio del servidor. Este módulo evita que vuelva a pasar: descarga un respaldo después de agregar datos importantes.")
+    st.info("Si no existe un respaldo JSON/CSV anterior, no puedo recuperar una obra que desapareció tras un reinicio del servidor. La persistencia automática evita que vuelva a pasar después de configurar el token.")
