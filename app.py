@@ -233,6 +233,32 @@ def guardar_importado(item, tipo, estado):
     db.add_obra(data)
 
 
+def _tipo_actividad_biblioteca(row):
+    tipo = str(row.get("tipo") or "").lower()
+    if tipo in ["anime", "serie", "kdrama", "documental", "podcast"]:
+        return "avance desde biblioteca"
+    if tipo == "pelicula":
+        return "pelicula vista"
+    return "lectura desde biblioteca"
+
+
+def _registrar_avance_biblioteca(row, cantidad, accion):
+    cantidad = int(cantidad or 0)
+    if cantidad <= 0:
+        return
+    db.add_actividad({
+        "obra_id": row.get("id"),
+        "capitulo_id": None,
+        "fecha": str(date.today()),
+        "tipo_actividad": _tipo_actividad_biblioteca(row),
+        "cantidad": cantidad,
+        "minutos": 0,
+        "mood": row.get("mood") or "",
+        "comentario": f"{accion} desde Biblioteca",
+        "premio": "avance rapido biblioteca",
+    })
+
+
 def _biblioteca_quick_actions_compacta(row):
     actual = biblioteca_page._safe_int(row.get("capitulos_vistos") or row.get("capitulo_actual"), 0)
     publicados = biblioteca_page._safe_int(row.get("capitulos_publicados") or row.get("capitulo_total"), 0)
@@ -258,15 +284,19 @@ def _biblioteca_quick_actions_compacta(row):
                 nuevo = actual + int(cantidad)
                 if publicados > 0:
                     nuevo = min(nuevo, publicados)
+                avance_real = max(0, nuevo - actual)
                 db.update_obra(row["id"], {
                     "capitulos_vistos": nuevo,
                     "capitulo_actual": nuevo,
                     "ultimo_capitulo_visto": nuevo,
                     "fecha_ultimo_capitulo_visto": str(date.today()),
                 })
+                _registrar_avance_biblioteca(row, avance_real, f"Avance {actual} → {nuevo}")
                 st.rerun()
         if q4.button("Día", key=f"lib_done_{row['id']}", help="Poner avance al último capítulo publicado", use_container_width=True):
+            avance_real = max(0, publicados - actual)
             db.update_obra(row["id"], {"capitulos_vistos": publicados, "capitulo_actual": publicados, "ultimo_capitulo_visto": publicados, "fecha_ultimo_capitulo_visto": str(date.today())})
+            _registrar_avance_biblioteca(row, avance_real, f"Puesta al día {actual} → {publicados}")
             st.rerun()
         estado_col, save_col = q5.columns([0.76, 0.24])
         estado = estado_col.selectbox("Estado", biblioteca_page.ESTADOS, index=biblioteca_page.ESTADOS.index(row.get("estado_lectura")) if row.get("estado_lectura") in biblioteca_page.ESTADOS else 0, key=f"lib_estado_{row['id']}", label_visibility="collapsed")
@@ -360,4 +390,4 @@ elif nav == "⬇️ Exportar":
     else:
         csv = df.to_csv(index=False).encode("utf-8")
         st.download_button("Descargar CSV", csv, "paz_mental_export.csv", "text/csv")
-        st.download_button("Descargar JSON", df.to_json(orient="records", force_ascii=False, indent=2).encode("utf-8"), "paz_mental_export.json", "application/json")
+        st.download_button("Descargar JSON", df.to_json(orient="records", force_ascii=False, indent=2).encode("utf-8"), "paz_mental_export.json")
