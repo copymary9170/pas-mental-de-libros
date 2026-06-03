@@ -164,6 +164,20 @@ CAPITULOS_COLUMNS = {
     "created_at": "TEXT",
 }
 
+ACTIVIDAD_COLUMNS = {
+    "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "obra_id": "INTEGER",
+    "capitulo_id": "INTEGER",
+    "fecha": "TEXT NOT NULL",
+    "tipo_actividad": "TEXT",
+    "cantidad": "INTEGER DEFAULT 1",
+    "minutos": "INTEGER DEFAULT 0",
+    "mood": "TEXT",
+    "comentario": "TEXT",
+    "premio": "TEXT",
+    "created_at": "TEXT",
+}
+
 CANONS_COLUMNS = {
     "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
     "nombre": "TEXT NOT NULL",
@@ -198,6 +212,7 @@ def init_db():
         conn.execute("""CREATE TABLE IF NOT EXISTS canons (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL, autor_original TEXT, tipo TEXT, fandom TEXT, universo TEXT, sinopsis TEXT, etiquetas TEXT, portada_path TEXT, created_at TEXT, updated_at TEXT)""")
         _ensure_columns(conn, "obras", OBRAS_COLUMNS)
         _ensure_columns(conn, "capitulos", CAPITULOS_COLUMNS)
+        _ensure_columns(conn, "actividad", ACTIVIDAD_COLUMNS)
         _ensure_columns(conn, "canons", CANONS_COLUMNS)
         conn.commit()
 
@@ -243,12 +258,10 @@ def merge_obra_metadata(obra_id, data, only_empty=True):
     for key, value in data.items():
         if key in ["id", "created_at", "updated_at"]:
             continue
-        if value is None or value == "":
-            continue
         if only_empty:
-            if actual.get(key) in [None, "", 0] or key in ["capitulos_publicados", "capitulo_total", "temporada_total"]:
+            if actual.get(key) in [None, "", 0] and value not in [None, ""]:
                 merged[key] = value
-        else:
+        elif value not in [None, ""]:
             merged[key] = value
     if merged:
         update_obra(obra_id, merged)
@@ -287,15 +300,23 @@ def add_capitulo(data):
     data = dict(data); data["created_at"] = now
     allowed = list(CAPITULOS_COLUMNS.keys())
     clean = {k: data.get(k) for k in allowed if k != "id"}
-    keys = ", ".join(clean.keys()); placeholders = ", ".join(["?"] * len(clean))
+    fecha = clean.get("fecha_lectura") or now[:10]
+    minutos = int(clean.get("duracion_minutos") or 0)
+    cantidad = int(clean.get("paginas") or 0) or 1
+    tipo_actividad = "capitulo"
+    comentario = clean.get("comentario") or clean.get("notas") or clean.get("momento_clave") or clean.get("sinopsis")
+    mood = clean.get("mood") or clean.get("emocion_principal")
+    premio = clean.get("categoria_wrapped") or "registro de capitulo"
     with get_conn() as conn:
-        cur = conn.execute(f"INSERT INTO capitulos ({keys}) VALUES ({placeholders})", list(clean.values()))
+        cur = conn.execute(f"INSERT INTO capitulos ({', '.join(clean.keys())}) VALUES ({', '.join(['?'] * len(clean))})", list(clean.values()))
         cap_id = cur.lastrowid
-        if clean.get("fecha_lectura"):
-            conn.execute("INSERT INTO actividad (obra_id, capitulo_id, fecha, tipo_actividad, cantidad, minutos, mood, comentario, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (clean.get("obra_id"), cap_id, clean.get("fecha_lectura"), "capitulo", 1, int(clean.get("duracion_minutos") or 0), clean.get("mood"), clean.get("comentario") or clean.get("notas"), now))
+        if fecha:
+            conn.execute("INSERT INTO actividad (obra_id, capitulo_id, fecha, tipo_actividad, cantidad, minutos, mood, comentario, premio, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (clean.get("obra_id"), cap_id, fecha, tipo_actividad, cantidad, minutos, mood, comentario, premio, now))
         if clean.get("obra_id") and clean.get("numero"):
-            conn.execute("UPDATE obras SET capitulo_actual=?, capitulos_vistos=?, ultimo_capitulo_visto=?, fecha_ultimo_capitulo_visto=?, updated_at=? WHERE id=?", (int(clean.get("numero")), int(clean.get("numero")), int(clean.get("numero")), clean.get("fecha_lectura"), now, clean.get("obra_id")))
+            conn.execute("UPDATE obras SET capitulo_actual=?, capitulos_vistos=?, ultimo_capitulo_visto=?, fecha_ultimo_capitulo_visto=?, updated_at=? WHERE id=?", (int(clean.get("numero")), int(clean.get("numero")), int(clean.get("numero")), fecha, now, clean.get("obra_id")))
         conn.commit()
+    if clean.get("obra_id") and minutos > 0:
+        add_tiempo_obra(clean.get("obra_id"), minutos, fecha)
     return cap_id
 
 def list_capitulos(obra_id):
@@ -340,8 +361,10 @@ def list_votos_personaje(obra_id):
 def add_actividad(data):
     now = datetime.now().isoformat(timespec="seconds")
     data = dict(data); data["created_at"] = now
-    allowed = ["obra_id", "capitulo_id", "fecha", "tipo_actividad", "cantidad", "minutos", "mood", "comentario", "premio", "created_at"]
-    clean = {k: data.get(k) for k in allowed}
+    data.setdefault("fecha", now[:10])
+    allowed = list(ACTIVIDAD_COLUMNS.keys())
+    clean = {k: data.get(k) for k in allowed if k != "id"}
+    clean = _filter_columns("actividad", clean)
     _insert("actividad", clean)
     if clean.get("obra_id") and int(clean.get("minutos") or 0) > 0:
         add_tiempo_obra(clean.get("obra_id"), int(clean.get("minutos") or 0), clean.get("fecha"))
