@@ -3,7 +3,6 @@ from datetime import date, timedelta
 
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
 TIPO_EMOJI = {
@@ -12,6 +11,11 @@ TIPO_EMOJI = {
     "Comic": "💥", "Anime": "🌸", "Serie": "📺", "Kdrama": "💙",
     "Pelicula": "🎬", "Documental": "🎥", "Podcast": "🎧", "Otro": "📚",
 }
+
+CAL_COLUMNS = [
+    "fecha", "fecha_dt", "minutos", "cantidad", "titulo", "tipo", "tipo_actividad",
+    "comentario", "mood", "portada_path", "premio", "etiquetas",
+]
 
 
 def _safe_int(value, default=0):
@@ -31,14 +35,33 @@ def _emoji_tipo(tipo):
     return TIPO_EMOJI.get(_safe_text(tipo), "📚")
 
 
+def _empty_activity_df():
+    return pd.DataFrame({
+        "fecha": pd.Series(dtype="str"),
+        "fecha_dt": pd.Series(dtype="object"),
+        "minutos": pd.Series(dtype="int"),
+        "cantidad": pd.Series(dtype="int"),
+        "titulo": pd.Series(dtype="str"),
+        "tipo": pd.Series(dtype="str"),
+        "tipo_actividad": pd.Series(dtype="str"),
+        "comentario": pd.Series(dtype="str"),
+        "mood": pd.Series(dtype="str"),
+        "portada_path": pd.Series(dtype="str"),
+        "premio": pd.Series(dtype="str"),
+        "etiquetas": pd.Series(dtype="str"),
+    })
+
+
 def _prepare_df(rows):
     df = pd.DataFrame(rows or [])
     if df.empty:
-        return df
+        return _empty_activity_df()
     if "fecha" not in df.columns:
         df["fecha"] = ""
     df["fecha_dt"] = pd.to_datetime(df["fecha"], errors="coerce").dt.date
     df = df.dropna(subset=["fecha_dt"]).copy()
+    if df.empty:
+        return _empty_activity_df()
     for col in ["minutos", "cantidad"]:
         if col not in df.columns:
             df[col] = 0
@@ -46,6 +69,7 @@ def _prepare_df(rows):
     for col in ["titulo", "tipo", "tipo_actividad", "comentario", "mood", "portada_path", "premio", "etiquetas"]:
         if col not in df.columns:
             df[col] = ""
+        df[col] = df[col].fillna("").astype(str)
     return df
 
 
@@ -101,12 +125,13 @@ def _style():
     .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-top:12px}
     .cal-head{font-weight:900;text-align:center;color:#dbeafe;padding:8px;background:#1e3a8a;border-radius:12px}
     .cal-day{min-height:166px;border:1px solid rgba(147,197,253,.45);border-radius:18px;background:linear-gradient(180deg,#eff6ff,#dbeafe);padding:10px;box-shadow:0 6px 20px rgba(15,23,42,.12);color:#0f172a}
-    .cal-day-1{background:linear-gradient(180deg,#eff6ff,#dbeafe)} .cal-day-2{background:linear-gradient(180deg,#dbeafe,#bfdbfe)} .cal-day-3{background:linear-gradient(180deg,#bfdbfe,#93c5fd)} .cal-day-4{background:linear-gradient(180deg,#93c5fd,#60a5fa)}
+    .cal-day-0{background:linear-gradient(180deg,#f8fafc,#e2e8f0)} .cal-day-1{background:linear-gradient(180deg,#eff6ff,#dbeafe)} .cal-day-2{background:linear-gradient(180deg,#dbeafe,#bfdbfe)} .cal-day-3{background:linear-gradient(180deg,#bfdbfe,#93c5fd)} .cal-day-4{background:linear-gradient(180deg,#93c5fd,#60a5fa)}
     .cal-day-today{outline:3px solid #38bdf8}.cal-day-selected{outline:3px solid #facc15}.cal-empty{opacity:.35;background:rgba(219,234,254,.35)}
     .cal-num{font-weight:900;font-size:.95rem;margin-bottom:6px;color:#0f172a;display:flex;justify-content:space-between;gap:6px}.cal-metrics{font-size:.75rem;line-height:1.35;color:#1e3a8a;font-weight:750;margin-bottom:7px}
     .cal-covers{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.cal-covers img{width:38px;height:54px;object-fit:cover;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.22)}
     .cal-emoji{display:inline-flex;width:38px;height:54px;align-items:center;justify-content:center;border-radius:8px;background:#1e40af;color:white;font-size:1.25rem}.cal-more{font-size:.76rem;margin-top:6px;color:#1d4ed8;font-weight:800}
     .cal-chip{display:inline-block;border-radius:999px;background:#1e3a8a;color:white;padding:2px 7px;font-size:.7rem;font-weight:800}.cal-badges{font-size:.9rem;margin:4px 0}.timeline-card{border-left:4px solid #2563eb;background:#eff6ff;border-radius:12px;padding:10px 12px;margin:8px 0;color:#0f172a}
+    @media(max-width:700px){.cal-grid{grid-template-columns:repeat(2,1fr);gap:8px}.cal-head{display:none}.cal-day{min-height:130px;padding:8px}.cal-covers img,.cal-emoji{width:30px;height:42px}.cal-metrics{font-size:.68rem}}
     </style>
     """, unsafe_allow_html=True)
 
@@ -177,7 +202,9 @@ def _render_heatmap(df, inicio, fin):
 def _render_by_work(df):
     st.markdown("### Calendario por obra")
     if df.empty: st.info("No hay actividad para agrupar por obra."); return
-    obras = sorted(df["titulo"].dropna().unique().tolist())
+    obras = sorted([x for x in df["titulo"].dropna().unique().tolist() if str(x).strip()])
+    if not obras:
+        st.info("No hay obras con título para agrupar."); return
     obra = st.selectbox("Selecciona una obra", obras, key="cal_work_select")
     sub = df[df["titulo"] == obra]
     c1, c2, c3, c4 = st.columns(4)
@@ -209,7 +236,7 @@ def _render_week(df, selected_day):
 
 def _render_year(df, year):
     st.markdown("### Vista anual")
-    if df.empty: st.info("No hay actividad en este año/mes cargado. Usa Heatmap Año completo para ampliar rango visual del mes seleccionado."); return
+    if df.empty: st.info("No hay actividad en este año. Usa Capítulos o Cronómetro para registrar actividad."); return
     tmp = df.copy(); tmp["mes"] = pd.to_datetime(tmp["fecha_dt"]).dt.month
     grouped = tmp.groupby("mes").agg(minutos=("minutos", "sum"), capitulos=("cantidad", "sum"), obras=("titulo", "nunique"), dias=("fecha_dt", "nunique")).reset_index()
     fig = px.bar(grouped, x="mes", y=["minutos", "capitulos", "obras", "dias"], barmode="group")
@@ -249,7 +276,12 @@ def render_calendario(list_actividad):
     with c2: month = st.selectbox("Mes", list(range(1, 13)), index=hoy.month - 1, key="cal_month")
     with c3: modo = st.selectbox("Modo calendario", ["Mes", "Semana", "Año", "Heatmap", "Por obra", "Timeline", "Progreso", "Exportar"], key="cal_mode")
     inicio = date(int(year), int(month), 1); fin = date(int(year), int(month), calendar.monthrange(int(year), int(month))[1])
-    actividad = _prepare_df(list_actividad(str(date(int(year), 1, 1)), str(date(int(year), 12, 31))))
+    try:
+        actividad = _prepare_df(list_actividad(str(date(int(year), 1, 1)), str(date(int(year), 12, 31))))
+    except Exception as exc:
+        st.error("No pude leer la actividad del calendario. Revisa Diagnóstico para ver la base de datos.")
+        st.exception(exc)
+        actividad = _empty_activity_df()
     tipos = sorted([x for x in actividad.get("tipo", pd.Series(dtype=str)).dropna().unique().tolist() if str(x).strip()]) if not actividad.empty else []
     titulos = sorted([x for x in actividad.get("titulo", pd.Series(dtype=str)).dropna().unique().tolist() if str(x).strip()]) if not actividad.empty else []
     with st.expander("Metas y filtros", expanded=False):
