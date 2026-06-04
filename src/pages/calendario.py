@@ -17,7 +17,7 @@ TIPO_EMOJI = {
     "Pelicula": "🎬", "Documental": "🎥", "Podcast": "🎧", "Otro": "📚",
 }
 
-
+# --- helpers ---
 def _safe_int(value, default=0):
     try:
         if value is None or value == "":
@@ -145,6 +145,60 @@ def _distribute(total, days):
     return [base + (1 if i < extra else 0) for i in range(days)]
 
 
+def _style():
+    st.markdown("""
+    <style>
+    .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-top:12px}
+    .cal-head{font-weight:900;text-align:center;color:#dbeafe;padding:8px;background:#1e3a8a;border-radius:12px}
+    .cal-day{min-height:166px;border:1px solid rgba(147,197,253,.45);border-radius:18px;background:linear-gradient(180deg,#eff6ff,#dbeafe);padding:10px;box-shadow:0 6px 20px rgba(15,23,42,.12);color:#0f172a}
+    .cal-day-0{background:linear-gradient(180deg,#f8fafc,#e2e8f0)} .cal-day-1{background:linear-gradient(180deg,#eff6ff,#dbeafe)} .cal-day-2{background:linear-gradient(180deg,#dbeafe,#bfdbfe)} .cal-day-3{background:linear-gradient(180deg,#bfdbfe,#93c5fd)} .cal-day-4{background:linear-gradient(180deg,#93c5fd,#60a5fa)}
+    .cal-day-today{outline:3px solid #38bdf8}.cal-day-selected{outline:3px solid #facc15}.cal-empty{opacity:.35;background:rgba(219,234,254,.35)}
+    .cal-num{font-weight:900;font-size:.95rem;margin-bottom:6px;color:#0f172a;display:flex;justify-content:space-between;gap:6px}.cal-metrics{font-size:.75rem;line-height:1.35;color:#1e3a8a;font-weight:750;margin-bottom:7px}
+    .cal-covers{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.cal-covers img{width:38px;height:54px;object-fit:cover;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.22)}
+    .cal-emoji{display:inline-flex;width:38px;height:54px;align-items:center;justify-content:center;border-radius:8px;background:#1e40af;color:white;font-size:1.25rem}.cal-more{font-size:.76rem;margin-top:6px;color:#1d4ed8;font-weight:800}
+    .cal-chip{display:inline-block;border-radius:999px;background:#1e3a8a;color:white;padding:2px 7px;font-size:.7rem;font-weight:800}.cal-badges{font-size:.9rem;margin:4px 0}.timeline-card{border-left:4px solid #2563eb;background:#eff6ff;border-radius:12px;padding:10px 12px;margin:8px 0;color:#0f172a}
+    .cal-legend{border:1px solid rgba(147,197,253,.55);border-radius:14px;background:#eff6ff;padding:9px 12px;margin:8px 0 10px 0;color:#0f172a;font-size:.82rem;line-height:1.55}
+    .cal-legend strong{color:#1e3a8a}.cal-legend span{display:inline-block;margin-right:12px;white-space:nowrap}
+    @media(max-width:700px){.cal-grid{grid-template-columns:repeat(2,1fr);gap:8px}.cal-head{display:none}.cal-day{min-height:130px;padding:8px}.cal-covers img,.cal-emoji{width:30px;height:42px}.cal-metrics{font-size:.68rem}.cal-legend span{display:block;margin-right:0}}
+    </style>
+    """, unsafe_allow_html=True)
+
+
+def _badges(minutos, caps, obras, moods, premios, meta_min, meta_caps):
+    b = []
+    if minutos >= meta_min and meta_min > 0: b.append("✅")
+    elif minutos > 0: b.append("🟡")
+    else: b.append("⚪")
+    if caps >= meta_caps and meta_caps > 0: b.append("🏆")
+    if minutos >= 120: b.append("📚")
+    if caps >= 5: b.append("🔥")
+    if obras >= 3: b.append("🌈")
+    if any("comfort" in str(m).lower() for m in moods): b.append("💧")
+    if premios: b.append("🏅")
+    return " ".join(b[:6])
+
+
+def _render_badge_legend():
+    st.markdown(
+        """
+        <div class="cal-legend">
+          <strong>ℹ️ Leyenda:</strong>
+          <span>⚪ sin actividad/minutos</span>
+          <span>🟡 actividad sin meta</span>
+          <span>✅ meta minutos</span>
+          <span>🏆 meta caps/eventos</span>
+          <span>📚 120+ min</span>
+          <span>🔥 5+ caps/eventos</span>
+          <span>🌈 3+ obras</span>
+          <span>💧 comfort</span>
+          <span>🏅 premio/categoría</span>
+          <span>🔵 número = registros del día</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def _render_retroactive_activity(obras):
     st.markdown("### 🕰️ Registrar actividad pasada")
     st.caption("Úsalo cuando agregaste una obra y colocaste capítulos ya leídos de días anteriores. Esto alimenta Calendario y Wrapped sin fingir que todo pasó hoy.")
@@ -206,55 +260,6 @@ def _render_retroactive_activity(obras):
         creados += 1
     st.success(f"Actividad pasada registrada: {creados} días para {obra.get('titulo') or 'la obra'}.")
     st.rerun()
-
-
-def _style():
-    st.markdown("""
-    <style>
-    .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-top:12px}
-    .cal-head{font-weight:900;text-align:center;color:#dbeafe;padding:8px;background:#1e3a8a;border-radius:12px}
-    .cal-day{min-height:166px;border:1px solid rgba(147,197,253,.45);border-radius:18px;background:linear-gradient(180deg,#eff6ff,#dbeafe);padding:10px;box-shadow:0 6px 20px rgba(15,23,42,.12);color:#0f172a}
-    .cal-day-0{background:linear-gradient(180deg,#f8fafc,#e2e8f0)} .cal-day-1{background:linear-gradient(180deg,#eff6ff,#dbeafe)} .cal-day-2{background:linear-gradient(180deg,#dbeafe,#bfdbfe)} .cal-day-3{background:linear-gradient(180deg,#bfdbfe,#93c5fd)} .cal-day-4{background:linear-gradient(180deg,#93c5fd,#60a5fa)}
-    .cal-day-today{outline:3px solid #38bdf8}.cal-day-selected{outline:3px solid #facc15}.cal-empty{opacity:.35;background:rgba(219,234,254,.35)}
-    .cal-num{font-weight:900;font-size:.95rem;margin-bottom:6px;color:#0f172a;display:flex;justify-content:space-between;gap:6px}.cal-metrics{font-size:.75rem;line-height:1.35;color:#1e3a8a;font-weight:750;margin-bottom:7px}
-    .cal-covers{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.cal-covers img{width:38px;height:54px;object-fit:cover;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.22)}
-    .cal-emoji{display:inline-flex;width:38px;height:54px;align-items:center;justify-content:center;border-radius:8px;background:#1e40af;color:white;font-size:1.25rem}.cal-more{font-size:.76rem;margin-top:6px;color:#1d4ed8;font-weight:800}
-    .cal-chip{display:inline-block;border-radius:999px;background:#1e3a8a;color:white;padding:2px 7px;font-size:.7rem;font-weight:800}.cal-badges{font-size:.9rem;margin:4px 0}.timeline-card{border-left:4px solid #2563eb;background:#eff6ff;border-radius:12px;padding:10px 12px;margin:8px 0;color:#0f172a}
-    @media(max-width:700px){.cal-grid{grid-template-columns:repeat(2,1fr);gap:8px}.cal-head{display:none}.cal-day{min-height:130px;padding:8px}.cal-covers img,.cal-emoji{width:30px;height:42px}.cal-metrics{font-size:.68rem}}
-    </style>
-    """, unsafe_allow_html=True)
-
-
-def _badges(minutos, caps, obras, moods, premios, meta_min, meta_caps):
-    b = []
-    if minutos >= meta_min and meta_min > 0: b.append("✅")
-    elif minutos > 0: b.append("🟡")
-    else: b.append("⚪")
-    if caps >= meta_caps and meta_caps > 0: b.append("🏆")
-    if minutos >= 120: b.append("📚")
-    if caps >= 5: b.append("🔥")
-    if obras >= 3: b.append("🌈")
-    if any("comfort" in str(m).lower() for m in moods): b.append("💧")
-    if premios: b.append("🏅")
-    return " ".join(b[:6])
-
-
-def _render_badge_legend():
-    with st.expander("ℹ️ Leyenda de emojis del calendario", expanded=False):
-        st.markdown(
-            """
-            **⚪** Sin actividad o sin minutos registrados  
-            **🟡** Hubo actividad, pero no alcanzó la meta diaria de minutos  
-            **✅** Se cumplió la meta diaria de minutos  
-            **🏆** Se cumplió la meta diaria de capítulos/eventos  
-            **📚** Día largo: 120 minutos o más  
-            **🔥** Día intenso: 5 capítulos/eventos o más  
-            **🌈** Día variado: 3 obras distintas o más  
-            **💧** Mood comfort  
-            **🏅** Hay premio o categoría registrada  
-            **Burbuja azul con número:** cantidad de registros de actividad de ese día.
-            """
-        )
 
 
 def _render_month(df, year, month, selected_day, meta_min, meta_caps):
@@ -380,12 +385,12 @@ def render_calendario(list_actividad, obras=None):
     obras = obras if obras is not None else db.list_obras()
     with st.expander("🕰️ Registrar actividad pasada", expanded=False):
         _render_retroactive_activity(obras)
-    _render_badge_legend()
     hoy = date.today()
     c1, c2, c3 = st.columns(3)
     with c1: year = st.number_input("Año", min_value=2000, max_value=2100, value=hoy.year, step=1, key="cal_year")
     with c2: month = st.selectbox("Mes", list(range(1, 13)), index=hoy.month - 1, key="cal_month")
     with c3: modo = st.selectbox("Modo calendario", ["Mes", "Semana", "Año", "Heatmap", "Por obra", "Timeline", "Progreso", "Exportar"], key="cal_mode")
+    _render_badge_legend()
     inicio = date(int(year), int(month), 1); fin = date(int(year), int(month), calendar.monthrange(int(year), int(month))[1])
     try:
         actividad = _prepare_df(list_actividad(str(date(int(year), 1, 1)), str(date(int(year), 12, 31))))
