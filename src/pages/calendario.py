@@ -239,6 +239,24 @@ def _badges(minutos, caps, obras, moods, premios, meta_min, meta_caps):
     return " ".join(b[:6])
 
 
+def _render_badge_legend():
+    with st.expander("ℹ️ Leyenda de emojis del calendario", expanded=False):
+        st.markdown(
+            """
+            **⚪** Sin actividad o sin minutos registrados  
+            **🟡** Hubo actividad, pero no alcanzó la meta diaria de minutos  
+            **✅** Se cumplió la meta diaria de minutos  
+            **🏆** Se cumplió la meta diaria de capítulos/eventos  
+            **📚** Día largo: 120 minutos o más  
+            **🔥** Día intenso: 5 capítulos/eventos o más  
+            **🌈** Día variado: 3 obras distintas o más  
+            **💧** Mood comfort  
+            **🏅** Hay premio o categoría registrada  
+            **Burbuja azul con número:** cantidad de registros de actividad de ese día.
+            """
+        )
+
+
 def _render_month(df, year, month, selected_day, meta_min, meta_caps):
     html = ['<div class="cal-grid">']
     for d in ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]:
@@ -362,6 +380,7 @@ def render_calendario(list_actividad, obras=None):
     obras = obras if obras is not None else db.list_obras()
     with st.expander("🕰️ Registrar actividad pasada", expanded=False):
         _render_retroactive_activity(obras)
+    _render_badge_legend()
     hoy = date.today()
     c1, c2, c3 = st.columns(3)
     with c1: year = st.number_input("Año", min_value=2000, max_value=2100, value=hoy.year, step=1, key="cal_year")
