@@ -5,6 +5,8 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+import src.database as db
+
 TIPO_EMOJI = {
     "Libro": "📖", "Fanfiction": "✍️", "Novela": "📖", "Novela ligera": "📗",
     "Manga": "🌸", "Manhwa": "💠", "Manhua": "🏮", "Webnovel": "💜",
@@ -117,6 +119,77 @@ def _calc_streaks(df):
         run += 1
         cursor -= timedelta(days=1)
     return run, best
+
+
+def _distribute(total, days):
+    total = int(total or 0)
+    days = max(1, int(days or 1))
+    base = total // days
+    extra = total % days
+    return [base + (1 if i < extra else 0) for i in range(days)]
+
+
+def _render_retroactive_activity(obras):
+    st.markdown("### 🕰️ Registrar actividad pasada")
+    st.caption("Úsalo cuando agregaste una obra y colocaste capítulos ya leídos de días anteriores. Esto alimenta Calendario y Wrapped sin fingir que todo pasó hoy.")
+    if not obras:
+        st.info("Agrega una obra primero para registrar actividad pasada.")
+        return
+    opciones = {f"#{o.get('id')} · {o.get('titulo') or 'Sin título'} · {o.get('tipo') or 'Tipo N/D'}": o for o in obras}
+    with st.form("cal_retro_form"):
+        obra_label = st.selectbox("Obra", list(opciones.keys()), key="cal_retro_obra")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            fecha_inicio = st.date_input("Desde", value=date.today() - timedelta(days=13), key="cal_retro_inicio")
+        with c2:
+            fecha_fin = st.date_input("Hasta", value=date.today(), key="cal_retro_fin")
+        with c3:
+            cantidad_total = st.number_input("Capítulos / episodios totales", min_value=1, value=1, step=1, key="cal_retro_cantidad")
+        c4, c5, c6 = st.columns(3)
+        with c4:
+            minutos_total = st.number_input("Minutos totales opcional", min_value=0, value=0, step=10, key="cal_retro_minutos")
+        with c5:
+            mood = st.text_input("Mood opcional", placeholder="comfort, hype, triste...", key="cal_retro_mood")
+        with c6:
+            modo = st.selectbox("Modo", ["Repartir por días", "Todo en fecha final"], key="cal_retro_modo")
+        comentario = st.text_area("Comentario", value="Registro retroactivo de lectura/visionado acumulado.", key="cal_retro_comentario")
+        confirmar = st.checkbox("Confirmo que quiero crear actividad pasada en el calendario", key="cal_retro_confirm")
+        submitted = st.form_submit_button("Guardar actividad pasada")
+    if not submitted:
+        return
+    if not confirmar:
+        st.warning("Marca la confirmación antes de guardar.")
+        return
+    if fecha_fin < fecha_inicio:
+        st.error("La fecha final no puede ser anterior a la fecha inicial.")
+        return
+    obra = opciones[obra_label]
+    if modo == "Todo en fecha final":
+        fechas = [fecha_fin]
+        cantidades = [int(cantidad_total)]
+        minutos = [int(minutos_total or 0)]
+    else:
+        fechas = [fecha_inicio + timedelta(days=i) for i in range((fecha_fin - fecha_inicio).days + 1)]
+        cantidades = _distribute(int(cantidad_total), len(fechas))
+        minutos = _distribute(int(minutos_total or 0), len(fechas))
+    creados = 0
+    for f, cant, mins in zip(fechas, cantidades, minutos):
+        if int(cant or 0) <= 0 and int(mins or 0) <= 0:
+            continue
+        db.add_actividad({
+            "obra_id": obra.get("id"),
+            "capitulo_id": None,
+            "fecha": str(f),
+            "tipo_actividad": "registro retroactivo",
+            "cantidad": int(cant or 0),
+            "minutos": int(mins or 0),
+            "mood": mood.strip(),
+            "comentario": comentario.strip(),
+            "premio": "actividad pasada",
+        })
+        creados += 1
+    st.success(f"Actividad pasada registrada: {creados} días para {obra.get('titulo') or 'la obra'}.")
+    st.rerun()
 
 
 def _style():
@@ -266,10 +339,13 @@ def _render_exports(df):
     st.code(resumen)
 
 
-def render_calendario(list_actividad):
+def render_calendario(list_actividad, obras=None):
     st.subheader("📅 Calendario visual avanzado")
     st.caption("Bookmory + TV Time + diario de fandom: mes, semana, año, heatmap, timeline, metas, badges y exportes.")
     _style()
+    obras = obras if obras is not None else db.list_obras()
+    with st.expander("🕰️ Registrar actividad pasada", expanded=False):
+        _render_retroactive_activity(obras)
     hoy = date.today()
     c1, c2, c3 = st.columns(3)
     with c1: year = st.number_input("Año", min_value=2000, max_value=2100, value=hoy.year, step=1, key="cal_year")
