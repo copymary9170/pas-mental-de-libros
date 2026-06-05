@@ -1,12 +1,17 @@
-"""Runtime safety patch for Paz Mental dates.
+"""Runtime safety patch for Paz Mental dates and activity grouping.
 
 Streamlit Cloud can run in a server timezone ahead of Venezuela. Some UI pages still
 use date.today(), so they may send tomorrow's date when the user is still in
-America/Caracas. This patch keeps saved activity dates from drifting into the
-future.
+America/Caracas.
+
+This patch protects the database layer:
+- clamps future dates to Venezuela local date;
+- merges activity for the same obra on the same local day so the calendar shows
+  one cover/card per obra per day instead of duplicated covers.
 """
 
 from datetime import date as _date
+import sqlite3 as _sqlite3
 
 try:
     import src.database as _db
@@ -39,8 +44,18 @@ def _clamp_future_date(value):
     return str(parsed)
 
 
+def _join_unique(old, new, sep=" | "):
+    old = str(old or "").strip()
+    new = str(new or "").strip()
+    if not old:
+        return new
+    if not new or new in old:
+        return old
+    return f"{old}{sep}{new}"
+
+
 def _patch_database_dates():
-    if _db is None or getattr(_db, "_paz_venezuela_date_patch", False):
+    if _db is None or getattr(_db, "_paz_venezuela_date_patch_v2", False):
         return
 
     original_add_actividad = getattr(_db, "add_actividad", None)
@@ -48,6 +63,44 @@ def _patch_database_dates():
         def add_actividad_venezuela(data):
             data = dict(data or {})
             data["fecha"] = _clamp_future_date(data.get("fecha"))
+            obra_id = data.get("obra_id")
+            fecha = data.get("fecha")
+            cantidad = int(data.get("cantidad") or 0)
+            minutos = int(data.get("minutos") or 0)
+
+            if obra_id and fecha:
+                try:
+                    with _db.get_conn() as conn:
+                        conn.row_factory = _sqlite3.Row
+                        existing = conn.execute(
+                            "SELECT * FROM actividad WHERE obra_id=? AND fecha=? ORDER BY id ASC LIMIT 1",
+                            (obra_id, fecha),
+                        ).fetchone()
+                        if existing:
+                            existing = dict(existing)
+                            conn.execute(
+                                """
+                                UPDATE actividad
+                                SET cantidad=?, minutos=?, tipo_actividad=?, mood=?, comentario=?, premio=?
+                                WHERE id=?
+                                """,
+                                (
+                                    int(existing.get("cantidad") or 0) + cantidad,
+                                    int(existing.get("minutos") or 0) + minutos,
+                                    _join_unique(existing.get("tipo_actividad"), data.get("tipo_actividad")),
+                                    _join_unique(existing.get("mood"), data.get("mood")),
+                                    _join_unique(existing.get("comentario"), data.get("comentario")),
+                                    _join_unique(existing.get("premio"), data.get("premio")),
+                                    existing.get("id"),
+                                ),
+                            )
+                            conn.commit()
+                            if minutos > 0 and hasattr(_db, "add_tiempo_obra"):
+                                _db.add_tiempo_obra(obra_id, minutos, fecha)
+                            return existing.get("id")
+                except Exception:
+                    pass
+
             return original_add_actividad(data)
         _db.add_actividad = add_actividad_venezuela
 
@@ -57,6 +110,8 @@ def _patch_database_dates():
             data = dict(data or {})
             if data.get("fecha_lectura"):
                 data["fecha_lectura"] = _clamp_future_date(data.get("fecha_lectura"))
+            else:
+                data["fecha_lectura"] = _clamp_future_date(None)
             return original_add_capitulo(data)
         _db.add_capitulo = add_capitulo_venezuela
 
@@ -82,6 +137,7 @@ def _patch_database_dates():
         _db.update_obra = update_obra_venezuela
 
     _db._paz_venezuela_date_patch = True
+    _db._paz_venezuela_date_patch_v2 = True
 
 
 _patch_database_dates()
