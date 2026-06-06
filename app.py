@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 import sys
 import traceback
@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-APP_VERSION = "Paz Mental deploy 2026-06-05 v36 - fecha Venezuela en Biblioteca"
+APP_VERSION = "Paz Mental deploy 2026-06-05 v37 - editor calendario"
 
 try:
     import src.database as db
@@ -315,6 +315,64 @@ def _biblioteca_quick_actions_compacta(row):
             st.rerun()
 
 
+def _render_activity_admin():
+    with st.expander("🛠️ Corregir o eliminar actividad del calendario", expanded=False):
+        st.caption("Úsalo para mover registros que quedaron en el día equivocado o borrar duplicados. Solo cambia la fila seleccionada.")
+        hoy = today_local()
+        c1, c2 = st.columns(2)
+        with c1:
+            desde = st.date_input("Ver desde", value=hoy - timedelta(days=7), key="admin_act_desde")
+        with c2:
+            hasta = st.date_input("Ver hasta", value=hoy + timedelta(days=2), key="admin_act_hasta")
+        rows = db.list_actividad(str(desde), str(hasta))
+        if not rows:
+            st.info("No hay actividad en ese rango.")
+            return
+        df_admin = pd.DataFrame(rows)
+        cols = [c for c in ["id", "fecha", "titulo", "tipo_actividad", "cantidad", "minutos", "mood", "premio", "comentario"] if c in df_admin.columns]
+        st.dataframe(df_admin[cols], use_container_width=True, hide_index=True)
+        opciones = {}
+        for r in rows:
+            label = f"#{r.get('id')} · {r.get('fecha')} · {r.get('titulo') or 'Sin título'} · {r.get('cantidad') or 0} caps · {r.get('minutos') or 0} min"
+            opciones[label] = r
+        selected_label = st.selectbox("Registro a corregir", list(opciones.keys()), key="admin_act_select")
+        registro = opciones[selected_label]
+        e1, e2, e3 = st.columns(3)
+        with e1:
+            nueva_fecha = st.date_input("Nueva fecha", value=pd.to_datetime(registro.get("fecha"), errors="coerce").date() if registro.get("fecha") else hoy, key="admin_act_fecha")
+        with e2:
+            nueva_cantidad = st.number_input("Capítulos/eventos", min_value=0, value=int(registro.get("cantidad") or 0), step=1, key="admin_act_cantidad")
+        with e3:
+            nuevos_minutos = st.number_input("Minutos", min_value=0, value=int(registro.get("minutos") or 0), step=5, key="admin_act_minutos")
+        nuevo_mood = st.text_input("Mood", value=str(registro.get("mood") or ""), key="admin_act_mood")
+        nuevo_premio = st.text_input("Premio / categoría", value=str(registro.get("premio") or ""), key="admin_act_premio")
+        nuevo_comentario = st.text_area("Comentario", value=str(registro.get("comentario") or ""), key="admin_act_comentario")
+        b1, b2 = st.columns(2)
+        with b1:
+            if st.button("💾 Guardar corrección", key="admin_act_guardar"):
+                with db.get_conn() as conn:
+                    conn.execute(
+                        "UPDATE actividad SET fecha=?, cantidad=?, minutos=?, mood=?, premio=?, comentario=? WHERE id=?",
+                        (str(nueva_fecha), int(nueva_cantidad or 0), int(nuevos_minutos or 0), nuevo_mood, nuevo_premio, nuevo_comentario, registro.get("id")),
+                    )
+                    conn.commit()
+                _sync_persistent_db("Corregir actividad del calendario")
+                st.success("Actividad corregida.")
+                st.rerun()
+        with b2:
+            confirmar = st.checkbox("Confirmo eliminar", key="admin_act_confirm_delete")
+            if st.button("🗑️ Eliminar registro", key="admin_act_eliminar"):
+                if not confirmar:
+                    st.warning("Marca la confirmación para eliminar.")
+                else:
+                    with db.get_conn() as conn:
+                        conn.execute("DELETE FROM actividad WHERE id=?", (registro.get("id"),))
+                        conn.commit()
+                    _sync_persistent_db("Eliminar actividad del calendario")
+                    st.success("Actividad eliminada.")
+                    st.rerun()
+
+
 biblioteca_page._quick_actions = _biblioteca_quick_actions_compacta
 render_biblioteca = biblioteca_page.render_biblioteca
 
@@ -381,6 +439,7 @@ elif nav == "📝 Capítulos":
     )
 elif nav == "📅 Calendario":
     render_calendario(db.list_actividad)
+    _render_activity_admin()
 elif nav == "🌌 Canons":
     render_canons(db.add_canon, db.list_canons)
 elif nav == "🛟 Respaldo":
