@@ -10,11 +10,12 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-APP_VERSION = "Paz Mental deploy 2026-05-30 v35 - persistencia GitHub"
+APP_VERSION = "Paz Mental deploy 2026-06-05 v36 - fecha Venezuela en Biblioteca"
 
 try:
     import src.database as db
     import src.persistent_storage as persistent_storage
+    from src.local_time import today_local
     from src.styles import apply_styles
     from src.utils import (
         ensure_dirs,
@@ -221,7 +222,7 @@ def guardar_importado(item, tipo, estado):
         "ao3_tracking": _to_int(item.get("ao3_tracking"), 0),
         "fuente_confiabilidad": _to_int(item.get("fuente_confiabilidad"), 0),
         "ultima_importacion_fuente": fuente,
-        "fecha_inicio": item.get("fecha_inicio") or str(date.today()),
+        "fecha_inicio": item.get("fecha_inicio") or str(today_local()),
         "link_original": item.get("link_original") or item.get("url_fuente", ""),
         "link_respaldo": item.get("link_respaldo", ""),
         "portada_path": item.get("portada_path", ""),
@@ -246,10 +247,11 @@ def _registrar_avance_biblioteca(row, cantidad, accion):
     cantidad = int(cantidad or 0)
     if cantidad <= 0:
         return
+    fecha_local = str(today_local())
     db.add_actividad({
         "obra_id": row.get("id"),
         "capitulo_id": None,
-        "fecha": str(date.today()),
+        "fecha": fecha_local,
         "tipo_actividad": _tipo_actividad_biblioteca(row),
         "cantidad": cantidad,
         "minutos": 0,
@@ -285,17 +287,19 @@ def _biblioteca_quick_actions_compacta(row):
                 if publicados > 0:
                     nuevo = min(nuevo, publicados)
                 avance_real = max(0, nuevo - actual)
+                fecha_local = str(today_local())
                 db.update_obra(row["id"], {
                     "capitulos_vistos": nuevo,
                     "capitulo_actual": nuevo,
                     "ultimo_capitulo_visto": nuevo,
-                    "fecha_ultimo_capitulo_visto": str(date.today()),
+                    "fecha_ultimo_capitulo_visto": fecha_local,
                 })
                 _registrar_avance_biblioteca(row, avance_real, f"Avance {actual} → {nuevo}")
                 st.rerun()
         if q4.button("Día", key=f"lib_done_{row['id']}", help="Poner avance al último capítulo publicado", use_container_width=True):
             avance_real = max(0, publicados - actual)
-            db.update_obra(row["id"], {"capitulos_vistos": publicados, "capitulo_actual": publicados, "ultimo_capitulo_visto": publicados, "fecha_ultimo_capitulo_visto": str(date.today())})
+            fecha_local = str(today_local())
+            db.update_obra(row["id"], {"capitulos_vistos": publicados, "capitulo_actual": publicados, "ultimo_capitulo_visto": publicados, "fecha_ultimo_capitulo_visto": fecha_local})
             _registrar_avance_biblioteca(row, avance_real, f"Puesta al día {actual} → {publicados}")
             st.rerun()
         estado_col, save_col = q5.columns([0.76, 0.24])
