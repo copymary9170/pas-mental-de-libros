@@ -5,6 +5,7 @@ from pathlib import Path
 import streamlit as st
 
 from src.compilador import guardar_compilado
+from src.local_time import today_local
 from src.utils import save_uploaded_file, RESPALDOS_DIR
 
 
@@ -223,6 +224,59 @@ def _filtrar_capitulos(capitulos, temporada_filtro, busqueda, solo_con_texto, so
     return filtrados
 
 
+def _render_reader(obra, capitulos, unidad):
+    st.markdown("### 📖 Lector tipo Wattpad")
+    caps = sorted([c for c in capitulos if c.get("texto_completo")], key=lambda c: (int(c.get("temporada") or 1), int(c.get("numero") or 0)))
+    if not caps:
+        st.info("Aún no hay capítulos con texto completo para leer. Guarda o importa texto en un capítulo para verlo aquí.")
+        return
+    key = f"reader_cap_id_{obra.get('id')}"
+    if key not in st.session_state:
+        st.session_state[key] = caps[0].get("id")
+    ids = [c.get("id") for c in caps]
+    if st.session_state[key] not in ids:
+        st.session_state[key] = ids[0]
+    idx = ids.index(st.session_state[key])
+    actual = caps[idx]
+    col_prev, col_select, col_next = st.columns([0.8, 2.4, 0.8])
+    with col_prev:
+        if st.button("⬅️ Anterior", disabled=idx == 0, key=f"reader_prev_{obra.get('id')}"):
+            st.session_state[key] = ids[max(0, idx - 1)]
+            st.rerun()
+    with col_select:
+        labels = [f"T{c.get('temporada') or 1} · {unidad.capitalize()} {c.get('numero') or 0} — {c.get('titulo') or 'Sin título'}" for c in caps]
+        elegido = st.selectbox("Ir a", labels, index=idx, key=f"reader_select_{obra.get('id')}")
+        nuevo_idx = labels.index(elegido)
+        if nuevo_idx != idx:
+            st.session_state[key] = ids[nuevo_idx]
+            st.rerun()
+    with col_next:
+        if st.button("Siguiente ➡️", disabled=idx >= len(caps) - 1, key=f"reader_next_{obra.get('id')}"):
+            st.session_state[key] = ids[min(len(caps) - 1, idx + 1)]
+            st.rerun()
+    st.markdown(
+        f"""
+        <div style="max-width:820px;margin:1.2rem auto 0 auto;padding:1.2rem 1.5rem;border-radius:22px;background:rgba(255,255,255,.86);box-shadow:0 12px 35px rgba(15,23,42,.08);">
+            <div style="font-size:.82rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.08em;">{obra.get('titulo') or 'Obra'}</div>
+            <h2 style="margin:.2rem 0 .25rem 0;line-height:1.15;">T{actual.get('temporada') or 1} · {unidad.capitalize()} {actual.get('numero') or 0}</h2>
+            <h3 style="margin:.2rem 0 1rem 0;color:#334155;">{actual.get('titulo') or 'Sin título'}</h3>
+            <div style="font-size:.88rem;color:#64748b;margin-bottom:1rem;">★ {actual.get('estrellas') or actual.get('rating') or 0} · {actual.get('fecha_lectura') or 'Sin fecha'} · {actual.get('mood') or actual.get('emocion_principal') or 'Sin mood'}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    texto = actual.get("texto_completo") or ""
+    st.markdown(
+        f"""
+        <div style="max-width:820px;margin:0 auto 1rem auto;padding:1.5rem 1.5rem 2rem 1.5rem;border-radius:0 0 22px 22px;background:white;box-shadow:0 12px 35px rgba(15,23,42,.06);font-size:1.06rem;line-height:1.85;white-space:pre-wrap;color:#1f2937;">{texto}</div>
+        """,
+        unsafe_allow_html=True,
+    )
+    if actual.get("notas") or actual.get("comentario"):
+        with st.expander("📝 Mis notas de este capítulo"):
+            st.write(actual.get("notas") or actual.get("comentario"))
+
+
 def _render_wrapped_fields(obra_id):
     st.markdown("#### 🏆 Datos para Wrapped")
     st.caption("Esto permite después crear premios, rankings, estadísticas emocionales, rachas, top momentos y comparaciones por año.")
@@ -270,11 +324,8 @@ def _render_personajes(obra_id, capitulos, list_personajes, add_personaje, add_v
     if not all([list_personajes, add_personaje, add_voto_personaje, list_votos_personaje]):
         st.info("Personajes todavía no están conectados en esta instalación.")
         return
-
     personajes = list_personajes(obra_id)
     st.markdown("### 🎭 Personajes para no perderme")
-    st.caption("Guarda foto, rol, descripción y evolución. Estos datos quedan listos para Wrapped: personaje favorito, más importante, más mencionado, mejor evolución y momentos clave.")
-
     with st.expander("➕ Crear ficha de personaje", expanded=False):
         with st.form(f"form_personaje_{obra_id}"):
             c1, c2 = st.columns(2)
@@ -286,8 +337,8 @@ def _render_personajes(obra_id, capitulos, list_personajes, add_personaje, add_v
             with c2:
                 imagen_url = st.text_input("URL de imagen / foto", key=f"pj_img_url_{obra_id}")
                 imagen_file = st.file_uploader("O subir imagen", type=["jpg", "jpeg", "png", "webp"], key=f"pj_img_file_{obra_id}")
-            descripcion = st.text_area("Descripción para reconocerlo", placeholder="Apariencia, personalidad, relación con otros, cómo identificarlo rápido...", key=f"pj_desc_{obra_id}")
-            notas = st.text_area("Notas para Wrapped / evolución", placeholder="Primera impresión, sospechas, arco, traumas, ships, red flags, comfort...", key=f"pj_notas_{obra_id}")
+            descripcion = st.text_area("Descripción para reconocerlo", key=f"pj_desc_{obra_id}")
+            notas = st.text_area("Notas para Wrapped / evolución", key=f"pj_notas_{obra_id}")
             if st.form_submit_button("Guardar personaje"):
                 if not nombre.strip():
                     st.error("El nombre del personaje es obligatorio.")
@@ -295,18 +346,8 @@ def _render_personajes(obra_id, capitulos, list_personajes, add_personaje, add_v
                     imagen_path = ""
                     if imagen_file is not None and save_uploaded_file_fn and imagenes_dir:
                         imagen_path = save_uploaded_file_fn(imagen_file, imagenes_dir)
-                    add_personaje({
-                        "obra_id": obra_id,
-                        "nombre": nombre.strip(),
-                        "alias": alias.strip(),
-                        "rol": rol.strip(),
-                        "descripcion": descripcion.strip(),
-                        "notas": notas.strip(),
-                        "imagen_path": imagen_path or imagen_url.strip(),
-                        "favorito": 1 if favorito else 0,
-                    })
+                    add_personaje({"obra_id": obra_id, "nombre": nombre.strip(), "alias": alias.strip(), "rol": rol.strip(), "descripcion": descripcion.strip(), "notas": notas.strip(), "imagen_path": imagen_path or imagen_url.strip(), "favorito": 1 if favorito else 0})
                     st.success(f"Personaje guardado: {nombre.strip()}")
-
     personajes = list_personajes(obra_id)
     if personajes:
         cols = st.columns(2)
@@ -320,9 +361,6 @@ def _render_personajes(obra_id, capitulos, list_personajes, add_personaje, add_v
                     st.write(pj.get("descripcion"))
                 if pj.get("notas"):
                     st.info(pj.get("notas"))
-    else:
-        st.warning("Aún no hay personajes guardados para esta obra.")
-
     if capitulos and personajes:
         with st.expander("📌 Registrar aparición / momento clave por capítulo", expanded=False):
             with st.form(f"form_voto_personaje_{obra_id}"):
@@ -331,86 +369,45 @@ def _render_personajes(obra_id, capitulos, list_personajes, add_personaje, add_v
                 cap_sel = st.selectbox("Capítulo / episodio / parte", list(cap_opts.keys()), key=f"voto_cap_{obra_id}")
                 pj_sel = st.selectbox("Personaje", list(pj_opts.keys()), key=f"voto_pj_{obra_id}")
                 puntos = st.slider("Importancia del momento", 1, 5, 3, key=f"voto_pts_{obra_id}")
-                comentario = st.text_area("Momento clave / evolución / confusión / teoría", placeholder="Qué hizo, por qué importa, cómo cambió, si me confundí con él/ella...", key=f"voto_com_{obra_id}")
-                fecha_voto = st.date_input("Fecha", value=date.today(), key=f"voto_fecha_{obra_id}")
+                comentario = st.text_area("Momento clave / evolución / confusión / teoría", key=f"voto_com_{obra_id}")
+                fecha_voto = st.date_input("Fecha", value=today_local(), key=f"voto_fecha_{obra_id}")
                 if st.form_submit_button("Guardar momento del personaje"):
-                    add_voto_personaje({
-                        "obra_id": obra_id,
-                        "capitulo_id": cap_opts[cap_sel],
-                        "personaje_id": pj_opts[pj_sel],
-                        "fecha": str(fecha_voto),
-                        "puntos": int(puntos),
-                        "comentario": comentario.strip(),
-                    })
+                    add_voto_personaje({"obra_id": obra_id, "capitulo_id": cap_opts[cap_sel], "personaje_id": pj_opts[pj_sel], "fecha": str(fecha_voto), "puntos": int(puntos), "comentario": comentario.strip()})
                     st.success("Momento de personaje guardado para Wrapped.")
 
-    votos = list_votos_personaje(obra_id)
-    if votos:
-        st.markdown("### 🧠 Momentos de personajes registrados")
-        for voto in votos[:8]:
-            st.markdown(
-                f"""
-                <div class="pm-mini-card">
-                    <div>
-                        <div class="pm-mini-title">{voto.get('nombre') or 'Personaje'} · T{voto.get('temporada') or '?'} {voto.get('numero') or ''}</div>
-                        <div class="pm-mini-subtitle">Importancia {voto.get('puntos') or 1}/5 · {voto.get('comentario') or 'Sin comentario'}</div>
-                    </div>
-                    <div class="pm-mini-icon">🎭</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
 
-
-def render_capitulos(
-    obras,
-    list_capitulos,
-    get_obra,
-    add_capitulo=None,
-    list_personajes=None,
-    add_personaje=None,
-    add_voto_personaje=None,
-    list_votos_personaje=None,
-    save_uploaded_file_fn=None,
-    imagenes_dir=None,
-):
-    st.subheader("📝 Capítulos, episodios, partes, personajes y compilado")
-    st.caption("Registra avances por temporada, arco o parte. Mantiene texto completo, notas, archivos, carga masiva, personajes con foto, datos para Wrapped y compilado automático.")
-
+def render_capitulos(obras, list_capitulos, get_obra, add_capitulo=None, list_personajes=None, add_personaje=None, add_voto_personaje=None, list_votos_personaje=None, save_uploaded_file_fn=None, imagenes_dir=None):
+    st.subheader("📝 Capítulos y lector")
+    st.caption("Guarda capítulos y léelos dentro de la app con una vista tipo Wattpad.")
     if not obras:
         st.info("Agrega una obra primero.")
         return
-
     opciones = {f"{o['id']} - {o['titulo']} ({o.get('tipo')})": o['id'] for o in obras}
-
     seleccion = st.selectbox("Selecciona una obra", list(opciones.keys()), key="capitulos_obra")
-
     obra_id = opciones[seleccion]
     obra = get_obra(obra_id)
     capitulos = list_capitulos(obra_id)
     temporadas = _temporadas_existentes(capitulos)
     temporada_actual = int(obra.get("temporada_actual") or 1)
     unidad = _tipo_unidad(obra)
-
     _render_obra_resumen(obra, capitulos, temporadas, unidad)
-    _render_temporadas_resumen(capitulos, temporadas, unidad)
-    _render_ultimos_capitulos(capitulos, unidad)
-    _render_personajes(obra_id, capitulos, list_personajes, add_personaje, add_voto_personaje, list_votos_personaje, save_uploaded_file_fn, imagenes_dir)
-
-    if add_capitulo is None:
-        st.warning("La función para agregar capítulos no está conectada todavía.")
-    else:
+    modo_vista = st.radio("Vista", ["📖 Leer", "➕ Agregar capítulos", "🗂️ Gestionar / notas", "🎭 Personajes"], horizontal=True, key=f"vista_caps_{obra_id}")
+    if modo_vista == "📖 Leer":
+        _render_reader(obra, capitulos, unidad)
+        return
+    if modo_vista == "🎭 Personajes":
+        _render_personajes(obra_id, capitulos, list_personajes, add_personaje, add_voto_personaje, list_votos_personaje, save_uploaded_file_fn, imagenes_dir)
+        return
+    if modo_vista == "➕ Agregar capítulos":
+        _render_temporadas_resumen(capitulos, temporadas, unidad)
+        _render_ultimos_capitulos(capitulos, unidad)
+        if add_capitulo is None:
+            st.warning("La función para agregar capítulos no está conectada todavía.")
+            return
         with st.expander(f"➕ Agregar {unidad} / parte", expanded=True):
-            modo = st.radio(
-                "Modo de carga",
-                ["Un capítulo", "Varios capítulos pegados"],
-                horizontal=True,
-                key=f"modo_cap_{obra_id}"
-            )
-
+            modo = st.radio("Modo de carga", ["Un capítulo", "Varios capítulos pegados"], horizontal=True, key=f"modo_cap_{obra_id}")
             if modo == "Un capítulo":
                 with st.form(f"form_capitulo_{obra_id}"):
-                    st.markdown("#### Temporada / arco / parte mayor")
                     col0, col1, col2, col3 = st.columns(4)
                     with col0:
                         temporada_modo = st.radio("Temporada", ["Existente", "Nueva"], horizontal=True, key=f"temp_modo_{obra_id}")
@@ -422,17 +419,13 @@ def render_capitulos(
                     with col2:
                         numero = st.number_input(f"Número de {unidad}", min_value=0, value=_siguiente_capitulo_temporada(capitulos, temporada), step=1, key=f"num_{obra_id}")
                     with col3:
-                        fecha_lectura = st.date_input("Fecha leído/visto", value=date.today(), key=f"fecha_{obra_id}")
-
+                        fecha_lectura = st.date_input("Fecha leído/visto", value=today_local(), key=f"fecha_{obra_id}")
                     titulo = st.text_input(f"Título del {unidad}", key=f"titulo_cap_{obra_id}")
                     resumen = st.text_area(f"Resumen / sinopsis del {unidad}", key=f"resumen_cap_{obra_id}")
-                    texto = st.text_area(f"Texto completo, transcripción o notas largas del {unidad}", height=260, key=f"texto_cap_{obra_id}")
+                    texto = st.text_area(f"Texto completo para leer dentro de la app", height=360, key=f"texto_cap_{obra_id}")
                     archivo = st.file_uploader(f"Archivo del {unidad}", type=["txt", "md", "pdf", "docx", "epub", "zip"], key=f"archivo_cap_{obra_id}")
                     archivo_texto = st.file_uploader("O subir TXT/MD para llenar el texto automáticamente", type=["txt", "md"], key=f"archivo_texto_cap_{obra_id}")
                     texto_archivo = _leer_archivo_texto(archivo_texto)
-                    if texto_archivo:
-                        st.info("Se detectó texto en el archivo. Se guardará junto al texto pegado.")
-
                     col4, col5, col6 = st.columns(3)
                     with col4:
                         estrellas = st.slider("Estrellas", 0, 5, 0, key=f"estrellas_cap_{obra_id}")
@@ -440,19 +433,17 @@ def render_capitulos(
                         mood = st.text_input("Mood", placeholder="intenso, cozy, triste, hype...", key=f"mood_cap_{obra_id}")
                     with col6:
                         etiquetas = st.text_input("Etiquetas", placeholder="plot twist, romance, batalla...", key=f"tags_cap_{obra_id}")
-
                     notas = st.text_area("Comentarios / notas / teorías", key=f"notas_cap_{obra_id}")
                     wrapped = _render_wrapped_fields(obra_id)
-
                     if st.form_submit_button(f"Guardar {unidad}"):
                         texto_final = (texto or "")
                         if texto_archivo:
                             texto_final = (texto_final + "\n\n" + texto_archivo).strip()
                         _guardar_capitulo(add_capitulo, obra_id, temporada, numero, titulo, resumen, texto_final, notas, mood, etiquetas, estrellas, fecha_lectura, archivo, wrapped)
-                        st.success(f"Registro guardado en Temporada {int(temporada)}. El compilado y Wrapped se actualizarán automáticamente al recargar esta pestaña.")
-
+                        st.success(f"Registro guardado en Temporada {int(temporada)}.")
+                        st.rerun()
             else:
-                st.caption("Pega varios registros separados por una línea que empiece con ###. Ejemplo: ### Capítulo 1 / ### Episodio 1 / ### Parte 1")
+                st.caption("Pega varios registros separados por una línea que empiece con ###. Ejemplo: ### Capítulo 1")
                 with st.form(f"form_masivo_{obra_id}"):
                     colm1, colm2, colm3 = st.columns(3)
                     with colm1:
@@ -464,19 +455,12 @@ def render_capitulos(
                             temporada = st.number_input("Nueva temporada", min_value=1, value=max(temporadas) + 1, step=1, key=f"temp_masivo_nueva_{obra_id}")
                     with colm3:
                         inicio_num = st.number_input("Número inicial", min_value=1, value=_siguiente_capitulo_temporada(capitulos, temporada), step=1, key=f"inicio_masivo_{obra_id}")
-                    fecha_lectura = st.date_input("Fecha leído/visto", value=date.today(), key=f"fecha_masivo_{obra_id}")
-                    texto_masivo = st.text_area("Capítulos / episodios / partes pegadas", height=360, key=f"texto_masivo_{obra_id}")
+                    fecha_lectura = st.date_input("Fecha leído/visto", value=today_local(), key=f"fecha_masivo_{obra_id}")
+                    texto_masivo = st.text_area("Capítulos pegados", height=360, key=f"texto_masivo_{obra_id}")
                     estrellas = st.slider("Estrellas por defecto", 0, 5, 0, key=f"estrellas_masivo_{obra_id}")
                     mood = st.text_input("Mood por defecto", key=f"mood_masivo_{obra_id}")
                     etiquetas = st.text_input("Etiquetas por defecto", key=f"tags_masivo_{obra_id}")
-                    wrapped_masivo = {
-                        "emocion_principal": "",
-                        "intensidad_emocional": 0,
-                        "ritmo": "",
-                        "categoria_wrapped": "",
-                        "sensores": {},
-                    }
-
+                    wrapped_masivo = {"emocion_principal": "", "intensidad_emocional": 0, "ritmo": "", "categoria_wrapped": "", "sensores": {}}
                     if st.form_submit_button("Guardar varios registros"):
                         bloques = []
                         actual = []
@@ -488,7 +472,6 @@ def render_capitulos(
                                 actual.append(line)
                         if actual:
                             bloques.append("\n".join(actual).strip())
-
                         guardados = 0
                         for idx, bloque in enumerate([b for b in bloques if b.strip()]):
                             lineas = bloque.splitlines()
@@ -496,24 +479,19 @@ def render_capitulos(
                             cuerpo = "\n".join(lineas[1:]).strip() if len(lineas) > 1 else bloque
                             _guardar_capitulo(add_capitulo, obra_id, temporada, int(inicio_num) + idx, titulo, "", cuerpo, "", mood, etiquetas, estrellas, fecha_lectura, None, wrapped_masivo)
                             guardados += 1
-                        st.success(f"Registros guardados en Temporada {int(temporada)}: {guardados}. El compilado se actualizará automáticamente.")
-
+                        st.success(f"Registros guardados: {guardados}.")
+                        st.rerun()
+        return
     capitulos = list_capitulos(obra_id)
     if not capitulos:
         st.warning("Esta obra aún no tiene capítulos, episodios o partes guardadas.")
         return
-
     path, texto = guardar_compilado(obra, capitulos)
-
     st.success("Compilado actualizado automáticamente.")
-
-    with st.expander("📖 Vista previa del compilado", expanded=True):
+    with st.expander("📖 Vista previa del compilado", expanded=False):
         st.text_area("Contenido compilado", value=texto, height=500, key=f"preview_{obra_id}")
-
     st.download_button("⬇️ Descargar compilado .md", data=texto.encode("utf-8"), file_name=f"{obra.get('titulo','obra')}_compilado.md", mime="text/markdown")
-
     st.caption(f"Archivo generado: {path}")
-
     st.markdown("### Capítulos / episodios / partes guardadas")
     temporadas = _temporadas_existentes(capitulos)
     colf1, colf2, colf3 = st.columns([1, 2, 1])
@@ -524,10 +502,8 @@ def render_capitulos(
     with colf3:
         solo_con_texto = st.checkbox("Con texto", key=f"solo_texto_{obra_id}")
         solo_con_notas = st.checkbox("Con notas", key=f"solo_notas_{obra_id}")
-
     capitulos_filtrados = _filtrar_capitulos(capitulos, temporada_filtro, busqueda, solo_con_texto, solo_con_notas)
     st.caption(f"Mostrando {len(capitulos_filtrados)} de {len(capitulos)} registros.")
-
     tabs_temporadas = _temporadas_existentes(capitulos_filtrados)
     tabs = st.tabs([f"T{t}" for t in tabs_temporadas])
     for tab, temp in zip(tabs, tabs_temporadas):
