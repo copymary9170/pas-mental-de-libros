@@ -21,7 +21,8 @@ def config():
     token = _secret("GITHUB_BACKUP_TOKEN", "")
     branch = _secret("GITHUB_BACKUP_BRANCH", "main")
     path = _secret("GITHUB_BACKUP_DB_PATH", "persist/biblioteca.db")
-    return {"repo": repo, "token": token, "branch": branch, "path": path}
+    covers_path = _secret("GITHUB_BACKUP_COVERS_PATH", "persist/portadas")
+    return {"repo": repo, "token": token, "branch": branch, "path": path, "covers_path": covers_path}
 
 
 def is_enabled():
@@ -44,12 +45,12 @@ def _headers(token):
     }
 
 
-def _content_url(cfg):
-    return f"https://api.github.com/repos/{cfg['repo']}/contents/{cfg['path']}"
+def _content_url(cfg, path=None):
+    return f"https://api.github.com/repos/{cfg['repo']}/contents/{path or cfg['path']}"
 
 
-def _get_remote(cfg):
-    url = _content_url(cfg)
+def _get_remote(cfg, path=None):
+    url = _content_url(cfg, path)
     response = requests.get(url, headers=_headers(cfg["token"]), params={"ref": cfg["branch"]}, timeout=20)
     if response.status_code == 404:
         return None
@@ -77,6 +78,78 @@ def restore_db_if_needed(db_path):
     db_path.parent.mkdir(parents=True, exist_ok=True)
     db_path.write_bytes(base64.b64decode(content))
     return True, "DB restaurada desde respaldo remoto de GitHub."
+
+
+def upload_file(local_path, remote_path, message="Actualizar archivo persistente"):
+    """Sube un archivo individual a GitHub usando la misma persistencia."""
+    if not is_enabled():
+        return False, status_message()
+    local_path = Path(local_path)
+    if not local_path.exists() or local_path.stat().st_size == 0:
+        return False, "No hay archivo local para subir."
+    cfg = config()
+    remote_path = str(remote_path).replace("\\", "/").lstrip("/")
+    remote = _get_remote(cfg, remote_path)
+    sha = remote.get("sha") if isinstance(remote, dict) else None
+    payload = {
+        "message": message,
+        "content": base64.b64encode(local_path.read_bytes()).decode("utf-8"),
+        "branch": cfg["branch"],
+    }
+    if sha:
+        payload["sha"] = sha
+    response = requests.put(_content_url(cfg, remote_path), headers=_headers(cfg["token"]), json=payload, timeout=30)
+    response.raise_for_status()
+    return True, f"Archivo sincronizado: {remote_path}"
+
+
+def restore_cover_images(portadas_dir="uploads/portadas", persist_dir="persist/portadas"):
+    """Restaura portadas respaldadas en GitHub hacia uploads/portadas.
+
+    La app guarda las rutas de portada como uploads/portadas/<archivo>. Si Streamlit
+    borra el disco local, esta función reconstruye esa carpeta desde persist/portadas
+    del repositorio.
+    """
+    if not is_enabled():
+        return False, status_message()
+    cfg = config()
+    covers_path = str(cfg.get("covers_path") or "persist/portadas").strip("/")
+    remote_listing = _get_remote(cfg, covers_path)
+    if not remote_listing:
+        return False, "No hay portadas persistentes en GitHub todavía."
+    if isinstance(remote_listing, dict):
+        remote_listing = [remote_listing]
+    portadas_dir = Path(portadas_dir)
+    persist_dir = Path(persist_dir)
+    portadas_dir.mkdir(parents=True, exist_ok=True)
+    persist_dir.mkdir(parents=True, exist_ok=True)
+    restored = 0
+    skipped = 0
+    for item in remote_listing:
+        if item.get("type") != "file":
+            continue
+        name = item.get("name") or ""
+        if not name.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
+            continue
+        target = portadas_dir / name
+        persist_target = persist_dir / name
+        if target.exists() and target.stat().st_size > 0:
+            skipped += 1
+            if not persist_target.exists():
+                try:
+                    persist_target.write_bytes(target.read_bytes())
+                except Exception:
+                    pass
+            continue
+        file_remote = _get_remote(cfg, f"{covers_path}/{name}")
+        content = file_remote.get("content", "") if isinstance(file_remote, dict) else ""
+        if not content:
+            continue
+        data = base64.b64decode(content)
+        target.write_bytes(data)
+        persist_target.write_bytes(data)
+        restored += 1
+    return True, f"Portadas restauradas: {restored}. Ya existentes: {skipped}."
 
 
 def upload_db(db_path, message="Actualizar respaldo persistente de biblioteca"):
