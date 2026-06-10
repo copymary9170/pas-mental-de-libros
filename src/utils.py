@@ -8,11 +8,14 @@ import requests
 UPLOADS_DIR = Path("uploads")
 PORTADAS_DIR = UPLOADS_DIR / "portadas"
 RESPALDOS_DIR = UPLOADS_DIR / "respaldos"
+PERSIST_DIR = Path("persist")
+PERSIST_PORTADAS_DIR = PERSIST_DIR / "portadas"
 
 
 def ensure_dirs():
     PORTADAS_DIR.mkdir(parents=True, exist_ok=True)
     RESPALDOS_DIR.mkdir(parents=True, exist_ok=True)
+    PERSIST_PORTADAS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def save_uploaded_file(uploaded_file, folder: Path):
@@ -24,6 +27,17 @@ def save_uploaded_file(uploaded_file, folder: Path):
     target = folder / safe_name
     with target.open("wb") as f:
         shutil.copyfileobj(uploaded_file, f)
+    if Path(folder) == PORTADAS_DIR:
+        try:
+            persistent_target = PERSIST_PORTADAS_DIR / safe_name
+            shutil.copy2(target, persistent_target)
+            try:
+                import src.persistent_storage as persistent_storage
+                persistent_storage.upload_file(persistent_target, f"persist/portadas/{safe_name}", message="Guardar portada persistente")
+            except Exception:
+                pass
+        except Exception:
+            pass
     return str(target)
 
 
