@@ -13,11 +13,24 @@ import streamlit as st
 
 import src.database as db
 from src.services.storage_service import guardar_json
-from src.utils import PORTADAS_DIR, PERSIST_PORTADAS_DIR, get_last_upload_status
 import src.persistent_storage as persistent_storage
 
 BACKUP_DIR = Path("data/backups")
+PORTADAS_DIR = Path("uploads/portadas")
+PERSIST_PORTADAS_DIR = Path("persist/portadas")
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+
+
+def _last_upload_status():
+    try:
+        import importlib
+        utils_file = importlib.import_module("src.utils")
+        getter = getattr(utils_file, "get_last_upload_status", None)
+        if callable(getter):
+            return getter()
+    except Exception:
+        pass
+    return {"ok": None, "message": "Aún no hay una subida de portada registrada en esta sesión."}
 
 
 def _table_count(conn, table):
@@ -212,7 +225,7 @@ def _render_portadas_status(obras):
     c2.metric("Copias persistentes", len(persist_files))
     c3.metric("En GitHub", "?" if remote_count is None else remote_count)
     c4.metric("Rutas faltantes", len(faltantes))
-    status = get_last_upload_status()
+    status = _last_upload_status()
     msg = status.get("message") or "Aún no hay una subida de portada registrada en esta sesión."
     if status.get("ok") is True:
         st.success(msg)
