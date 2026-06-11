@@ -180,7 +180,7 @@ def _health_flags(obras, deps, missing_obras, missing_canons):
         if _to_int(obra.get("temporada_actual"), 1) < 1:
             flags.append("temporadas inválidas")
             break
-        if _to_int(obra.get("capitulos_vistos"), 0) > max(_to_int(obra.get("capitulos_publicados"), 0), _to_int(obra.get("capitulo_total"), 0)) and max(_to_int(obra.get("capitulos_publicados"), 0), _to_int(obra.get("capitulo_total"), 0)) > 0:
+        if _to_int(obra.get("capitulos_vistos"), 0) > max(_to_int(obra.get("capitulos_publicados", 0), 0), _to_int(obra.get("capitulo_total", 0), 0)) and max(_to_int(obra.get("capitulos_publicados", 0), 0), _to_int(obra.get("capitulo_total", 0), 0)) > 0:
             flags.append("progreso mayor que publicados")
             break
     return flags
@@ -237,8 +237,8 @@ def _render_portadas_status(obras):
     if faltantes:
         st.error("Hay rutas faltantes, pero GitHub sí tiene portadas. No vuelvas a subir imágenes todavía: usa reasignar portadas.")
         st.dataframe(pd.DataFrame([{"ruta_faltante": r, "archivo": Path(r).name} for r in faltantes]), use_container_width=True, hide_index=True)
-    b1, b2, b3 = st.columns(3)
-    if b1.button("🎨 Reasignar portadas rotas desde GitHub", key="reassign_broken_covers_diag"):
+    b1, b2, b3, b4 = st.columns(4)
+    if b1.button("🎨 Reasignar portadas rotas", key="reassign_broken_covers_diag"):
         if hasattr(persistent_storage, "reassign_missing_covers"):
             ok, restore_msg = persistent_storage.reassign_missing_covers(db, PORTADAS_DIR, PERSIST_PORTADAS_DIR)
         else:
@@ -264,6 +264,16 @@ def _render_portadas_status(obras):
             st.success(restore_msg)
         else:
             st.warning(restore_msg)
+        st.rerun()
+    if b4.button("🧹 Limpiar sobrantes", key="cleanup_unused_covers_diag"):
+        if hasattr(persistent_storage, "cleanup_unused_covers"):
+            ok, cleanup_msg = persistent_storage.cleanup_unused_covers(obras, PORTADAS_DIR, PERSIST_PORTADAS_DIR)
+        else:
+            ok, cleanup_msg = False, "La función cleanup_unused_covers no está disponible en esta versión desplegada."
+        if ok:
+            st.success(cleanup_msg)
+        else:
+            st.error(cleanup_msg)
         st.rerun()
 
 
