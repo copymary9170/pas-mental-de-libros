@@ -9,11 +9,19 @@ import requests
 UPLOADS_DIR = Path("uploads")
 PORTADAS_DIR = UPLOADS_DIR / "portadas"
 RESPALDOS_DIR = UPLOADS_DIR / "respaldos"
+PERSIST_DIR = Path("persist")
+PERSIST_PORTADAS_DIR = PERSIST_DIR / "portadas"
+LAST_UPLOAD_STATUS = {"ok": None, "message": ""}
 
 
 def ensure_dirs():
     PORTADAS_DIR.mkdir(parents=True, exist_ok=True)
     RESPALDOS_DIR.mkdir(parents=True, exist_ok=True)
+    PERSIST_PORTADAS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def get_last_upload_status():
+    return dict(LAST_UPLOAD_STATUS)
 
 
 def save_uploaded_file(uploaded_file, folder: Path):
@@ -25,6 +33,20 @@ def save_uploaded_file(uploaded_file, folder: Path):
     target = folder / safe_name
     with target.open("wb") as f:
         shutil.copyfileobj(uploaded_file, f)
+    LAST_UPLOAD_STATUS.update({"ok": None, "message": f"Archivo guardado localmente: {target}"})
+    if Path(folder) == PORTADAS_DIR:
+        persistent_target = PERSIST_PORTADAS_DIR / safe_name
+        try:
+            shutil.copy2(target, persistent_target)
+        except Exception as exc:
+            LAST_UPLOAD_STATUS.update({"ok": False, "message": f"❌ Portada local guardada, pero no pude copiarla a persist/portadas: {exc}"})
+            return str(target)
+        try:
+            import src.persistent_storage as persistent_storage
+            ok, msg = persistent_storage.upload_file(persistent_target, f"persist/portadas/{safe_name}", message="Guardar portada persistente")
+            LAST_UPLOAD_STATUS.update({"ok": bool(ok), "message": ("✅ Portada respaldada en GitHub. " if ok else "❌ Portada guardada localmente, pero NO respaldada en GitHub. ") + str(msg)})
+        except Exception as exc:
+            LAST_UPLOAD_STATUS.update({"ok": False, "message": f"❌ Portada guardada localmente, pero NO respaldada en GitHub: {exc}"})
     return str(target)
 
 
@@ -107,19 +129,7 @@ def importar_desde_link(url):
     etiquetas = f"importado por link, webnovel, novela web, {plataforma.lower()}"
     if plataforma in ["KakaoPage", "Naver Series/Webtoon", "Munpia", "Ridi"]:
         etiquetas += ", coreana, hangul"
-    return {
-        "titulo": titulo,
-        "autor": plataforma,
-        "tipo": "Webnovel",
-        "anio": "",
-        "sinopsis": f"Importada desde enlace externo: {url}",
-        "portada_path": "",
-        "capitulo_total": 0,
-        "temporada_total": 1,
-        "etiquetas": etiquetas,
-        "estado_publicacion": "No aplica",
-        "link_original": url,
-    }
+    return {"titulo": titulo, "autor": plataforma, "tipo": "Webnovel", "anio": "", "sinopsis": f"Importada desde enlace externo: {url}", "portada_path": "", "capitulo_total": 0, "temporada_total": 1, "etiquetas": etiquetas, "estado_publicacion": "No aplica", "link_original": url}
 
 
 def buscar_portada_openlibrary(titulo, autor=""):
@@ -151,17 +161,7 @@ def buscar_libros_openlibrary(query):
         results = []
         for doc in r.json().get("docs", []):
             cover_id = doc.get("cover_i")
-            results.append({
-                "titulo": doc.get("title") or "Sin titulo",
-                "autor": ", ".join(doc.get("author_name", [])[:3]),
-                "tipo": "Libro",
-                "anio": doc.get("first_publish_year"),
-                "sinopsis": "",
-                "portada_path": f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg" if cover_id else "",
-                "capitulo_total": 0,
-                "temporada_total": 1,
-                "etiquetas": "openlibrary, importado",
-            })
+            results.append({"titulo": doc.get("title") or "Sin titulo", "autor": ", ".join(doc.get("author_name", [])[:3]), "tipo": "Libro", "anio": doc.get("first_publish_year"), "sinopsis": "", "portada_path": f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg" if cover_id else "", "capitulo_total": 0, "temporada_total": 1, "etiquetas": "openlibrary, importado"})
         return results
     except Exception:
         return []
@@ -181,18 +181,7 @@ def buscar_manga_jikan(query):
             genres = item.get("genres") or []
             manga_type = item.get("type") or "Manga"
             tipo = "Novela ligera" if "Novel" in manga_type else "Manga"
-            results.append({
-                "titulo": title,
-                "autor": ", ".join([a.get("name", "") for a in authors[:3] if a.get("name")]),
-                "tipo": tipo,
-                "anio": item.get("published", {}).get("from", "")[:4],
-                "sinopsis": item.get("synopsis") or "",
-                "portada_path": images.get("large_image_url") or images.get("image_url") or "",
-                "capitulo_total": item.get("chapters") or 0,
-                "temporada_total": 1,
-                "etiquetas": ", ".join([g.get("name", "").lower() for g in genres if g.get("name")] + ["jikan", "manga", "importado"]),
-                "estado_publicacion": "Terminada" if item.get("status") == "Finished" else "En emision",
-            })
+            results.append({"titulo": title, "autor": ", ".join([a.get("name", "") for a in authors[:3] if a.get("name")]), "tipo": tipo, "anio": item.get("published", {}).get("from", "")[:4], "sinopsis": item.get("synopsis") or "", "portada_path": images.get("large_image_url") or images.get("image_url") or "", "capitulo_total": item.get("chapters") or 0, "temporada_total": 1, "etiquetas": ", ".join([g.get("name", "").lower() for g in genres if g.get("name")] + ["jikan", "manga", "importado"]), "estado_publicacion": "Terminada" if item.get("status") == "Finished" else "En emision"})
         return results
     except Exception:
         return []
@@ -217,18 +206,7 @@ def buscar_series_tvmaze(query):
             show = item.get("show", {})
             image = show.get("image") or {}
             genres = show.get("genres") or []
-            results.append({
-                "titulo": show.get("name") or "Sin titulo",
-                "autor": show.get("network", {}).get("name") if show.get("network") else (show.get("webChannel", {}) or {}).get("name", ""),
-                "tipo": "Serie",
-                "anio": (show.get("premiered") or "")[:4],
-                "sinopsis": clean_html(show.get("summary")),
-                "portada_path": image.get("original") or image.get("medium") or "",
-                "capitulo_total": 0,
-                "temporada_total": 1,
-                "etiquetas": ", ".join([g.lower() for g in genres] + ["tvmaze", "importado"]),
-                "estado_publicacion": "Terminada" if show.get("status") == "Ended" else "En emision",
-            })
+            results.append({"titulo": show.get("name") or "Sin titulo", "autor": show.get("network", {}).get("name") if show.get("network") else (show.get("webChannel", {}) or {}).get("name", ""), "tipo": "Serie", "anio": (show.get("premiered") or "")[:4], "sinopsis": clean_html(show.get("summary")), "portada_path": image.get("original") or image.get("medium") or "", "capitulo_total": 0, "temporada_total": 1, "etiquetas": ", ".join([g.lower() for g in genres] + ["tvmaze", "importado"]), "estado_publicacion": "Terminada" if show.get("status") == "Ended" else "En emision"})
         return results
     except Exception:
         return []
@@ -254,18 +232,7 @@ def _tmdb_search(query, media_type, api_key, korean=False):
             tags.append("pelicula" if media_type == "movie" else "serie")
             if korean or original_lang == "ko":
                 tags.extend(["kdrama", "corea", "kakao referencia"])
-            results.append({
-                "titulo": title,
-                "autor": "TMDB",
-                "tipo": "Pelicula" if media_type == "movie" else "Serie",
-                "anio": date[:4],
-                "sinopsis": item.get("overview") or "",
-                "portada_path": f"https://image.tmdb.org/t/p/w500{poster}" if poster else "",
-                "capitulo_total": 1 if media_type == "movie" else 0,
-                "temporada_total": 1,
-                "etiquetas": ", ".join(tags),
-                "estado_publicacion": "Terminada" if media_type == "movie" else "No aplica",
-            })
+            results.append({"titulo": title, "autor": "TMDB", "tipo": "Pelicula" if media_type == "movie" else "Serie", "anio": date[:4], "sinopsis": item.get("overview") or "", "portada_path": f"https://image.tmdb.org/t/p/w500{poster}" if poster else "", "capitulo_total": 1 if media_type == "movie" else 0, "temporada_total": 1, "etiquetas": ", ".join(tags), "estado_publicacion": "Terminada" if media_type == "movie" else "No aplica"})
         return results
     except Exception:
         return []
@@ -294,18 +261,7 @@ def buscar_peliculas_itunes(query):
             artwork = item.get("artworkUrl100", "")
             if artwork:
                 artwork = artwork.replace("100x100bb", "600x900bb")
-            results.append({
-                "titulo": item.get("trackName") or "Sin titulo",
-                "autor": item.get("artistName") or item.get("primaryGenreName") or "",
-                "tipo": "Pelicula",
-                "anio": (item.get("releaseDate") or "")[:4],
-                "sinopsis": item.get("longDescription") or item.get("shortDescription") or "",
-                "portada_path": artwork,
-                "capitulo_total": 1,
-                "temporada_total": 1,
-                "etiquetas": ", ".join(filter(None, [str(item.get("primaryGenreName") or "").lower(), "itunes", "pelicula", "importado"])),
-                "estado_publicacion": "Terminada",
-            })
+            results.append({"titulo": item.get("trackName") or "Sin titulo", "autor": item.get("artistName") or item.get("primaryGenreName") or "", "tipo": "Pelicula", "anio": (item.get("releaseDate") or "")[:4], "sinopsis": item.get("longDescription") or item.get("shortDescription") or "", "portada_path": artwork, "capitulo_total": 1, "temporada_total": 1, "etiquetas": ", ".join(filter(None, [str(item.get("primaryGenreName") or "").lower(), "itunes", "pelicula", "importado"])), "estado_publicacion": "Terminada"})
         return results
     except Exception:
         return []
