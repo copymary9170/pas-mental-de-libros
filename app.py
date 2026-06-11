@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-APP_VERSION = "Paz Mental deploy 2026-06-05 v39 - fix wrapped args"
+APP_VERSION = "Paz Mental deploy 2026-06-05 v40 - restore missing covers on startup"
 
 try:
     import src.database as db
@@ -50,11 +50,18 @@ apply_styles()
 ensure_dirs()
 try:
     persistent_storage.restore_db_if_needed(db.DB_PATH)
-    persistent_storage.restore_cover_images(PORTADAS_DIR, "persist/portadas")
 except Exception:
     pass
 
 db.init_db()
+try:
+    obras_para_portadas = db.list_obras()
+    if hasattr(persistent_storage, "restore_missing_cover_paths"):
+        persistent_storage.restore_missing_cover_paths(obras_para_portadas, PORTADAS_DIR, "persist/portadas")
+    persistent_storage.restore_cover_images(PORTADAS_DIR, "persist/portadas")
+except Exception:
+    pass
+
 st.caption(APP_VERSION)
 
 
@@ -230,7 +237,7 @@ if nav != "🏠 Inicio":
 if nav == "🏠 Inicio": render_inicio(obras)
 elif nav == "🔎 Buscar": st.info("Versión del buscador: Fase 8 pro con cache, merge seguro, paginación, tags y preview."); render_buscador_avanzado(obras, buscar_global, guardar_importado)
 elif nav == "⏱️ Cronómetro": render_cronometro(obras, db.add_actividad, db.update_obra, db.list_actividad)
-elif nav == "🏆 Wrapped": render_reportes(obras, db.list_actividad)
+elif nav == "🏆 Wrapped": render_reportes(obras, db.list_actividad, getattr(db, "list_capitulos", None), getattr(db, "list_votos_personaje", None))
 elif nav == "📚 Biblioteca": render_biblioteca(obras); render_biblioteca_insights(obras, getattr(db, "list_capitulos", None))
 elif nav == "📖 Leer": render_lector(obras, db.list_capitulos, db.get_obra)
 elif nav == "🎲 Ruleta": render_ruleta(obras)
