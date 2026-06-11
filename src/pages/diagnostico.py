@@ -13,8 +13,11 @@ import streamlit as st
 
 import src.database as db
 from src.services.storage_service import guardar_json
+from src.utils import PORTADAS_DIR, PERSIST_PORTADAS_DIR, get_last_upload_status
+import src.persistent_storage as persistent_storage
 
 BACKUP_DIR = Path("data/backups")
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
 
 def _table_count(conn, table):
@@ -50,10 +53,7 @@ def _backup_json():
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     target = BACKUP_DIR / f"biblioteca_export_{stamp}.json"
-    payload = {
-        "created_at": datetime.now().isoformat(timespec="seconds"),
-        "obras": db.list_obras(),
-    }
+    payload = {"created_at": datetime.now().isoformat(timespec="seconds"), "obras": db.list_obras()}
     with db.get_conn() as conn:
         conn.row_factory = sqlite3.Row
         for table in ["capitulos", "actividad", "personajes", "votos_personaje", "canons"]:
@@ -61,9 +61,7 @@ def _backup_json():
                 payload[table] = [dict(r) for r in conn.execute(f"SELECT * FROM {table}").fetchall()]
             except Exception:
                 payload[table] = []
-
     guardar_json(target, payload)
-
     return target
 
 
@@ -156,14 +154,7 @@ def _normalize_all_tags(obras):
 
 
 def _diagnose_dependencies():
-    return {
-        "streamlit": importlib.util.find_spec("streamlit") is not None,
-        "pandas": importlib.util.find_spec("pandas") is not None,
-        "plotly": importlib.util.find_spec("plotly") is not None,
-        "Pillow": importlib.util.find_spec("PIL") is not None,
-        "requests": importlib.util.find_spec("requests") is not None,
-        "beautifulsoup4/bs4": importlib.util.find_spec("bs4") is not None,
-    }
+    return {"streamlit": importlib.util.find_spec("streamlit") is not None, "pandas": importlib.util.find_spec("pandas") is not None, "plotly": importlib.util.find_spec("plotly") is not None, "Pillow": importlib.util.find_spec("PIL") is not None, "requests": importlib.util.find_spec("requests") is not None, "beautifulsoup4/bs4": importlib.util.find_spec("bs4") is not None}
 
 
 def _health_flags(obras, deps, missing_obras, missing_canons):
@@ -184,51 +175,92 @@ def _health_flags(obras, deps, missing_obras, missing_canons):
 
 def _render_download_for_file(path: Path):
     if path and path.exists():
-        st.download_button(
-            f"Descargar {path.name}",
-            data=path.read_bytes(),
-            file_name=path.name,
-            mime="application/octet-stream",
-            key=f"download_{path.name}",
-        )
+        st.download_button(f"Descargar {path.name}", data=path.read_bytes(), file_name=path.name, mime="application/octet-stream", key=f"download_{path.name}")
+
+
+def _image_files(folder: Path):
+    if not folder.exists():
+        return []
+    return sorted([p for p in folder.glob("*") if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS])
+
+
+def _remote_covers_count():
+    try:
+        cfg = persistent_storage.config()
+        if not persistent_storage.is_enabled():
+            return None, persistent_storage.status_message()
+        remote = persistent_storage._get_remote(cfg, cfg.get("covers_path", "persist/portadas"))
+        if not remote:
+            return 0, "No hay carpeta remota persist/portadas en GitHub."
+        if isinstance(remote, dict):
+            remote = [remote]
+        count = len([item for item in remote if item.get("type") == "file" and Path(item.get("name", "")).suffix.lower() in IMAGE_EXTENSIONS])
+        return count, "GitHub respondió correctamente."
+    except Exception as exc:
+        return None, f"No pude consultar GitHub: {exc}"
+
+
+def _render_portadas_status(obras):
+    st.markdown("### Estado de portadas")
+    local_files = _image_files(PORTADAS_DIR)
+    persist_files = _image_files(PERSIST_PORTADAS_DIR)
+    remote_count, remote_msg = _remote_covers_count()
+    rutas_locales = [str(o.get("portada_path") or "") for o in obras if str(o.get("portada_path") or "").startswith("uploads/portadas/")]
+    faltantes = [r for r in rutas_locales if r and not Path(r).exists()]
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Portadas locales", len(local_files))
+    c2.metric("Copias persistentes", len(persist_files))
+    c3.metric("En GitHub", "?" if remote_count is None else remote_count)
+    c4.metric("Rutas faltantes", len(faltantes))
+    status = get_last_upload_status()
+    msg = status.get("message") or "Aún no hay una subida de portada registrada en esta sesión."
+    if status.get("ok") is True:
+        st.success(msg)
+    elif status.get("ok") is False:
+        st.error(msg)
+    else:
+        st.info(msg)
+    st.caption(remote_msg)
+    if faltantes:
+        st.warning("Hay obras que apuntan a portadas locales que ya no existen. Debes volver a subir esas portadas para poder respaldarlas.")
+        st.dataframe(pd.DataFrame([{"ruta_faltante": r} for r in faltantes]), use_container_width=True, hide_index=True)
+    if st.button("🔁 Intentar restaurar portadas desde GitHub", key="restore_covers_diag"):
+        ok, restore_msg = persistent_storage.restore_cover_images(PORTADAS_DIR, PERSIST_PORTADAS_DIR)
+        if ok:
+            st.success(restore_msg)
+        else:
+            st.warning(restore_msg)
+        st.rerun()
 
 
 def render_diagnostico():
     st.subheader("🧰 Diagnóstico y mantenimiento")
     st.caption("Panel seguro para revisar salud de datos, columnas, dependencias, backups y reparaciones básicas.")
-
     db.init_db()
     obras = db.list_obras()
-
     with db.get_conn() as conn:
         counts = {table: _table_count(conn, table) for table in ["obras", "capitulos", "actividad", "personajes", "votos_personaje", "canons"]}
         missing_obras = _missing_columns(conn, "obras", db.OBRAS_COLUMNS)
         missing_canons = _missing_columns(conn, "canons", db.CANONS_COLUMNS)
         cols_obras = _columns(conn, "obras")
-
     deps = _diagnose_dependencies()
     flags = _health_flags(obras, deps, missing_obras, missing_canons)
-
     if flags:
         st.warning("Estado general: revisar — " + ", ".join(sorted(set(flags))))
     else:
         st.success("Estado general: estable. No se detectaron problemas básicos.")
-
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Obras", counts.get("obras", 0))
     c2.metric("Capítulos", counts.get("capitulos", 0))
     c3.metric("Actividad", counts.get("actividad", 0))
     c4.metric("Canons", counts.get("canons", 0))
-
     st.markdown("### Estado técnico")
     if db.DB_PATH.exists():
         st.success(f"Base de datos encontrada: {db.DB_PATH}")
     else:
         st.warning("La base de datos todavía no existe.")
-
     dep_df = pd.DataFrame([{"dependencia": k, "ok": "✅" if v else "❌"} for k, v in deps.items()])
     st.dataframe(dep_df, use_container_width=True, hide_index=True)
-
     if missing_obras or missing_canons:
         st.warning("Hay columnas faltantes. Pulsa reparar esquema para ejecutar migración segura.")
         if missing_obras:
@@ -237,10 +269,9 @@ def render_diagnostico():
             st.write("Faltan en canons:", ", ".join(missing_canons))
     else:
         st.success("Columnas principales completas.")
-
     with st.expander("Ver columnas de obras", expanded=False):
         st.write(", ".join(cols_obras))
-
+    _render_portadas_status(obras)
     st.markdown("### Backups")
     b1, b2, b3 = st.columns(3)
     with b1:
@@ -261,14 +292,12 @@ def render_diagnostico():
             target = _backup_csv()
             st.success(f"CSV creado: {target}")
             _render_download_for_file(target)
-
     if BACKUP_DIR.exists():
         backups = sorted(BACKUP_DIR.glob("*"), reverse=True)[:10]
         if backups:
             st.caption("Últimos backups/exportaciones")
             for path in backups:
                 st.write(f"- {path.name}")
-
     st.markdown("### Reparaciones seguras")
     st.caption("Estas acciones no borran obras ni capítulos. Antes de usarlas, crea un backup si vas a hacer mantenimiento masivo.")
     r1, r2, r3 = st.columns(3)
@@ -284,7 +313,6 @@ def render_diagnostico():
         if st.button("Normalizar etiquetas", key="normalize_tags"):
             count = _normalize_all_tags(obras)
             st.success(f"Obras normalizadas: {count}")
-
     st.markdown("### Duplicados detectados")
     dupes = _find_duplicates(obras)
     if not dupes:
@@ -296,18 +324,10 @@ def render_diagnostico():
                 st.write(f"Original: **{original.get('titulo')}** — id {original.get('id')}")
                 st.write(f"Duplicado: **{duplicate.get('titulo')}** — id {duplicate.get('id')}")
                 st.caption("No se fusiona ni borra automáticamente desde aquí para evitar pérdida de datos.")
-                merge_fields = st.multiselect(
-                    "Preparar comparación de campos",
-                    ["sinopsis", "portada_path", "etiquetas", "capitulos_publicados", "capitulo_total", "temporada_total", "fandom", "ship", "universo_au"],
-                    default=["sinopsis", "portada_path", "etiquetas"],
-                    key=f"diag_dupe_fields_{idx}",
-                )
+                merge_fields = st.multiselect("Preparar comparación de campos", ["sinopsis", "portada_path", "etiquetas", "capitulos_publicados", "capitulo_total", "temporada_total", "fandom", "ship", "universo_au"], default=["sinopsis", "portada_path", "etiquetas"], key=f"diag_dupe_fields_{idx}")
                 if merge_fields:
-                    rows = []
-                    for field in merge_fields:
-                        rows.append({"campo": field, "original": original.get(field, ""), "duplicado": duplicate.get(field, "")})
+                    rows = [{"campo": field, "original": original.get(field, ""), "duplicado": duplicate.get(field, "")} for field in merge_fields]
                     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-
     st.markdown("### Resumen rápido de datos")
     if obras:
         df = pd.DataFrame(obras)
