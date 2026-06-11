@@ -98,16 +98,30 @@ def _decode_remote_file(cfg, remote_path):
     return base64.b64decode(content)
 
 
+def _remote_cover_items(cfg):
+    covers_path = str(cfg.get("covers_path") or "persist/portadas").strip("/")
+    remote_listing = _get_remote(cfg, covers_path)
+    if not remote_listing:
+        return covers_path, []
+    if isinstance(remote_listing, dict):
+        remote_listing = [remote_listing]
+    items = []
+    for item in remote_listing:
+        if item.get("type") != "file":
+            continue
+        name = item.get("name") or ""
+        if name.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
+            items.append(item)
+    return covers_path, items
+
+
 def restore_cover_images(portadas_dir="uploads/portadas", persist_dir="persist/portadas"):
     if not is_enabled():
         return False, status_message()
     cfg = config()
-    covers_path = str(cfg.get("covers_path") or "persist/portadas").strip("/")
-    remote_listing = _get_remote(cfg, covers_path)
+    covers_path, remote_listing = _remote_cover_items(cfg)
     if not remote_listing:
         return False, "No hay portadas persistentes en GitHub todavía."
-    if isinstance(remote_listing, dict):
-        remote_listing = [remote_listing]
     portadas_dir = Path(portadas_dir)
     persist_dir = Path(persist_dir)
     portadas_dir.mkdir(parents=True, exist_ok=True)
@@ -115,11 +129,7 @@ def restore_cover_images(portadas_dir="uploads/portadas", persist_dir="persist/p
     restored = 0
     skipped = 0
     for item in remote_listing:
-        if item.get("type") != "file":
-            continue
         name = item.get("name") or ""
-        if not name.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
-            continue
         target = portadas_dir / name
         persist_target = persist_dir / name
         if target.exists() and target.stat().st_size > 0 and persist_target.exists() and persist_target.stat().st_size > 0:
@@ -135,12 +145,6 @@ def restore_cover_images(portadas_dir="uploads/portadas", persist_dir="persist/p
 
 
 def restore_missing_cover_paths(obras, portadas_dir="uploads/portadas", persist_dir="persist/portadas"):
-    """Restaura exactamente las portadas que la DB dice necesitar.
-
-    Esto evita depender de que Streamlit conserve persist/portadas después de un reboot.
-    Si una obra tiene portada_path=uploads/portadas/archivo.png y falta localmente,
-    se busca archivo.png directamente en GitHub persist/portadas y se reconstruye.
-    """
     if not is_enabled():
         return False, status_message()
     cfg = config()
@@ -174,6 +178,59 @@ def restore_missing_cover_paths(obras, portadas_dir="uploads/portadas", persist_
     if missing:
         return False, f"Portadas restauradas: {restored}. No encontradas en GitHub: {', '.join(missing[:5])}"
     return True, f"Portadas faltantes restauradas desde GitHub: {restored}."
+
+
+def reassign_missing_covers(db_module, portadas_dir="uploads/portadas", persist_dir="persist/portadas"):
+    """Reasigna portadas existentes en GitHub a obras con portada rota.
+
+    Úsalo cuando la DB apunta a nombres de archivo que ya no existen, pero GitHub sí
+    tiene otras imágenes disponibles en persist/portadas. Actualiza portada_path en la DB.
+    """
+    if not is_enabled():
+        return False, status_message()
+    cfg = config()
+    covers_path, items = _remote_cover_items(cfg)
+    if not items:
+        return False, "No hay portadas en GitHub para reasignar."
+    obras = db_module.list_obras()
+    broken = []
+    used_names = set()
+    for obra in obras:
+        raw = str(obra.get("portada_path") or "")
+        if raw.startswith(("http://", "https://")):
+            continue
+        if raw:
+            used_names.add(Path(raw).name)
+        if raw and not Path(raw).exists():
+            broken.append(obra)
+    if not broken:
+        return True, "No hay rutas rotas para reasignar."
+    available = [item for item in items if (item.get("name") or "") not in used_names]
+    if len(available) < len(broken):
+        available = items[:]
+    portadas_dir = Path(portadas_dir)
+    persist_dir = Path(persist_dir)
+    portadas_dir.mkdir(parents=True, exist_ok=True)
+    persist_dir.mkdir(parents=True, exist_ok=True)
+    changes = []
+    for obra, item in zip(broken, available):
+        name = item.get("name") or ""
+        data = _decode_remote_file(cfg, f"{covers_path}/{name}")
+        if not data:
+            continue
+        local_path = portadas_dir / name
+        persist_path = persist_dir / name
+        local_path.write_bytes(data)
+        persist_path.write_bytes(data)
+        db_module.update_obra(obra["id"], {"portada_path": str(local_path)})
+        changes.append(f"{obra.get('titulo') or obra.get('id')} → {name}")
+    try:
+        upload_db(db_module.DB_PATH, message="Reasignar portadas rotas")
+    except Exception:
+        pass
+    if not changes:
+        return False, "No pude reasignar ninguna portada."
+    return True, "Portadas reasignadas: " + "; ".join(changes)
 
 
 def upload_db(db_path, message="Actualizar respaldo persistente de biblioteca"):
