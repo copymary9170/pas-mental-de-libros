@@ -90,6 +90,20 @@ def upload_file(local_path, remote_path, message="Actualizar archivo persistente
     return True, f"Archivo sincronizado: {remote_path}"
 
 
+def delete_file(remote_path, message="Eliminar archivo persistente"):
+    if not is_enabled():
+        return False, status_message()
+    cfg = config()
+    remote_path = str(remote_path).replace("\\", "/").lstrip("/")
+    remote = _get_remote(cfg, remote_path)
+    if not isinstance(remote, dict) or not remote.get("sha"):
+        return False, f"No existe archivo remoto: {remote_path}"
+    payload = {"message": message, "sha": remote["sha"], "branch": cfg["branch"]}
+    response = requests.delete(_content_url(cfg, remote_path), headers=_headers(cfg["token"]), json=payload, timeout=30)
+    response.raise_for_status()
+    return True, f"Archivo eliminado: {remote_path}"
+
+
 def _decode_remote_file(cfg, remote_path):
     file_remote = _get_remote(cfg, remote_path)
     if isinstance(file_remote, dict):
@@ -260,6 +274,42 @@ def reassign_missing_covers(db_module, portadas_dir="uploads/portadas", persist_
         return True, "Portadas reasignadas, pero no pude sincronizar DB: " + str(exc) + ". Cambios: " + "; ".join(changes)
 
     return True, "Portadas reasignadas: " + "; ".join(changes)
+
+
+def cleanup_unused_covers(obras, portadas_dir="uploads/portadas", persist_dir="persist/portadas"):
+    used = set()
+    for obra in obras or []:
+        raw = str(obra.get("portada_path") or "")
+        if raw and not raw.startswith(("http://", "https://")):
+            used.add(Path(raw).name)
+    removed_local = 0
+    removed_persist = 0
+    removed_remote = 0
+    portadas_dir = Path(portadas_dir)
+    persist_dir = Path(persist_dir)
+    for folder, counter_name in [(portadas_dir, "local"), (persist_dir, "persist")]:
+        if not folder.exists():
+            continue
+        for path in folder.glob("*"):
+            if path.is_file() and path.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".gif") and path.name not in used:
+                path.unlink()
+                if counter_name == "local":
+                    removed_local += 1
+                else:
+                    removed_persist += 1
+    if is_enabled():
+        cfg = config()
+        covers_path, items = _remote_cover_items(cfg)
+        for item in items:
+            name = item.get("name") or ""
+            if name and name not in used:
+                try:
+                    ok, _ = delete_file(f"{covers_path}/{name}", message="Eliminar portada no usada")
+                    if ok:
+                        removed_remote += 1
+                except Exception:
+                    pass
+    return True, f"Portadas sobrantes eliminadas: local {removed_local}, persist {removed_persist}, GitHub {removed_remote}. Portadas en uso conservadas: {len(used)}."
 
 
 def upload_db(db_path, message="Actualizar respaldo persistente de biblioteca"):
