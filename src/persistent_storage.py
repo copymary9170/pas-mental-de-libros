@@ -38,11 +38,7 @@ def status_message():
 
 
 def _headers(token):
-    return {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
+    return {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
 
 
 def _content_url(cfg, path=None):
@@ -59,10 +55,6 @@ def _get_remote(cfg, path=None):
 
 
 def restore_db_if_needed(db_path):
-    """Descarga la DB persistente si la DB local no existe o está vacía.
-
-    No pisa una base local que ya tenga datos para evitar pérdidas accidentales.
-    """
     if not is_enabled():
         return False, status_message()
     db_path = Path(db_path)
@@ -81,7 +73,6 @@ def restore_db_if_needed(db_path):
 
 
 def upload_file(local_path, remote_path, message="Actualizar archivo persistente"):
-    """Sube un archivo individual a GitHub usando la misma persistencia."""
     if not is_enabled():
         return False, status_message()
     local_path = Path(local_path)
@@ -91,11 +82,7 @@ def upload_file(local_path, remote_path, message="Actualizar archivo persistente
     remote_path = str(remote_path).replace("\\", "/").lstrip("/")
     remote = _get_remote(cfg, remote_path)
     sha = remote.get("sha") if isinstance(remote, dict) else None
-    payload = {
-        "message": message,
-        "content": base64.b64encode(local_path.read_bytes()).decode("utf-8"),
-        "branch": cfg["branch"],
-    }
+    payload = {"message": message, "content": base64.b64encode(local_path.read_bytes()).decode("utf-8"), "branch": cfg["branch"]}
     if sha:
         payload["sha"] = sha
     response = requests.put(_content_url(cfg, remote_path), headers=_headers(cfg["token"]), json=payload, timeout=30)
@@ -103,13 +90,15 @@ def upload_file(local_path, remote_path, message="Actualizar archivo persistente
     return True, f"Archivo sincronizado: {remote_path}"
 
 
-def restore_cover_images(portadas_dir="uploads/portadas", persist_dir="persist/portadas"):
-    """Restaura portadas respaldadas en GitHub hacia uploads/portadas.
+def _decode_remote_file(cfg, remote_path):
+    file_remote = _get_remote(cfg, remote_path)
+    content = file_remote.get("content", "") if isinstance(file_remote, dict) else ""
+    if not content:
+        return None
+    return base64.b64decode(content)
 
-    La app guarda las rutas de portada como uploads/portadas/<archivo>. Si Streamlit
-    borra el disco local, esta función reconstruye esa carpeta desde persist/portadas
-    del repositorio.
-    """
+
+def restore_cover_images(portadas_dir="uploads/portadas", persist_dir="persist/portadas"):
     if not is_enabled():
         return False, status_message()
     cfg = config()
@@ -133,27 +122,61 @@ def restore_cover_images(portadas_dir="uploads/portadas", persist_dir="persist/p
             continue
         target = portadas_dir / name
         persist_target = persist_dir / name
-        if target.exists() and target.stat().st_size > 0:
+        if target.exists() and target.stat().st_size > 0 and persist_target.exists() and persist_target.stat().st_size > 0:
             skipped += 1
-            if not persist_target.exists():
-                try:
-                    persist_target.write_bytes(target.read_bytes())
-                except Exception:
-                    pass
             continue
-        file_remote = _get_remote(cfg, f"{covers_path}/{name}")
-        content = file_remote.get("content", "") if isinstance(file_remote, dict) else ""
-        if not content:
+        data = _decode_remote_file(cfg, f"{covers_path}/{name}")
+        if not data:
             continue
-        data = base64.b64decode(content)
         target.write_bytes(data)
         persist_target.write_bytes(data)
         restored += 1
     return True, f"Portadas restauradas: {restored}. Ya existentes: {skipped}."
 
 
+def restore_missing_cover_paths(obras, portadas_dir="uploads/portadas", persist_dir="persist/portadas"):
+    """Restaura exactamente las portadas que la DB dice necesitar.
+
+    Esto evita depender de que Streamlit conserve persist/portadas después de un reboot.
+    Si una obra tiene portada_path=uploads/portadas/archivo.png y falta localmente,
+    se busca archivo.png directamente en GitHub persist/portadas y se reconstruye.
+    """
+    if not is_enabled():
+        return False, status_message()
+    cfg = config()
+    covers_path = str(cfg.get("covers_path") or "persist/portadas").strip("/")
+    portadas_dir = Path(portadas_dir)
+    persist_dir = Path(persist_dir)
+    portadas_dir.mkdir(parents=True, exist_ok=True)
+    persist_dir.mkdir(parents=True, exist_ok=True)
+    needed = []
+    for obra in obras or []:
+        raw = str(obra.get("portada_path") or "")
+        if not raw or raw.startswith(("http://", "https://")):
+            continue
+        local_path = Path(raw)
+        if local_path.exists() and local_path.stat().st_size > 0:
+            continue
+        name = local_path.name
+        if name and name.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
+            needed.append((name, local_path))
+    restored = 0
+    missing = []
+    for name, local_path in needed:
+        data = _decode_remote_file(cfg, f"{covers_path}/{name}")
+        if not data:
+            missing.append(name)
+            continue
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        local_path.write_bytes(data)
+        (persist_dir / name).write_bytes(data)
+        restored += 1
+    if missing:
+        return False, f"Portadas restauradas: {restored}. No encontradas en GitHub: {', '.join(missing[:5])}"
+    return True, f"Portadas faltantes restauradas desde GitHub: {restored}."
+
+
 def upload_db(db_path, message="Actualizar respaldo persistente de biblioteca"):
-    """Sube la DB local a GitHub. Si no está configurado, no hace nada."""
     if not is_enabled():
         return False, status_message()
     db_path = Path(db_path)
@@ -162,11 +185,7 @@ def upload_db(db_path, message="Actualizar respaldo persistente de biblioteca"):
     cfg = config()
     remote = _get_remote(cfg)
     sha = remote.get("sha") if remote else None
-    payload = {
-        "message": message,
-        "content": base64.b64encode(db_path.read_bytes()).decode("utf-8"),
-        "branch": cfg["branch"],
-    }
+    payload = {"message": message, "content": base64.b64encode(db_path.read_bytes()).decode("utf-8"), "branch": cfg["branch"]}
     if sha:
         payload["sha"] = sha
     response = requests.put(_content_url(cfg), headers=_headers(cfg["token"]), json=payload, timeout=30)
