@@ -92,10 +92,16 @@ def upload_file(local_path, remote_path, message="Actualizar archivo persistente
 
 def _decode_remote_file(cfg, remote_path):
     file_remote = _get_remote(cfg, remote_path)
-    content = file_remote.get("content", "") if isinstance(file_remote, dict) else ""
-    if not content:
-        return None
-    return base64.b64decode(content)
+    if isinstance(file_remote, dict):
+        content = file_remote.get("content", "")
+        if content:
+            return base64.b64decode(content)
+        download_url = file_remote.get("download_url")
+        if download_url:
+            response = requests.get(download_url, headers=_headers(cfg["token"]), timeout=30)
+            response.raise_for_status()
+            return response.content
+    return None
 
 
 def _remote_cover_items(cfg):
@@ -113,6 +119,20 @@ def _remote_cover_items(cfg):
         if name.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
             items.append(item)
     return covers_path, items
+
+
+def _decode_cover_item(cfg, item):
+    content = item.get("content", "") if isinstance(item, dict) else ""
+    if content:
+        return base64.b64decode(content)
+    download_url = item.get("download_url") if isinstance(item, dict) else None
+    if download_url:
+        response = requests.get(download_url, headers=_headers(cfg["token"]), timeout=30)
+        response.raise_for_status()
+        return response.content
+    covers_path = str(cfg.get("covers_path") or "persist/portadas").strip("/")
+    name = item.get("name") or ""
+    return _decode_remote_file(cfg, f"{covers_path}/{name}")
 
 
 def restore_cover_images(portadas_dir="uploads/portadas", persist_dir="persist/portadas"):
@@ -135,7 +155,7 @@ def restore_cover_images(portadas_dir="uploads/portadas", persist_dir="persist/p
         if target.exists() and target.stat().st_size > 0 and persist_target.exists() and persist_target.stat().st_size > 0:
             skipped += 1
             continue
-        data = _decode_remote_file(cfg, f"{covers_path}/{name}")
+        data = _decode_cover_item(cfg, item)
         if not data:
             continue
         target.write_bytes(data)
@@ -153,6 +173,10 @@ def restore_missing_cover_paths(obras, portadas_dir="uploads/portadas", persist_
     persist_dir = Path(persist_dir)
     portadas_dir.mkdir(parents=True, exist_ok=True)
     persist_dir.mkdir(parents=True, exist_ok=True)
+    remote_names = {}
+    _, items = _remote_cover_items(cfg)
+    for item in items:
+        remote_names[item.get("name") or ""] = item
     needed = []
     for obra in obras or []:
         raw = str(obra.get("portada_path") or "")
@@ -167,7 +191,8 @@ def restore_missing_cover_paths(obras, portadas_dir="uploads/portadas", persist_
     restored = 0
     missing = []
     for name, local_path in needed:
-        data = _decode_remote_file(cfg, f"{covers_path}/{name}")
+        item = remote_names.get(name)
+        data = _decode_cover_item(cfg, item) if item else _decode_remote_file(cfg, f"{covers_path}/{name}")
         if not data:
             missing.append(name)
             continue
@@ -211,7 +236,7 @@ def reassign_missing_covers(db_module, portadas_dir="uploads/portadas", persist_
     for idx, obra in enumerate(broken):
         item = items[idx % len(items)]
         name = item.get("name") or ""
-        data = _decode_remote_file(cfg, f"{covers_path}/{name}")
+        data = _decode_cover_item(cfg, item)
 
         if not data:
             continue
