@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-APP_VERSION = "Paz Mental deploy 2026-06-05 v38 - lector tipo Wattpad"
+APP_VERSION = "Paz Mental deploy 2026-06-05 v39 - fix wrapped args"
 
 try:
     import src.database as db
@@ -18,19 +18,10 @@ try:
     from src.local_time import today_local
     from src.styles import apply_styles
     from src.utils import (
-        ensure_dirs,
-        save_uploaded_file,
-        PORTADAS_DIR,
-        RESPALDOS_DIR,
-        buscar_libros_openlibrary,
-        buscar_series_tvmaze,
-        buscar_peliculas_itunes,
-        buscar_peliculas_tmdb,
-        buscar_series_tmdb,
-        buscar_manga_jikan,
-        buscar_webnovel_openlibrary,
-        buscar_kdramas_tmdb,
-        importar_desde_link,
+        ensure_dirs, save_uploaded_file, PORTADAS_DIR, RESPALDOS_DIR,
+        buscar_libros_openlibrary, buscar_series_tvmaze, buscar_peliculas_itunes,
+        buscar_peliculas_tmdb, buscar_series_tmdb, buscar_manga_jikan,
+        buscar_webnovel_openlibrary, buscar_kdramas_tmdb, importar_desde_link,
     )
     from src.pages.cronometro import render_cronometro
     from src.pages.buscador import render_buscador_avanzado
@@ -57,7 +48,6 @@ except Exception:
 st.set_page_config(page_title="Paz Mental", page_icon="📚", layout="wide")
 apply_styles()
 ensure_dirs()
-
 try:
     persistent_storage.restore_db_if_needed(db.DB_PATH)
     persistent_storage.restore_cover_images(PORTADAS_DIR, "persist/portadas")
@@ -87,19 +77,7 @@ def _wrap_db_writer(name, label):
     wrapped._paz_wrapped = True
     setattr(db, name, wrapped)
 
-
-for _name, _label in [
-    ("add_obra", "Guardar obra y sincronizar biblioteca"),
-    ("update_obra", "Actualizar obra y sincronizar biblioteca"),
-    ("delete_obra", "Eliminar obra y sincronizar biblioteca"),
-    ("add_capitulo", "Guardar capítulo y sincronizar biblioteca"),
-    ("add_personaje", "Guardar personaje y sincronizar biblioteca"),
-    ("add_voto_personaje", "Guardar voto de personaje y sincronizar biblioteca"),
-    ("add_actividad", "Guardar actividad y sincronizar biblioteca"),
-    ("add_canon", "Guardar canon y sincronizar biblioteca"),
-    ("merge_obra_metadata", "Fusionar metadatos y sincronizar biblioteca"),
-    ("add_tiempo_obra", "Guardar tiempo y sincronizar biblioteca"),
-]:
+for _name, _label in [("add_obra", "Guardar obra y sincronizar biblioteca"), ("update_obra", "Actualizar obra y sincronizar biblioteca"), ("delete_obra", "Eliminar obra y sincronizar biblioteca"), ("add_capitulo", "Guardar capítulo y sincronizar biblioteca"), ("add_personaje", "Guardar personaje y sincronizar biblioteca"), ("add_voto_personaje", "Guardar voto de personaje y sincronizar biblioteca"), ("add_actividad", "Guardar actividad y sincronizar biblioteca"), ("add_canon", "Guardar canon y sincronizar biblioteca"), ("merge_obra_metadata", "Fusionar metadatos y sincronizar biblioteca"), ("add_tiempo_obra", "Guardar tiempo y sincronizar biblioteca")]:
     _wrap_db_writer(_name, _label)
 
 st.markdown("""
@@ -116,40 +94,17 @@ div[data-baseweb="select"] span{color:#0f172a!important;font-size:.72rem!importa
 """, unsafe_allow_html=True)
 
 TMDB_API_KEY = st.secrets.get("TMDB_API_KEY", "")
-
-NAV_OPTIONS = [
-    "🏠 Inicio",
-    "🔎 Buscar",
-    "⏱️ Cronómetro",
-    "🏆 Wrapped",
-    "📚 Biblioteca",
-    "📖 Leer",
-    "🎲 Ruleta",
-    "➕ Agregar",
-    "🔗 Links",
-    "🔔 AO3",
-    "📝 Capítulos",
-    "📅 Calendario",
-    "🌌 Canons",
-    "🛟 Respaldo",
-    "🧰 Diagnóstico",
-    "⬇️ Exportar",
-]
-
+NAV_OPTIONS = ["🏠 Inicio", "🔎 Buscar", "⏱️ Cronómetro", "🏆 Wrapped", "📚 Biblioteca", "📖 Leer", "🎲 Ruleta", "➕ Agregar", "🔗 Links", "🔔 AO3", "📝 Capítulos", "📅 Calendario", "🌌 Canons", "🛟 Respaldo", "🧰 Diagnóstico", "⬇️ Exportar"]
 
 def ir_a(seccion):
     st.session_state["main_nav"] = seccion
     st.rerun()
 
-
 def buscar_global(query, fuente):
     q = query.strip()
-    if fuente == "Libros":
-        return buscar_libros_openlibrary(q), "book"
-    if fuente == "Manga / manhwa / novelas ligeras":
-        return (buscar_manga_jikan(q) or buscar_libros_openlibrary(q)), "manga"
-    if fuente == "Webnovels":
-        return (buscar_webnovel_openlibrary(q) or buscar_manga_jikan(q)), "webnovel"
+    if fuente == "Libros": return buscar_libros_openlibrary(q), "book"
+    if fuente == "Manga / manhwa / novelas ligeras": return (buscar_manga_jikan(q) or buscar_libros_openlibrary(q)), "manga"
+    if fuente == "Webnovels": return (buscar_webnovel_openlibrary(q) or buscar_manga_jikan(q)), "webnovel"
     if fuente == "Peliculas":
         resultados = buscar_peliculas_tmdb(q, TMDB_API_KEY) if TMDB_API_KEY else []
         return (resultados or buscar_peliculas_itunes(q) or buscar_series_tvmaze(q)), "movie"
@@ -159,30 +114,24 @@ def buscar_global(query, fuente):
     resultados = buscar_series_tmdb(q, TMDB_API_KEY) if TMDB_API_KEY else []
     return (resultados or buscar_series_tvmaze(q)), "tv"
 
-
 def _to_int(value, default=0):
     try:
-        if value is None or value == "":
-            return default
+        if value is None or value == "": return default
         return int(value)
     except Exception:
         return default
 
-
 def _to_float(value, default=0.0):
     try:
-        if value is None or value == "":
-            return default
+        if value is None or value == "": return default
         return float(value)
     except Exception:
         return default
-
 
 def _quality_import(item):
     checks = [bool(item.get("titulo")), bool(item.get("autor")), bool(item.get("tipo")), bool(item.get("sinopsis")), bool(item.get("portada_path")), bool(item.get("link_original") or item.get("url_fuente")), _to_int(item.get("capitulo_total") or item.get("capitulos_publicados"), 0) > 0, bool(item.get("fecha_publicacion") or item.get("anio")), bool(item.get("mood") or item.get("resena") or item.get("comentario"))]
     weights = [12, 8, 8, 12, 12, 12, 8, 8, 8]
     return min(100, sum(w for ok, w in zip(checks, weights) if ok))
-
 
 def guardar_importado(item, tipo, estado):
     cap_total = _to_int(item.get("capitulo_total"), 0)
@@ -192,56 +141,21 @@ def guardar_importado(item, tipo, estado):
     temporada_total = max(1, _to_int(item.get("temporada_total"), temporada_actual))
     fuente = item.get("fuente_importacion", item.get("ultima_importacion_fuente", "fuente externa"))
     data = dict(item)
-    data.update({
-        "titulo": item.get("titulo", "Sin titulo"),
-        "autor": item.get("autor", ""),
-        "tipo": tipo or item.get("tipo", "Otro"),
-        "estado_lectura": estado or item.get("estado_lectura", "Pendiente"),
-        "estado_publicacion": item.get("estado_publicacion", "No aplica"),
-        "temporada_actual": temporada_actual,
-        "temporada_total": temporada_total,
-        "capitulo_actual": cap_vistos,
-        "capitulo_total": cap_total,
-        "capitulos_publicados": cap_publicados,
-        "capitulos_vistos": cap_vistos,
-        "ultimo_capitulo_visto": cap_vistos,
-        "ultimo_capitulo_publicado": cap_publicados,
-        "clasificacion": _to_float(item.get("clasificacion"), 0),
-        "estrellas": _to_int(item.get("estrellas"), 0),
-        "favorito": _to_int(item.get("favorito"), 0),
-        "prioridad": _to_int(item.get("prioridad"), 0),
-        "es_crossover": _to_int(item.get("es_crossover"), 0),
-        "ao3_tracking": _to_int(item.get("ao3_tracking"), 0),
-        "fuente_confiabilidad": _to_int(item.get("fuente_confiabilidad"), 0),
-        "ultima_importacion_fuente": fuente,
-        "fecha_inicio": item.get("fecha_inicio") or str(today_local()),
-        "link_original": item.get("link_original") or item.get("url_fuente", ""),
-        "link_respaldo": item.get("link_respaldo", ""),
-        "portada_path": item.get("portada_path", ""),
-        "etiquetas": item.get("etiquetas", "importado"),
-        "sinopsis": item.get("sinopsis", ""),
-        "motivo_estado": item.get("motivo_estado") or f"Importado desde {fuente}.",
-    })
+    data.update({"titulo": item.get("titulo", "Sin titulo"), "autor": item.get("autor", ""), "tipo": tipo or item.get("tipo", "Otro"), "estado_lectura": estado or item.get("estado_lectura", "Pendiente"), "estado_publicacion": item.get("estado_publicacion", "No aplica"), "temporada_actual": temporada_actual, "temporada_total": temporada_total, "capitulo_actual": cap_vistos, "capitulo_total": cap_total, "capitulos_publicados": cap_publicados, "capitulos_vistos": cap_vistos, "ultimo_capitulo_visto": cap_vistos, "ultimo_capitulo_publicado": cap_publicados, "clasificacion": _to_float(item.get("clasificacion"), 0), "estrellas": _to_int(item.get("estrellas"), 0), "favorito": _to_int(item.get("favorito"), 0), "prioridad": _to_int(item.get("prioridad"), 0), "es_crossover": _to_int(item.get("es_crossover"), 0), "ao3_tracking": _to_int(item.get("ao3_tracking"), 0), "fuente_confiabilidad": _to_int(item.get("fuente_confiabilidad"), 0), "ultima_importacion_fuente": fuente, "fecha_inicio": item.get("fecha_inicio") or str(today_local()), "link_original": item.get("link_original") or item.get("url_fuente", ""), "link_respaldo": item.get("link_respaldo", ""), "portada_path": item.get("portada_path", ""), "etiquetas": item.get("etiquetas", "importado"), "sinopsis": item.get("sinopsis", ""), "motivo_estado": item.get("motivo_estado") or f"Importado desde {fuente}."})
     data["calidad_datos"] = _to_int(item.get("calidad_datos"), 0) or _quality_import(data)
     db.add_obra(data)
 
-
 def _tipo_actividad_biblioteca(row):
     tipo = str(row.get("tipo") or "").lower()
-    if tipo in ["anime", "serie", "kdrama", "documental", "podcast"]:
-        return "avance desde biblioteca"
-    if tipo == "pelicula":
-        return "pelicula vista"
+    if tipo in ["anime", "serie", "kdrama", "documental", "podcast"]: return "avance desde biblioteca"
+    if tipo == "pelicula": return "pelicula vista"
     return "lectura desde biblioteca"
-
 
 def _registrar_avance_biblioteca(row, cantidad, accion):
     cantidad = int(cantidad or 0)
-    if cantidad <= 0:
-        return
+    if cantidad <= 0: return
     fecha_local = str(today_local())
     db.add_actividad({"obra_id": row.get("id"), "capitulo_id": None, "fecha": fecha_local, "tipo_actividad": _tipo_actividad_biblioteca(row), "cantidad": cantidad, "minutos": 0, "mood": row.get("mood") or "", "comentario": f"{accion} desde Biblioteca", "premio": "avance rapido biblioteca"})
-
 
 def _biblioteca_quick_actions_compacta(row):
     actual = biblioteca_page._safe_int(row.get("capitulos_vistos") or row.get("capitulo_actual"), 0)
@@ -252,54 +166,38 @@ def _biblioteca_quick_actions_compacta(row):
         st.markdown(f"""<div class="lib-action-contrast-title">Acciones <span class="lib-action-contrast-pill">{actual}/{total_txt}</span></div><div class="lib-action-contrast-sub">{titulo[:48]} · solo esta obra</div>""", unsafe_allow_html=True)
         q1, q2, q3, q4, q5, q6 = st.columns([0.42, 0.65, 0.42, 0.62, 1.55, 0.70])
         if q1.button("❤️", key=f"lib_fav_{row['id']}", help="Favorito", use_container_width=True):
-            db.update_obra(row["id"], {"favorito": 0 if biblioteca_page._safe_int(row.get("favorito"), 0) else 1})
-            st.rerun()
+            db.update_obra(row["id"], {"favorito": 0 if biblioteca_page._safe_int(row.get("favorito"), 0) else 1}); st.rerun()
         cantidad = q2.number_input("Caps", min_value=0, value=1, step=1, key=f"lib_sum_qty_{row['id']}", label_visibility="collapsed")
         if q3.button("+", key=f"lib_sum_btn_{row['id']}", help="Sumar capítulos vistos", use_container_width=True):
-            if int(cantidad or 0) <= 0:
-                st.warning("Coloca un número mayor a 0 para sumar avance.")
+            if int(cantidad or 0) <= 0: st.warning("Coloca un número mayor a 0 para sumar avance.")
             else:
                 nuevo = actual + int(cantidad)
-                if publicados > 0:
-                    nuevo = min(nuevo, publicados)
+                if publicados > 0: nuevo = min(nuevo, publicados)
                 avance_real = max(0, nuevo - actual)
                 fecha_local = str(today_local())
                 db.update_obra(row["id"], {"capitulos_vistos": nuevo, "capitulo_actual": nuevo, "ultimo_capitulo_visto": nuevo, "fecha_ultimo_capitulo_visto": fecha_local})
-                _registrar_avance_biblioteca(row, avance_real, f"Avance {actual} → {nuevo}")
-                st.rerun()
+                _registrar_avance_biblioteca(row, avance_real, f"Avance {actual} → {nuevo}"); st.rerun()
         if q4.button("Día", key=f"lib_done_{row['id']}", help="Poner avance al último capítulo publicado", use_container_width=True):
-            avance_real = max(0, publicados - actual)
-            fecha_local = str(today_local())
+            avance_real = max(0, publicados - actual); fecha_local = str(today_local())
             db.update_obra(row["id"], {"capitulos_vistos": publicados, "capitulo_actual": publicados, "ultimo_capitulo_visto": publicados, "fecha_ultimo_capitulo_visto": fecha_local})
-            _registrar_avance_biblioteca(row, avance_real, f"Puesta al día {actual} → {publicados}")
-            st.rerun()
+            _registrar_avance_biblioteca(row, avance_real, f"Puesta al día {actual} → {publicados}"); st.rerun()
         estado_col, save_col = q5.columns([0.76, 0.24])
         estado = estado_col.selectbox("Estado", biblioteca_page.ESTADOS, index=biblioteca_page.ESTADOS.index(row.get("estado_lectura")) if row.get("estado_lectura") in biblioteca_page.ESTADOS else 0, key=f"lib_estado_{row['id']}", label_visibility="collapsed")
-        if save_col.button("💾", key=f"lib_save_estado_{row['id']}", help="Guardar estado", use_container_width=True):
-            db.update_obra(row["id"], {"estado_lectura": estado})
-            st.rerun()
-        if q6.button("Gráfica", key=f"lib_graph_{row['id']}", help="Ver evolución por capítulos", use_container_width=True):
-            st.session_state["biblioteca_graph_id"] = None if str(st.session_state.get("biblioteca_graph_id")) == str(row.get("id")) else row.get("id")
-            st.rerun()
-
+        if save_col.button("💾", key=f"lib_save_estado_{row['id']}", help="Guardar estado", use_container_width=True): db.update_obra(row["id"], {"estado_lectura": estado}); st.rerun()
+        if q6.button("Gráfica", key=f"lib_graph_{row['id']}", help="Ver evolución por capítulos", use_container_width=True): st.session_state["biblioteca_graph_id"] = None if str(st.session_state.get("biblioteca_graph_id")) == str(row.get("id")) else row.get("id"); st.rerun()
 
 def _render_activity_admin():
     with st.expander("🛠️ Corregir o eliminar actividad del calendario", expanded=False):
         st.caption("Úsalo para mover registros que quedaron en el día equivocado o borrar duplicados. Solo cambia la fila seleccionada.")
-        hoy = today_local()
-        c1, c2 = st.columns(2)
+        hoy = today_local(); c1, c2 = st.columns(2)
         desde = c1.date_input("Ver desde", value=hoy - timedelta(days=7), key="admin_act_desde")
         hasta = c2.date_input("Ver hasta", value=hoy + timedelta(days=2), key="admin_act_hasta")
         rows = db.list_actividad(str(desde), str(hasta))
-        if not rows:
-            st.info("No hay actividad en ese rango.")
-            return
-        df_admin = pd.DataFrame(rows)
-        cols = [c for c in ["id", "fecha", "titulo", "tipo_actividad", "cantidad", "minutos", "mood", "premio", "comentario"] if c in df_admin.columns]
+        if not rows: st.info("No hay actividad en ese rango."); return
+        df_admin = pd.DataFrame(rows); cols = [c for c in ["id", "fecha", "titulo", "tipo_actividad", "cantidad", "minutos", "mood", "premio", "comentario"] if c in df_admin.columns]
         st.dataframe(df_admin[cols], use_container_width=True, hide_index=True)
         opciones = {f"#{r.get('id')} · {r.get('fecha')} · {r.get('titulo') or 'Sin título'} · {r.get('cantidad') or 0} caps · {r.get('minutos') or 0} min": r for r in rows}
-        selected_label = st.selectbox("Registro a corregir", list(opciones.keys()), key="admin_act_select")
-        registro = opciones[selected_label]
+        selected_label = st.selectbox("Registro a corregir", list(opciones.keys()), key="admin_act_select"); registro = opciones[selected_label]
         e1, e2, e3 = st.columns(3)
         nueva_fecha = e1.date_input("Nueva fecha", value=pd.to_datetime(registro.get("fecha"), errors="coerce").date() if registro.get("fecha") else hoy, key="admin_act_fecha")
         nueva_cantidad = e2.number_input("Capítulos/eventos", min_value=0, value=int(registro.get("cantidad") or 0), step=1, key="admin_act_cantidad")
@@ -310,83 +208,43 @@ def _render_activity_admin():
         b1, b2 = st.columns(2)
         if b1.button("💾 Guardar corrección", key="admin_act_guardar"):
             with db.get_conn() as conn:
-                conn.execute("UPDATE actividad SET fecha=?, cantidad=?, minutos=?, mood=?, premio=?, comentario=? WHERE id=?", (str(nueva_fecha), int(nueva_cantidad or 0), int(nuevos_minutos or 0), nuevo_mood, nuevo_premio, nuevo_comentario, registro.get("id")))
-                conn.commit()
-            _sync_persistent_db("Corregir actividad del calendario")
-            st.success("Actividad corregida.")
-            st.rerun()
+                conn.execute("UPDATE actividad SET fecha=?, cantidad=?, minutos=?, mood=?, premio=?, comentario=? WHERE id=?", (str(nueva_fecha), int(nueva_cantidad or 0), int(nuevos_minutos or 0), nuevo_mood, nuevo_premio, nuevo_comentario, registro.get("id"))); conn.commit()
+            _sync_persistent_db("Corregir actividad del calendario"); st.success("Actividad corregida."); st.rerun()
         confirmar = b2.checkbox("Confirmo eliminar", key="admin_act_confirm_delete")
         if b2.button("🗑️ Eliminar registro", key="admin_act_eliminar"):
-            if not confirmar:
-                st.warning("Marca la confirmación para eliminar.")
+            if not confirmar: st.warning("Marca la confirmación para eliminar.")
             else:
-                with db.get_conn() as conn:
-                    conn.execute("DELETE FROM actividad WHERE id=?", (registro.get("id"),))
-                    conn.commit()
-                _sync_persistent_db("Eliminar actividad del calendario")
-                st.success("Actividad eliminada.")
-                st.rerun()
-
+                with db.get_conn() as conn: conn.execute("DELETE FROM actividad WHERE id=?", (registro.get("id"),)); conn.commit()
+                _sync_persistent_db("Eliminar actividad del calendario"); st.success("Actividad eliminada."); st.rerun()
 
 biblioteca_page._quick_actions = _biblioteca_quick_actions_compacta
 render_biblioteca = biblioteca_page.render_biblioteca
-
-obras = db.list_obras()
-df = pd.DataFrame(obras)
-
-st.markdown("""
-<div class="app-hero"><div><div class="hero-label">Bookmory + TV Time personal</div><h1>Paz Mental</h1><p>Biblioteca de libros, fanfics, manga, manhwa, webnovels, kdramas, series, anime y peliculas.</p></div></div>
-""", unsafe_allow_html=True)
-
-if "main_nav" not in st.session_state or st.session_state["main_nav"] not in NAV_OPTIONS:
-    st.session_state["main_nav"] = "🏠 Inicio"
-
+obras = db.list_obras(); df = pd.DataFrame(obras)
+st.markdown("""<div class="app-hero"><div><div class="hero-label">Bookmory + TV Time personal</div><h1>Paz Mental</h1><p>Biblioteca de libros, fanfics, manga, manhwa, webnovels, kdramas, series, anime y peliculas.</p></div></div>""", unsafe_allow_html=True)
+if "main_nav" not in st.session_state or st.session_state["main_nav"] not in NAV_OPTIONS: st.session_state["main_nav"] = "🏠 Inicio"
 nav = st.radio("Navegación", NAV_OPTIONS, horizontal=True, key="main_nav", label_visibility="collapsed")
-
 if nav != "🏠 Inicio":
     c_nav1, c_nav2 = st.columns(2)
-    if c_nav1.button("🏠 Volver al inicio", key=f"volver_inicio_{nav}"):
-        ir_a("🏠 Inicio")
-    if c_nav2.button("🔙 Ir a biblioteca", key=f"volver_biblioteca_{nav}"):
-        ir_a("📚 Biblioteca")
-
-if nav == "🏠 Inicio":
-    render_inicio(obras)
-elif nav == "🔎 Buscar":
-    st.info("Versión del buscador: Fase 8 pro con cache, merge seguro, paginación, tags y preview.")
-    render_buscador_avanzado(obras, buscar_global, guardar_importado)
-elif nav == "⏱️ Cronómetro":
-    render_cronometro(obras, db.add_actividad, db.update_obra, db.list_actividad)
-elif nav == "🏆 Wrapped":
-    render_reportes(obras, db.list_actividad, getattr(db, "list_capitulos", None), getattr(db, "list_votos_personaje", None))
-elif nav == "📚 Biblioteca":
-    render_biblioteca(obras)
-    render_biblioteca_insights(obras, getattr(db, "list_capitulos", None))
-elif nav == "📖 Leer":
-    render_lector(obras, db.list_capitulos, db.get_obra)
-elif nav == "🎲 Ruleta":
-    render_ruleta(obras)
-elif nav == "➕ Agregar":
-    render_agregar_manual(obras, db.add_obra, save_uploaded_file, PORTADAS_DIR, RESPALDOS_DIR)
-elif nav == "🔗 Links":
-    render_importar_link(obras, importar_desde_link, guardar_importado, save_uploaded_file, PORTADAS_DIR)
-elif nav == "🔔 AO3":
-    render_ao3_updates(obras)
-elif nav == "📝 Capítulos":
-    render_capitulos(obras, db.list_capitulos, db.get_obra, db.add_capitulo, getattr(db, "list_personajes", None), getattr(db, "add_personaje", None), getattr(db, "add_voto_personaje", None), getattr(db, "list_votos_personaje", None), save_uploaded_file, PORTADAS_DIR)
-elif nav == "📅 Calendario":
-    render_calendario(db.list_actividad)
-    _render_activity_admin()
-elif nav == "🌌 Canons":
-    render_canons(db.add_canon, db.list_canons)
-elif nav == "🛟 Respaldo":
-    render_respaldo()
-elif nav == "🧰 Diagnóstico":
-    render_diagnostico()
+    if c_nav1.button("🏠 Volver al inicio", key=f"volver_inicio_{nav}"): ir_a("🏠 Inicio")
+    if c_nav2.button("🔙 Ir a biblioteca", key=f"volver_biblioteca_{nav}"): ir_a("📚 Biblioteca")
+if nav == "🏠 Inicio": render_inicio(obras)
+elif nav == "🔎 Buscar": st.info("Versión del buscador: Fase 8 pro con cache, merge seguro, paginación, tags y preview."); render_buscador_avanzado(obras, buscar_global, guardar_importado)
+elif nav == "⏱️ Cronómetro": render_cronometro(obras, db.add_actividad, db.update_obra, db.list_actividad)
+elif nav == "🏆 Wrapped": render_reportes(obras, db.list_actividad)
+elif nav == "📚 Biblioteca": render_biblioteca(obras); render_biblioteca_insights(obras, getattr(db, "list_capitulos", None))
+elif nav == "📖 Leer": render_lector(obras, db.list_capitulos, db.get_obra)
+elif nav == "🎲 Ruleta": render_ruleta(obras)
+elif nav == "➕ Agregar": render_agregar_manual(obras, db.add_obra, save_uploaded_file, PORTADAS_DIR, RESPALDOS_DIR)
+elif nav == "🔗 Links": render_importar_link(obras, importar_desde_link, guardar_importado, save_uploaded_file, PORTADAS_DIR)
+elif nav == "🔔 AO3": render_ao3_updates(obras)
+elif nav == "📝 Capítulos": render_capitulos(obras, db.list_capitulos, db.get_obra, db.add_capitulo, getattr(db, "list_personajes", None), getattr(db, "add_personaje", None), getattr(db, "add_voto_personaje", None), getattr(db, "list_votos_personaje", None), save_uploaded_file, PORTADAS_DIR)
+elif nav == "📅 Calendario": render_calendario(db.list_actividad); _render_activity_admin()
+elif nav == "🌌 Canons": render_canons(db.add_canon, db.list_canons)
+elif nav == "🛟 Respaldo": render_respaldo()
+elif nav == "🧰 Diagnóstico": render_diagnostico()
 elif nav == "⬇️ Exportar":
     st.subheader("Exportar")
-    if df.empty:
-        st.info("No hay datos para exportar.")
+    if df.empty: st.info("No hay datos para exportar.")
     else:
         csv = df.to_csv(index=False).encode("utf-8")
         st.download_button("Descargar CSV", csv, "paz_mental_export.csv", "text/csv")
