@@ -29,6 +29,15 @@ def _top_row(df, col, minimo=1):
     return df.loc[vals.idxmax()].to_dict()
 
 
+def _top_text_row(df, col):
+    if df.empty or col not in df.columns:
+        return None
+    mask = _text(df, col).str.strip().ne("")
+    if not mask.any():
+        return None
+    return df[mask].iloc[0].to_dict()
+
+
 def _award(title, row, reason="", value=None, empty="Sin datos suficientes todavía"):
     with st.container(border=True):
         st.markdown(f"### {title}")
@@ -37,12 +46,9 @@ def _award(title, row, reason="", value=None, empty="Sin datos suficientes todav
             return
         st.markdown(f"**{row.get('titulo') or row.get('obra_titulo') or row.get('nombre') or 'Sin título'}**")
         meta = []
-        if row.get("autor"):
-            meta.append(str(row.get("autor")))
-        if row.get("tipo"):
-            meta.append(str(row.get("tipo")))
-        if row.get("fandom"):
-            meta.append(str(row.get("fandom")))
+        for key in ["autor", "tipo", "fandom", "ship"]:
+            if row.get(key):
+                meta.append(str(row.get(key)))
         if meta:
             st.caption(" · ".join(meta))
         if value is not None:
@@ -83,11 +89,6 @@ def aplicar_filtros(df):
     with col3:
         ship = st.multiselect("Ship", _safe_unique(df, "ship"))
         crossover = st.selectbox("Crossover", ["Todos", "Solo crossovers", "Sin crossovers"])
-    col4, col5 = st.columns(2)
-    with col4:
-        origen_tipo = st.multiselect("Tipo de obra base usada", _safe_unique(df, "obra_original_tipo"))
-    with col5:
-        universo = st.multiselect("Universo / AU", _safe_unique(df, "universo_au"))
     resultado = df.copy()
     if tipo:
         resultado = resultado[resultado["tipo"].astype(str).isin(tipo)]
@@ -99,10 +100,6 @@ def aplicar_filtros(df):
         resultado = resultado[resultado["obra_original_nombre"].astype(str).isin(canon)]
     if ship and "ship" in resultado.columns:
         resultado = resultado[resultado["ship"].astype(str).isin(ship)]
-    if origen_tipo and "obra_original_tipo" in resultado.columns:
-        resultado = resultado[resultado["obra_original_tipo"].astype(str).isin(origen_tipo)]
-    if universo and "universo_au" in resultado.columns:
-        resultado = resultado[resultado["universo_au"].astype(str).isin(universo)]
     if crossover == "Solo crossovers" and "es_crossover" in resultado.columns:
         resultado = resultado[_num(resultado, "es_crossover").astype(int).eq(1)]
     if crossover == "Sin crossovers" and "es_crossover" in resultado.columns:
@@ -137,48 +134,96 @@ def _render_awards_obras(df):
         row = _top_row(df, "tiempo_total_minutos", 1)
         _award("⏳ La que más tiempo me robó", row, value=f"{int(row.get('tiempo_total_minutos') or 0)} min" if row else None)
     with c2:
-        favs = df[_num(df, "favorito").astype(int).eq(1)] if "favorito" in df.columns else pd.DataFrame()
-        row = favs.iloc[0].to_dict() if not favs.empty else None
-        _award("❤️ Favorita marcada", row)
         row = _top_row(df, "nivel_satisfaccion_general", 1)
         _award("👑 Mayor satisfacción", row, value=row.get("nivel_satisfaccion_general") if row else None)
         row = _top_row(df, "nivel_decepcion", 1)
         _award("💔 Mayor decepción", row, value=row.get("nivel_decepcion") if row else None)
+        row = _top_row(df, "nivel_resaca_emocional", 1)
+        _award("🫠 Mayor resaca emocional", row, value=row.get("nivel_resaca_emocional") if row else None)
     with c3:
         row = _top_row(df, "nivel_llanto", 1)
         _award("😭 La que más me hizo llorar", row, value=row.get("nivel_llanto") if row else None)
         row = _top_row(df, "nivel_risa", 1)
         _award("😂 La más divertida", row, value=row.get("nivel_risa") if row else None)
-        row = _top_row(df, "nivel_resaca_emocional", 1)
-        _award("🫠 Mayor resaca emocional", row, value=row.get("nivel_resaca_emocional") if row else None)
-    c4, c5, c6 = st.columns(3)
-    with c4:
         row = _top_row(df, "nivel_cringe", 1)
         _award("🙈 Más cringe", row, value=row.get("nivel_cringe") if row else None)
+    c4, c5, c6 = st.columns(3)
+    with c4:
         row = _top_row(df, "nivel_red_flag", 1)
         _award("🚩 Más red flag", row, value=row.get("nivel_red_flag") if row else None)
-    with c5:
         row = _top_row(df, "nivel_romance", 1)
         _award("💘 Mejor romance", row, value=row.get("nivel_romance") if row else None)
+    with c5:
         row = _top_row(df, "nivel_drama", 1)
         _award("🎭 Más drama", row, value=row.get("nivel_drama") if row else None)
-    with c6:
         row = _top_row(df, "nivel_construccion_mundo", 1)
         _award("🌌 Mejor mundo", row, value=row.get("nivel_construccion_mundo") if row else None)
+    with c6:
         row = _top_row(df, "nivel_politica_intriga", 1)
         _award("🧠 Más política / intriga", row, value=row.get("nivel_politica_intriga") if row else None)
-    c7, c8, c9 = st.columns(3)
-    with c7:
         row = _top_row(df, "nivel_magia_sistema", 1)
         _award("✨ Mejor sistema de magia", row, value=row.get("nivel_magia_sistema") if row else None)
-    with c8:
-        cross = df[_num(df, "es_crossover").astype(int).eq(1)] if "es_crossover" in df.columns else pd.DataFrame()
-        row = cross.iloc[0].to_dict() if not cross.empty else None
-        _award("🧩 Crossover destacado", row)
-    with c9:
-        au = df[_text(df, "universo_au").str.strip().ne("")] if "universo_au" in df.columns else pd.DataFrame()
-        row = au.iloc[0].to_dict() if not au.empty else None
-        _award("🌀 AU destacado", row, reason=row.get("universo_au") if row else "")
+
+
+def _render_spicy_awards(df):
+    st.markdown("## 🔥 Premios de lujuria")
+    st.caption("Para registrar deseo, tensión, escenas spicy, BDSM/kink y romances que subieron la temperatura.")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        row = _top_row(df, "nivel_lujuria", 1)
+        _award("💦 El que más me mojó", row, value=row.get("nivel_lujuria") if row else None)
+        row = _top_row(df, "sensor_lujuria", 1)
+        _award("🔥 Mayor tensión sexual", row, value=row.get("sensor_lujuria") if row else None)
+    with c2:
+        tags = _text(df, "etiquetas").str.lower()
+        bdsm = df[tags.str.contains("bdsm|kink|domin|sumis|bondage|spicy|sadomaso", regex=True, na=False)] if not df.empty else pd.DataFrame()
+        row = bdsm.iloc[0].to_dict() if not bdsm.empty else None
+        _award("⛓️ Mejor BDSM / kink", row, reason="Detectado por etiquetas como BDSM, kink, dominante, sumisión, bondage o spicy.")
+        row = _top_row(df, "nivel_romance", 1)
+        _award("🥵 Romance más caliente", row, value=row.get("nivel_romance") if row else None)
+    with c3:
+        row = _top_row(df, "sensor_lujuria", 1)
+        _award("🫦 Tensión que se podía cortar con cuchillo", row, value=row.get("sensor_lujuria") if row else None)
+        row = _top_text_row(df, "tipo_cringe")
+        _award("😳 Vergonzosamente adictiva", row, reason=row.get("tipo_cringe") if row else "")
+
+
+def _render_oscar_awards(df):
+    st.markdown("## 🎬 Oscar / Globo de Oro personal")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        row = _top_row(df, "nivel_satisfaccion_general", 1) or _top_row(df, "estrellas", 1)
+        _award("🏆 Mejor historia", row, value=(row.get("nivel_satisfaccion_general") or row.get("estrellas")) if row else None)
+        row = _top_row(df, "nivel_decepcion", 1)
+        _award("🥀 Peor historia / mayor desperdicio", row, value=row.get("nivel_decepcion") if row else None)
+        row = _top_row(df, "final_salvo_obra", 1)
+        _award("🎞️ Mejor final", row, value=row.get("final_salvo_obra") if row else None)
+    with c2:
+        row = _top_row(df, "final_arruino_obra", 1)
+        _award("🗑️ Peor final", row, value=row.get("final_arruino_obra") if row else None)
+        row = _top_row(df, "nivel_politica_intriga", 1)
+        _award("✍️ Mejor guion / intriga", row, value=row.get("nivel_politica_intriga") if row else None)
+        row = _top_row(df, "nivel_construccion_mundo", 1)
+        _award("🏰 Mejor dirección de mundo", row, value=row.get("nivel_construccion_mundo") if row else None)
+    with c3:
+        row = _top_text_row(df, "personajes_iniciales_json") or _top_text_row(df, "personajes_capitulo_json")
+        _award("🌟 Mejor personaje principal", row, reason="Se alimenta de personajes guardados cuando estén registrados.")
+        row = _top_row(df, "nivel_red_flag", 1)
+        _award("😈 Mejor villano / amenaza", row, value=row.get("nivel_red_flag") if row else None)
+        row = _top_row(df, "nivel_drama", 1)
+        _award("📺 Mejor drama estilo Globo de Oro", row, value=row.get("nivel_drama") if row else None)
+    c4, c5, c6 = st.columns(3)
+    with c4:
+        row = _top_row(df, "nivel_accion", 1)
+        _award("⚔️ Mejor acción", row, value=row.get("nivel_accion") if row else None)
+    with c5:
+        tags = _text(df, "etiquetas").str.lower()
+        humor_negro = df[tags.str.contains("humor negro|dark comedy|comedia negra|sarcasmo|satira|sátira", regex=True, na=False)] if not df.empty else pd.DataFrame()
+        row = humor_negro.iloc[0].to_dict() if not humor_negro.empty else _top_row(df, "nivel_risa", 1)
+        _award("🖤 Mejor humor negro", row, reason="Detectado por etiquetas o por nivel de risa.", value=row.get("nivel_risa") if row and row.get("nivel_risa") else None)
+    with c6:
+        row = _top_row(df, "nivel_oscuridad", 1)
+        _award("🌑 Mejor historia oscura", row, value=row.get("nivel_oscuridad") if row else None)
 
 
 def _render_awards_capitulos(caps):
@@ -216,14 +261,6 @@ def _render_awards_capitulos(caps):
             emo_df = emos.value_counts().reset_index()
             emo_df.columns = ["emoción", "cantidad"]
             st.dataframe(emo_df, use_container_width=True, hide_index=True)
-    if "categoria_wrapped" in caps.columns:
-        cats = _text(caps, "categoria_wrapped")
-        cats = cats[cats.str.strip().ne("")]
-        if not cats.empty:
-            st.markdown("### 🏅 Categorías Wrapped usadas")
-            cat_df = cats.value_counts().reset_index()
-            cat_df.columns = ["categoría", "cantidad"]
-            st.dataframe(cat_df, use_container_width=True, hide_index=True)
 
 
 def _render_awards_actividad(list_actividad):
@@ -236,10 +273,8 @@ def _render_awards_actividad(list_actividad):
         st.info("Todavía no hay actividad registrada.")
         return actividad
     c1, c2, c3 = st.columns(3)
-    total_caps = int(_num(actividad, "cantidad").sum())
-    total_min = int(_num(actividad, "minutos").sum())
-    c1.metric("Capítulos/eventos registrados", total_caps)
-    c2.metric("Minutos registrados", total_min)
+    c1.metric("Capítulos/eventos registrados", int(_num(actividad, "cantidad").sum()))
+    c2.metric("Minutos registrados", int(_num(actividad, "minutos").sum()))
     if "fecha" in actividad.columns:
         by_day = actividad.groupby("fecha", dropna=True).agg(cantidad=("cantidad", "sum"), minutos=("minutos", "sum")).reset_index()
         if not by_day.empty:
@@ -247,14 +282,6 @@ def _render_awards_actividad(list_actividad):
             c3.metric("Día más activo", str(best["fecha"]), f"{int(best['cantidad'])} caps · {int(best['minutos'])} min")
             st.markdown("### 🔥 Top días de lectura")
             st.dataframe(by_day.sort_values(["cantidad", "minutos"], ascending=False).head(10), use_container_width=True, hide_index=True)
-    if "premio" in actividad.columns:
-        premios = _text(actividad, "premio")
-        premios = premios[premios.str.strip().ne("")]
-        if not premios.empty:
-            st.markdown("### 🏷️ Premios / categorías de actividad más usadas")
-            p_df = premios.value_counts().reset_index()
-            p_df.columns = ["premio", "cantidad"]
-            st.dataframe(p_df, use_container_width=True, hide_index=True)
     return actividad
 
 
@@ -272,6 +299,8 @@ def render_reportes(obras, list_actividad, list_capitulos=None, list_votos_perso
     c3.metric("Crossovers", int(_num(filtrado, "es_crossover").sum()))
     c4.metric("Tiempo total", int(_num(filtrado, "tiempo_total_minutos").sum()))
     _render_awards_obras(filtrado)
+    _render_spicy_awards(filtrado)
+    _render_oscar_awards(filtrado)
     caps = _load_capitulos(list_capitulos, obras)
     _render_awards_capitulos(caps)
     actividad = _render_awards_actividad(list_actividad)
@@ -296,7 +325,7 @@ def render_reportes(obras, list_actividad, list_capitulos=None, list_votos_perso
             top.columns = ["ship", "cantidad"]
             st.dataframe(top, use_container_width=True, hide_index=True)
     st.markdown("## 📚 Obras filtradas")
-    cols = [c for c in ["titulo", "tipo", "estado_lectura", "fandom", "obra_original_nombre", "obra_original_tipo", "universo_au", "ship", "es_crossover", "capitulos_vistos", "capitulos_publicados", "estrellas", "tiempo_total_minutos", "nivel_llanto", "nivel_risa", "nivel_cringe", "nivel_red_flag", "nivel_resaca_emocional"] if c in filtrado.columns]
+    cols = [c for c in ["titulo", "tipo", "estado_lectura", "fandom", "ship", "universo_au", "capitulos_vistos", "capitulos_publicados", "estrellas", "tiempo_total_minutos", "nivel_lujuria", "nivel_romance", "nivel_risa", "nivel_red_flag", "nivel_resaca_emocional"] if c in filtrado.columns]
     st.dataframe(filtrado[cols], use_container_width=True, hide_index=True)
     with st.expander("📅 Ver actividad reciente", expanded=False):
         if actividad.empty:
