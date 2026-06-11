@@ -235,10 +235,20 @@ def _render_portadas_status(obras):
         st.info(msg)
     st.caption(remote_msg)
     if faltantes:
-        st.error("Hay rutas faltantes, pero GitHub sí tiene portadas. Usa el botón de reparación exacta de abajo; no vuelvas a subir imágenes todavía.")
+        st.error("Hay rutas faltantes, pero GitHub sí tiene portadas. No vuelvas a subir imágenes todavía: usa reasignar portadas.")
         st.dataframe(pd.DataFrame([{"ruta_faltante": r, "archivo": Path(r).name} for r in faltantes]), use_container_width=True, hide_index=True)
-    b1, b2 = st.columns(2)
-    if b1.button("🛠️ Reparar rutas faltantes exactas", key="restore_missing_cover_paths_diag"):
+    b1, b2, b3 = st.columns(3)
+    if b1.button("🎨 Reasignar portadas rotas desde GitHub", key="reassign_broken_covers_diag"):
+        if hasattr(persistent_storage, "reassign_missing_covers"):
+            ok, restore_msg = persistent_storage.reassign_missing_covers(db, PORTADAS_DIR, PERSIST_PORTADAS_DIR)
+        else:
+            ok, restore_msg = False, "La función reassign_missing_covers no está disponible en esta versión desplegada."
+        if ok:
+            st.success(restore_msg)
+        else:
+            st.error(restore_msg)
+        st.rerun()
+    if b2.button("🛠️ Reparar rutas exactas", key="restore_missing_cover_paths_diag"):
         if hasattr(persistent_storage, "restore_missing_cover_paths"):
             ok, restore_msg = persistent_storage.restore_missing_cover_paths(obras, PORTADAS_DIR, PERSIST_PORTADAS_DIR)
         else:
@@ -248,7 +258,7 @@ def _render_portadas_status(obras):
         else:
             st.error(restore_msg)
         st.rerun()
-    if b2.button("🔁 Restaurar todas las portadas desde GitHub", key="restore_covers_diag"):
+    if b3.button("🔁 Restaurar todas", key="restore_covers_diag"):
         ok, restore_msg = persistent_storage.restore_cover_images(PORTADAS_DIR, PERSIST_PORTADAS_DIR)
         if ok:
             st.success(restore_msg)
